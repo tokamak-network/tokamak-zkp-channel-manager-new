@@ -1,0 +1,58 @@
+/**
+ * Application Constants
+ */
+
+export const APP_NAME = 'Tokamak ZKP Channel Manager';
+export const APP_VERSION = '0.1.0';
+
+/**
+ * Channel Status
+ */
+export const CHANNEL_STATUS = {
+  PENDING: 'pending',
+  ACTIVE: 'active',
+  FROZEN: 'frozen',
+  CLOSED: 'closed',
+} as const;
+
+export type ChannelStatus = (typeof CHANNEL_STATUS)[keyof typeof CHANNEL_STATUS];
+
+/**
+ * DKG Status
+ */
+export const DKG_STATUS = {
+  WAITING: 'waiting',
+  ROUND1: 'round1',
+  ROUND2: 'round2',
+  COMPLETED: 'completed',
+  FAILED: 'failed',
+} as const;
+
+export type DKGStatus = (typeof DKG_STATUS)[keyof typeof DKG_STATUS];
+
+/**
+ * Time Constants (milliseconds)
+ */
+export const TIME = {
+  SECOND: 1000,
+  MINUTE: 60 * 1000,
+  HOUR: 60 * 60 * 1000,
+  DAY: 24 * 60 * 60 * 1000,
+} as const;
+
+/**
+ * Pagination Defaults
+ */
+export const PAGINATION = {
+  DEFAULT_PAGE_SIZE: 10,
+  MAX_PAGE_SIZE: 100,
+} as const;
+
+/**
+ * Transaction Settings
+ */
+export const TX_SETTINGS = {
+  DEFAULT_GAS_LIMIT: 500000n,
+  CONFIRMATION_BLOCKS: 2,
+} as const;
+
