@@ -3,11 +3,14 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "predev": "npm run contracts:fetch",
+    "prebuild": "npm run contracts:fetch",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "contracts:fetch": "npm run contracts:fetch --workspace=@tokamak/config"
   },
   "dependencies": {
     "next": "^15.1.0",
@@ -24,6 +27,8 @@
     "autoprefixer": "^10.4.0",
     "eslint": "^9.0.0",
     "eslint-config-next": "^15.1.0"
-  }
+  },
+  "workspaces": [
+    "packages/*"
+  ]
 }
-

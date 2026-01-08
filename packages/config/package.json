@@ -8,15 +8,19 @@
     ".": "./src/index.ts",
     "./networks": "./src/networks.ts",
     "./constants": "./src/constants.ts",
-    "./env": "./src/env.ts"
+    "./env": "./src/env.ts",
+    "./contracts": "./src/contracts/index.ts"
   },
   "scripts": {
     "lint": "eslint src --max-warnings 0",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "contracts:fetch": "tsx scripts/fetch-contracts.ts"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
-    "typescript": "^5.7.0"
+    "tsx": "^4.7.0",
+    "typescript": "^5.7.0",
+    "viem": "^2.0.0"
   }
 }
 

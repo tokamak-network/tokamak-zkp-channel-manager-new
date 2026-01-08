@@ -13,3 +13,6 @@ export * from './networks';
 // Environment
 export * from './env';
 
+// Contracts (auto-generated)
+export * from './contracts';
+
