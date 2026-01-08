@@ -23,7 +23,15 @@
       "@/components/*": ["./components/*"],
       "@/lib/*": ["./lib/*"],
       "@/hooks/*": ["./hooks/*"],
-      "@/types/*": ["./types/*"]
+      "@/types/*": ["./types/*"],
+      "@/stores/*": ["./stores/*"],
+      "@/stores": ["./stores"],
+      "@tokamak/ui": ["./packages/ui/src"],
+      "@tokamak/ui/*": ["./packages/ui/src/*"],
+      "@tokamak/config": ["./packages/config/src"],
+      "@tokamak/config/*": ["./packages/config/src/*"],
+      "@tokamak/frost": ["./packages/frost/src"],
+      "@tokamak/frost/*": ["./packages/frost/src/*"]
     }
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],

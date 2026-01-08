@@ -13,3 +13,9 @@ export type { InputProps, InputSize } from './Input';
 export { Badge } from './Badge';
 export type { BadgeProps, BadgeVariant } from './Badge';
 
+export { Stepper } from './Stepper';
+export type { StepperProps } from './Stepper';
+
+export { Label } from './Label';
+export type { LabelProps } from './Label';
+
