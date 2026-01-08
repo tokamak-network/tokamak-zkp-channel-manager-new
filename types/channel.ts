@@ -1,5 +1,5 @@
 /**
- * 채널 관련 타입 정의
+ * Channel Domain Types
  */
 
 export type ChannelStatus = 'pending' | 'active' | 'frozen' | 'closed';
@@ -10,20 +10,20 @@ export interface Channel {
   status: ChannelStatus;
   createdAt: number;
   updatedAt: number;
-  
-  // 참여자
+
+  // Participants
   participants: string[];
   threshold: number;
-  
-  // 자금
+
+  // Funds
   totalDeposit: bigint;
   balances: Record<string, bigint>;
-  
+
   // DKG
   groupPublicKey?: string;
   dkgSessionId?: string;
-  
-  // 상태
+
+  // State
   stateRoot?: string;
   stateVersion: number;
 }
@@ -44,6 +44,6 @@ export interface CreateChannelParams {
 
 export interface ChannelWithBalance extends Channel {
   userBalance: bigint;
-  userShare: number; // percentage
+  userShare: number;
 }
 

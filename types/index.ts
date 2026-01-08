@@ -1,7 +1,7 @@
 /**
- * 타입 배럴 export
+ * App-level Type Definitions
  */
+
 export * from './channel';
-export * from './dkg';
-export * from './proof';
+export * from './api';
 
