@@ -2,7 +2,21 @@
  * Network Configuration
  */
 
-import { CONTRACT_ADDRESSES as AUTO_GENERATED_ADDRESSES } from './contracts/addresses';
+import { CONTRACT_ADDRESSES as AUTO_GENERATED_ADDRESSES } from "./contracts/addresses";
+import {
+  BRIDGECORE_ABI,
+  BRIDGEDEPOSITMANAGER_ABI,
+  BRIDGEPROOFMANAGER_ABI,
+  BRIDGEWITHDRAWMANAGER_ABI,
+  BRIDGEADMINMANAGER_ABI,
+  TOKAMAKVERIFIER_ABI,
+  GROTH16VERIFIER16LEAVES_ABI,
+  GROTH16VERIFIER32LEAVES_ABI,
+  GROTH16VERIFIER64LEAVES_ABI,
+  GROTH16VERIFIER128LEAVES_ABI,
+  ZECFROST_ABI,
+} from "./contracts/abis";
+import type { Abi } from "viem";
 
 export interface NetworkConfig {
   id: number;
@@ -56,8 +70,27 @@ export function isSupportedChain(chainId: number): boolean {
 }
 
 /**
+ * Contract ABIs
+ *
+ * Maps contract names to their ABIs
+ */
+export const CONTRACT_ABIS = {
+  BridgeCore: BRIDGECORE_ABI,
+  BridgeDepositManager: BRIDGEDEPOSITMANAGER_ABI,
+  BridgeProofManager: BRIDGEPROOFMANAGER_ABI,
+  BridgeWithdrawManager: BRIDGEWITHDRAWMANAGER_ABI,
+  BridgeAdminManager: BRIDGEADMINMANAGER_ABI,
+  TokamakVerifier: TOKAMAKVERIFIER_ABI,
+  Groth16Verifier16Leaves: GROTH16VERIFIER16LEAVES_ABI,
+  Groth16Verifier32Leaves: GROTH16VERIFIER32LEAVES_ABI,
+  Groth16Verifier64Leaves: GROTH16VERIFIER64LEAVES_ABI,
+  Groth16Verifier128Leaves: GROTH16VERIFIER128LEAVES_ABI,
+  ZecFrost: ZECFROST_ABI,
+} as const satisfies Record<string, readonly Abi[number][]>;
+
+/**
  * Contract Addresses per Network
- * 
+ *
  * Uses auto-generated addresses from contracts/addresses.ts
  * Sepolia addresses are automatically synced from Tokamak-zk-EVM-contracts repository
  */
@@ -67,41 +100,67 @@ export const CONTRACT_ADDRESSES = {
     BridgeCore: AUTO_GENERATED_ADDRESSES.sepolia.BridgeCore,
     BridgeDepositManager: AUTO_GENERATED_ADDRESSES.sepolia.BridgeDepositManager,
     BridgeProofManager: AUTO_GENERATED_ADDRESSES.sepolia.BridgeProofManager,
-    BridgeWithdrawManager: AUTO_GENERATED_ADDRESSES.sepolia.BridgeWithdrawManager,
+    BridgeWithdrawManager:
+      AUTO_GENERATED_ADDRESSES.sepolia.BridgeWithdrawManager,
     BridgeAdminManager: AUTO_GENERATED_ADDRESSES.sepolia.BridgeAdminManager,
-    
+
     // Verifiers
     TokamakVerifier: AUTO_GENERATED_ADDRESSES.sepolia.TokamakVerifier,
-    Groth16Verifier16Leaves: AUTO_GENERATED_ADDRESSES.sepolia.Groth16Verifier16Leaves,
-    Groth16Verifier32Leaves: AUTO_GENERATED_ADDRESSES.sepolia.Groth16Verifier32Leaves,
-    Groth16Verifier64Leaves: AUTO_GENERATED_ADDRESSES.sepolia.Groth16Verifier64Leaves,
-    Groth16Verifier128Leaves: AUTO_GENERATED_ADDRESSES.sepolia.Groth16Verifier128Leaves,
-    
+    Groth16Verifier16Leaves:
+      AUTO_GENERATED_ADDRESSES.sepolia.Groth16Verifier16Leaves,
+    Groth16Verifier32Leaves:
+      AUTO_GENERATED_ADDRESSES.sepolia.Groth16Verifier32Leaves,
+    Groth16Verifier64Leaves:
+      AUTO_GENERATED_ADDRESSES.sepolia.Groth16Verifier64Leaves,
+    Groth16Verifier128Leaves:
+      AUTO_GENERATED_ADDRESSES.sepolia.Groth16Verifier128Leaves,
+
     // FROST
     ZecFrost: AUTO_GENERATED_ADDRESSES.sepolia.ZecFrost,
   },
   mainnet: {
     // TODO: Update when mainnet contracts are deployed
     BridgeCore: "0x0000000000000000000000000000000000000000" as `0x${string}`,
-    BridgeDepositManager: "0x0000000000000000000000000000000000000000" as `0x${string}`,
-    BridgeProofManager: "0x0000000000000000000000000000000000000000" as `0x${string}`,
-    BridgeWithdrawManager: "0x0000000000000000000000000000000000000000" as `0x${string}`,
-    BridgeAdminManager: "0x0000000000000000000000000000000000000000" as `0x${string}`,
-    TokamakVerifier: "0x0000000000000000000000000000000000000000" as `0x${string}`,
-    Groth16Verifier16Leaves: "0x0000000000000000000000000000000000000000" as `0x${string}`,
-    Groth16Verifier32Leaves: "0x0000000000000000000000000000000000000000" as `0x${string}`,
-    Groth16Verifier64Leaves: "0x0000000000000000000000000000000000000000" as `0x${string}`,
-    Groth16Verifier128Leaves: "0x0000000000000000000000000000000000000000" as `0x${string}`,
+    BridgeDepositManager:
+      "0x0000000000000000000000000000000000000000" as `0x${string}`,
+    BridgeProofManager:
+      "0x0000000000000000000000000000000000000000" as `0x${string}`,
+    BridgeWithdrawManager:
+      "0x0000000000000000000000000000000000000000" as `0x${string}`,
+    BridgeAdminManager:
+      "0x0000000000000000000000000000000000000000" as `0x${string}`,
+    TokamakVerifier:
+      "0x0000000000000000000000000000000000000000" as `0x${string}`,
+    Groth16Verifier16Leaves:
+      "0x0000000000000000000000000000000000000000" as `0x${string}`,
+    Groth16Verifier32Leaves:
+      "0x0000000000000000000000000000000000000000" as `0x${string}`,
+    Groth16Verifier64Leaves:
+      "0x0000000000000000000000000000000000000000" as `0x${string}`,
+    Groth16Verifier128Leaves:
+      "0x0000000000000000000000000000000000000000" as `0x${string}`,
     ZecFrost: "0x0000000000000000000000000000000000000000" as `0x${string}`,
   },
 } as const satisfies Record<NetworkId, Record<string, `0x${string}`>>;
 
 /**
+ * Contract name type
+ */
+export type ContractName = keyof typeof CONTRACT_ABIS;
+
+/**
  * Get contract address
  */
 export function getContractAddress(
-  contract: keyof (typeof CONTRACT_ADDRESSES)["sepolia"],
+  contract: ContractName,
   network: NetworkId = DEFAULT_NETWORK
 ): `0x${string}` {
   return CONTRACT_ADDRESSES[network][contract];
+}
+
+/**
+ * Get contract ABI
+ */
+export function getContractAbi(contract: ContractName): readonly Abi[number][] {
+  return CONTRACT_ABIS[contract];
 }

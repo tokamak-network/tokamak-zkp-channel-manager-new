@@ -5,14 +5,10 @@
  */
 
 // Constants
-export * from './constants';
+export * from "./constants";
 
 // Networks
-export * from './networks';
+export * from "./networks";
 
 // Environment
-export * from './env';
-
-// Contracts (auto-generated)
-export * from './contracts';
-
+export * from "./env";

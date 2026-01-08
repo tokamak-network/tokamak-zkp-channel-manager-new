@@ -8,15 +8,14 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useAccount } from 'wagmi';
-import { usePrepareContractWrite, useContractWrite, useWaitForTransaction } from 'wagmi';
 import { decodeEventLog } from 'viem';
 import { useChannelFormStore, useChannelFlowStore } from '@/stores';
 import { Button, Input, Label, Card, CardContent, CardHeader } from '@tokamak/ui';
-import { BRIDGECORE_ABI, CONTRACT_ADDRESSES } from '@tokamak/config';
-import { DEFAULT_NETWORK } from '@tokamak/config';
+import { getContractAbi, getContractAddress } from '@tokamak/config';
+import { useBridgeCoreWrite, useBridgeCoreWaitForReceipt } from '@/hooks/contract';
+import { useNetworkId } from '@/hooks/contract/utils';
 
 const FIXED_TARGET_CONTRACT = '0xa30fe40285B8f5c0457DbC3B7C8A280373c40044' as `0x${string}`;
-const BRIDGE_CORE_ADDRESS = CONTRACT_ADDRESSES[DEFAULT_NETWORK].BridgeCore;
 
 export function Step1CreateChannel() {
   const { address, isConnected } = useAccount();
@@ -89,6 +88,10 @@ export function Step1CreateChannel() {
     setParticipantCount(numCount);
   };
 
+  const networkId = useNetworkId();
+  const contractAddress = getContractAddress('BridgeCore', networkId);
+  const abi = getContractAbi('BridgeCore');
+
   // Prepare contract call parameters
   const channelParams = useMemo(() => {
     if (!isValid() || !isConnected) return undefined;
@@ -100,32 +103,13 @@ export function Step1CreateChannel() {
     };
   }, [isValid, isConnected, participants]);
 
-  // Prepare contract write
-  const { config, error: prepareError } = usePrepareContractWrite({
-    address: BRIDGE_CORE_ADDRESS,
-    abi: BRIDGECORE_ABI,
-    functionName: 'openChannel',
-    args: channelParams ? [channelParams] : undefined,
-    enabled: Boolean(channelParams) && isConnected,
-  });
-
-  // Contract write
+  // Contract write hook
   const { 
-    write: createChannel, 
-    isLoading: isWriting,
-    data: txData,
+    writeContract,
+    isPending: isWriting,
+    data: txHash,
     error: writeError,
-  } = useContractWrite({
-    ...config,
-    onSuccess(data) {
-      setCreateChannelTxHash(data.hash);
-      setCreatingChannel(false);
-    },
-    onError(error) {
-      setCreateChannelError(error.message);
-      setCreatingChannel(false);
-    },
-  });
+  } = useBridgeCoreWrite();
 
   // Wait for transaction confirmation
   const { 
@@ -133,20 +117,27 @@ export function Step1CreateChannel() {
     isSuccess,
     data: receipt,
     error: waitError,
-  } = useWaitForTransaction({
-    hash: txData?.hash,
-    enabled: !!txData?.hash,
-    onSuccess(data) {
+  } = useBridgeCoreWaitForReceipt({
+    hash: txHash,
+    query: {
+      enabled: !!txHash,
+      retry: true,
+    },
+  });
+
+  // Handle transaction success
+  useEffect(() => {
+    if (receipt && isSuccess) {
       // Extract channel ID from transaction receipt logs
       try {
         let channelId: bigint | null = null;
         
         // Look for ChannelOpened event in the logs
-        if (data.logs && data.logs.length > 0) {
-          for (const log of data.logs) {
+        if (receipt.logs && receipt.logs.length > 0) {
+          for (const log of receipt.logs) {
             try {
               const decoded = decodeEventLog({
-                abi: BRIDGECORE_ABI,
+                abi: abi,
                 data: log.data,
                 topics: log.topics,
               });
@@ -169,17 +160,15 @@ export function Step1CreateChannel() {
         onChannelCreated(channelId);
         setCreateChannelTxHash('');
         setConfirmingCreate(false);
+        setCreatingChannel(false);
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Failed to extract channel ID from transaction';
         setCreateChannelError(errorMessage);
         setConfirmingCreate(false);
+        setCreatingChannel(false);
       }
-    },
-    onError(error) {
-      setCreateChannelError(error.message);
-      setConfirmingCreate(false);
-    },
-  });
+    }
+  }, [receipt, isSuccess, abi, onChannelCreated, setCreateChannelTxHash, setConfirmingCreate, setCreatingChannel, setCreateChannelError]);
 
   // Update store states based on wagmi hooks
   useEffect(() => {
@@ -191,22 +180,39 @@ export function Step1CreateChannel() {
   }, [isWaiting, setConfirmingCreate]);
 
   useEffect(() => {
-    if (prepareError) {
-      setCreateChannelError(prepareError.message);
-    } else if (writeError) {
+    if (txHash) {
+      setCreateChannelTxHash(txHash);
+    }
+  }, [txHash, setCreateChannelTxHash]);
+
+  useEffect(() => {
+    if (writeError) {
       setCreateChannelError(writeError.message);
+      setCreatingChannel(false);
     } else if (waitError) {
       setCreateChannelError(waitError.message);
-    } else {
-      setCreateChannelError(null);
+      setConfirmingCreate(false);
+      setCreatingChannel(false);
     }
-  }, [prepareError, writeError, waitError, setCreateChannelError]);
+  }, [writeError, waitError, setCreateChannelError, setCreatingChannel, setConfirmingCreate]);
 
-  const handleCreateChannel = () => {
-    if (createChannel && isValid() && isConnected) {
+  const handleCreateChannel = async () => {
+    if (!channelParams || !isValid() || !isConnected) return;
+    
+    try {
       setCreateChannelError(null);
       setCreatingChannel(true);
-      createChannel();
+      
+      await writeContract({
+        address: contractAddress,
+        abi,
+        functionName: 'openChannel',
+        args: [channelParams],
+      });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to create channel';
+      setCreateChannelError(errorMessage);
+      setCreatingChannel(false);
     }
   };
 

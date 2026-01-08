@@ -41,44 +41,6 @@ export const BRIDGEADMINMANAGER_ABI = [
   },
   {
     "type": "function",
-    "name": "getMaxAllowedParticipants",
-    "inputs": [
-      {
-        "name": "targetContract",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "maxParticipants",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "getPreAllocatedKeys",
-    "inputs": [
-      {
-        "name": "targetContract",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "keys",
-        "type": "bytes32[]",
-        "internalType": "bytes32[]"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
     "name": "getPreAllocatedLeaf",
     "inputs": [
       {
@@ -239,25 +201,6 @@ export const BRIDGEADMINMANAGER_ABI = [
     ],
     "outputs": [],
     "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
-    "name": "isAllowedTargetContract",
-    "inputs": [
-      {
-        "name": "targetContract",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "",
-        "type": "bool",
-        "internalType": "bool"
-      }
-    ],
-    "stateMutability": "view"
   },
   {
     "type": "function",
@@ -739,25 +682,6 @@ export const BRIDGECORE_ABI = [
   },
   {
     "type": "function",
-    "name": "batchGetChannelStates",
-    "inputs": [
-      {
-        "name": "channelIds",
-        "type": "uint256[]",
-        "internalType": "uint256[]"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "states",
-        "type": "uint8[]",
-        "internalType": "enum BridgeCore.ChannelState[]"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
     "name": "cleanupClosedChannel",
     "inputs": [
       {
@@ -1006,34 +930,6 @@ export const BRIDGECORE_ABI = [
         "name": "",
         "type": "uint8",
         "internalType": "enum BridgeCore.ChannelState"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "getChannelStats",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "openChannels",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "activeChannels",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "closingChannels",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "closedChannels",
-        "type": "uint256",
-        "internalType": "uint256"
       }
     ],
     "stateMutability": "view"
@@ -1343,47 +1239,6 @@ export const BRIDGECORE_ABI = [
   },
   {
     "type": "function",
-    "name": "getTargetContractFunctions",
-    "inputs": [
-      {
-        "name": "targetContract",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "",
-        "type": "tuple[]",
-        "internalType": "struct BridgeCore.RegisteredFunction[]",
-        "components": [
-          {
-            "name": "functionSignature",
-            "type": "bytes32",
-            "internalType": "bytes32"
-          },
-          {
-            "name": "instancesHash",
-            "type": "bytes32",
-            "internalType": "bytes32"
-          },
-          {
-            "name": "preprocessedPart1",
-            "type": "uint128[]",
-            "internalType": "uint128[]"
-          },
-          {
-            "name": "preprocessedPart2",
-            "type": "uint256[]",
-            "internalType": "uint256[]"
-          }
-        ]
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
     "name": "getTotalChannels",
     "inputs": [],
     "outputs": [
@@ -1397,24 +1252,34 @@ export const BRIDGECORE_ABI = [
   },
   {
     "type": "function",
-    "name": "getUserTotalBalance",
+    "name": "getUserChannels",
     "inputs": [
       {
         "name": "user",
         "type": "address",
         "internalType": "address"
+      },
+      {
+        "name": "limit",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "offset",
+        "type": "uint256",
+        "internalType": "uint256"
       }
     ],
     "outputs": [
       {
-        "name": "targetContracts",
-        "type": "address[]",
-        "internalType": "address[]"
-      },
-      {
-        "name": "balances",
+        "name": "channelIds",
         "type": "uint256[]",
         "internalType": "uint256[]"
+      },
+      {
+        "name": "totalCount",
+        "type": "uint256",
+        "internalType": "uint256"
       }
     ],
     "stateMutability": "view"
@@ -1661,24 +1526,6 @@ export const BRIDGECORE_ABI = [
       }
     ],
     "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "markUserWithdrawn",
-    "inputs": [
-      {
-        "name": "channelId",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "participant",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
   },
   {
     "type": "function",
