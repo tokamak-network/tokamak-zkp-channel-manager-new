@@ -24,6 +24,7 @@ export interface ChannelFormState {
   addParticipant: (address: `0x${string}`) => void;
   removeParticipant: (index: number) => void;
   updateParticipant: (index: number, address: `0x${string}`) => void;
+  setParticipants: (participants: Participant[]) => void;
   setEnableFrostSignature: (enabled: boolean) => void;
   reset: () => void;
   
@@ -65,6 +66,8 @@ export const useChannelFormStore = create<ChannelFormState>()(
         newParticipants[index] = { address };
         return { participants: newParticipants };
       }),
+      
+      setParticipants: (newParticipants) => set({ participants: newParticipants }),
       
       setEnableFrostSignature: (enabled) => set({ enableFrostSignature: enabled }),
       

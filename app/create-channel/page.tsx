@@ -21,10 +21,14 @@ export default function CreateChannelPage() {
   const step = useChannelFlowStore((state) => state.step);
 
   return (
-    <main className="container mx-auto px-4 py-8 max-w-4xl">
+    <>
       <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">Create Channel</h1>
-        <p className="text-gray-600">Set up a new ZK-Rollup channel</p>
+        <h2 className="text-2xl font-semibold mb-2 text-[var(--foreground)]">
+          Create Channel
+        </h2>
+        <p className="text-[var(--muted-foreground)]">
+          Set up a new ZK-Rollup channel
+        </p>
       </div>
 
       <div className="mb-8">
@@ -36,7 +40,7 @@ export default function CreateChannelPage() {
         {step === 2 && <Step2Deposit />}
         {step === 3 && <Step3InitializeState />}
       </div>
-    </main>
+    </>
   );
 }
 
