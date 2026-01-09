@@ -1,12 +1,18 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  
-  // 실험적 기능 (필요시 활성화)
-  // experimental: {
-  //   typedRoutes: true,
-  // },
+
+  webpack: (config, { isServer }) => {
+    // Ignore React Native modules that MetaMask SDK tries to import
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        "@react-native-async-storage/async-storage": false,
+      };
+    }
+
+    return config;
+  },
 };
 
 module.exports = nextConfig;
-

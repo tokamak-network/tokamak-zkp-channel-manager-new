@@ -22,7 +22,7 @@ import { useNetworkId } from './utils';
 /**
  * Get BridgeDepositManager contract address for current network
  */
-function useBridgeDepositManagerAddress(): `0x${string}` {
+export function useBridgeDepositManagerAddress(): `0x${string}` {
   const networkId = useNetworkId();
   return getContractAddress('BridgeDepositManager', networkId);
 }

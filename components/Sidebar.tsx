@@ -2,30 +2,54 @@
  * Sidebar Component
  * 
  * Left navigation menu
+ * Uses Next.js router for SPA navigation
  */
 
 'use client';
 
+import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
 import { Button } from '@tokamak/ui';
 import { Card, CardContent } from '@tokamak/ui';
 
 interface MenuItem {
   label: string;
-  href: string;
+  path: string;
   icon?: string;
 }
 
 const menuItems: MenuItem[] = [
   {
     label: 'Create Channel',
-    href: '/create-channel',
+    path: '/create-channel',
+  },
+  {
+    label: 'Deposit',
+    path: '/deposit',
+  },
+  {
+    label: 'Initialize State',
+    path: '/initialize-state',
+  },
+  {
+    label: 'State Explorer',
+    path: '/state-explorer',
+  },
+  {
+    label: 'Submit Proof',
+    path: '/submit-proof',
   },
 ];
 
 export function Sidebar() {
   const pathname = usePathname();
+
+  const isActive = (path: string) => {
+    if (path === '/') {
+      return pathname === '/';
+    }
+    return pathname.startsWith(path);
+  };
 
   return (
     <aside className="w-64 flex-shrink-0">
@@ -33,15 +57,18 @@ export function Sidebar() {
         <CardContent className="p-4">
           <nav className="space-y-2">
             {menuItems.map((item) => {
-              const isActive = pathname === item.href;
+              const active = isActive(item.path);
               return (
-                <Link key={item.href} href={item.href}>
-                  <Button
-                    variant={isActive ? 'primary' : 'outline'}
-                    className="w-full justify-start"
-                  >
-                    {item.label}
-                  </Button>
+                <Link
+                  key={item.path}
+                  href={item.path}
+                  className={`block w-full rounded-md px-4 py-2 text-sm font-medium transition-colors ${
+                    active
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-transparent text-foreground hover:bg-accent hover:text-accent-foreground border border-input'
+                  }`}
+                >
+                  {item.label}
                 </Link>
               );
             })}

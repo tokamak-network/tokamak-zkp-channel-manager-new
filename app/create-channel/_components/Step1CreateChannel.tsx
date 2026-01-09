@@ -24,11 +24,10 @@ import {
   useBridgeCoreWaitForReceipt,
   useBridgeCoreAbi,
 } from "@/hooks/contract";
+import { saveChannelToDatabase } from "../_utils/saveChannel";
 
 export function Step1CreateChannel() {
   const { address, isConnected } = useAccount();
-  const [isTestingDb, setIsTestingDb] = useState(false);
-  const [dbTestResults, setDbTestResults] = useState<string[] | null>(null);
 
   const {
     participants,
@@ -186,28 +185,15 @@ export function Step1CreateChannel() {
       }
 
       // Save channel information to database
+      const channelIdStr = channelId.toString();
       try {
-        const channelIdStr = channelId.toString();
-        const response = await fetch(`/api/channels/${channelIdStr}/save`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            txHash: receipt.transactionHash,
-            targetContract: FIXED_TARGET_CONTRACT,
-            participants: participants.map((p) => p.address),
-            blockNumber: receipt.blockNumber.toString(),
-          }),
+        await saveChannelToDatabase({
+          channelId: channelIdStr,
+          txHash: receipt.transactionHash,
+          targetContract: FIXED_TARGET_CONTRACT,
+          participants: participants.map((p) => p.address),
+          blockNumber: receipt.blockNumber.toString(),
         });
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          console.error("Failed to save channel to database:", errorData);
-          // Don't throw - channel is created on-chain, DB save is secondary
-        } else {
-          console.log("Channel information saved to database:", channelIdStr);
-        }
       } catch (dbError) {
         console.error("Error saving channel to database:", dbError);
         // Don't throw - channel is created on-chain, DB save is secondary
@@ -218,6 +204,11 @@ export function Step1CreateChannel() {
       setCreateChannelTxHash("");
       setConfirmingCreate(false);
       setCreatingChannel(false);
+
+      // Redirect to deposit page
+      if (typeof window !== "undefined") {
+        window.location.href = `/deposit?channelId=${channelIdStr}`;
+      }
     } catch (error) {
       const errorMessage =
         error instanceof Error
@@ -296,36 +287,6 @@ export function Step1CreateChannel() {
     }
   };
 
-  const handleTestDb = async () => {
-    try {
-      setIsTestingDb(true);
-      setDbTestResults(null);
-
-      const response = await fetch("/api/db/test", {
-        method: "POST",
-      });
-
-      const data = await response.json();
-
-      if (data.success) {
-        setDbTestResults(data.results);
-      } else {
-        setDbTestResults([
-          `❌ Test failed: ${data.error || "Unknown error"}`,
-          data.details ? `Details: ${data.details}` : "",
-        ]);
-      }
-    } catch (error) {
-      setDbTestResults([
-        `❌ Test error: ${
-          error instanceof Error ? error.message : "Unknown error"
-        }`,
-      ]);
-    } finally {
-      setIsTestingDb(false);
-    }
-  };
-
   return (
     <Card>
       <CardHeader>
@@ -398,38 +359,16 @@ export function Step1CreateChannel() {
           </div>
         )}
 
-        {/* DB Test Results */}
-        {dbTestResults && (
-          <div className="p-4 bg-gray-50 border border-gray-200 rounded text-sm space-y-1">
-            <div className="font-semibold mb-2">DB Test Results:</div>
-            {dbTestResults.map((result, index) => (
-              <div key={index} className="font-mono text-xs">
-                {result}
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Action Buttons */}
-        <div className="flex gap-2">
-          <Button
-            onClick={handleCreateChannel}
-            disabled={!isValid() || isCreatingChannel || isConfirmingCreate}
-            className="flex-1"
-          >
-            {isCreatingChannel || isConfirmingCreate
-              ? "Creating Channel..."
-              : "Create Channel"}
-          </Button>
-          <Button
-            onClick={handleTestDb}
-            disabled={isTestingDb}
-            variant="outline"
-            className="flex-1"
-          >
-            {isTestingDb ? "Testing DB..." : "Test DB"}
-          </Button>
-        </div>
+        {/* Action Button */}
+        <Button
+          onClick={handleCreateChannel}
+          disabled={!isValid() || isCreatingChannel || isConfirmingCreate}
+          className="w-full"
+        >
+          {isCreatingChannel || isConfirmingCreate
+            ? "Creating Channel..."
+            : "Create Channel"}
+        </Button>
       </CardContent>
     </Card>
   );

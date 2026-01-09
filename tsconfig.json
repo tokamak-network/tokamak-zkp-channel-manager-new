@@ -31,7 +31,8 @@
       "@tokamak/config": ["./packages/config/src"],
       "@tokamak/config/*": ["./packages/config/src/*"],
       "@tokamak/frost": ["./packages/frost/src"],
-      "@tokamak/frost/*": ["./packages/frost/src/*"]
+      "@tokamak/frost/*": ["./packages/frost/src/*"],
+      "@/Tokamak-Zk-EVM/*": ["./Tokamak-Zk-EVM/*"]
     }
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],

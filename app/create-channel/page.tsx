@@ -1,25 +1,15 @@
 /**
  * Create Channel Page
- * 
- * Single-page flow for creating a channel:
- * Step 1: Create Channel Transaction
- * Step 2: MPT Key Generation + Deposit (Leader + Participants)
- * Step 3: Initialize State (Leader only)
+ *
+ * Page for creating a new channel transaction
  */
 
-'use client';
+"use client";
 
-import { useChannelFlowStore } from '@/stores';
-import { Stepper } from '@tokamak/ui';
-import { Step1CreateChannel } from './_components/Step1CreateChannel';
-import { Step2Deposit } from './_components/Step2Deposit';
-import { Step3InitializeState } from './_components/Step3InitializeState';
+import { Suspense } from "react";
+import { Step1CreateChannel } from "./_components/Step1CreateChannel";
 
-const STEPS = ['Create Channel', 'Deposit', 'Initialize State'];
-
-export default function CreateChannelPage() {
-  const step = useChannelFlowStore((state) => state.step);
-
+function CreateChannelPageContent() {
   return (
     <>
       <div className="mb-8">
@@ -31,16 +21,26 @@ export default function CreateChannelPage() {
         </p>
       </div>
 
-      <div className="mb-8">
-        <Stepper steps={STEPS} currentStep={step} />
-      </div>
-
       <div className="mt-8">
-        {step === 1 && <Step1CreateChannel />}
-        {step === 2 && <Step2Deposit />}
-        {step === 3 && <Step3InitializeState />}
+        <Step1CreateChannel />
       </div>
     </>
   );
 }
 
+export default function CreateChannelPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="mb-8">
+          <h2 className="text-2xl font-semibold mb-2 text-[var(--foreground)]">
+            Create Channel
+          </h2>
+          <p className="text-[var(--muted-foreground)]">Loading...</p>
+        </div>
+      }
+    >
+      <CreateChannelPageContent />
+    </Suspense>
+  );
+}
