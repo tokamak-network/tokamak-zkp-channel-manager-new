@@ -157,6 +157,7 @@ export function Step1CreateChannel() {
           throw new Error('ChannelOpened event not found in transaction logs');
         }
         
+        // Call onChannelCreated which will update step to 2
         onChannelCreated(channelId);
         setCreateChannelTxHash('');
         setConfirmingCreate(false);
@@ -168,7 +169,8 @@ export function Step1CreateChannel() {
         setCreatingChannel(false);
       }
     }
-  }, [receipt, isSuccess, abi, onChannelCreated, setCreateChannelTxHash, setConfirmingCreate, setCreatingChannel, setCreateChannelError]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [receipt, isSuccess, abi]);
 
   // Update store states based on wagmi hooks
   useEffect(() => {

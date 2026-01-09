@@ -19,7 +19,8 @@
     "zustand": "^4.5.0",
     "wagmi": "^2.12.0",
     "viem": "^2.21.0",
-    "@tanstack/react-query": "^5.56.0"
+    "@tanstack/react-query": "^5.56.0",
+    "lowdb": "^9.1.0"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

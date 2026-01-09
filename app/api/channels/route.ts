@@ -1,31 +1,47 @@
 import { NextResponse } from 'next/server';
+import { getActiveChannels, getAllChannels } from '@/lib/db';
 
 /**
  * GET /api/channels - 채널 목록 조회
  */
 export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const status = searchParams.get('status');
-  const userAddress = searchParams.get('user');
+  try {
+    const { searchParams } = new URL(request.url);
+    const status = searchParams.get('status');
+    const userAddress = searchParams.get('user');
 
-  // TODO: 실제 데이터 조회 로직
-  // - 컨트랙트에서 채널 목록 조회
-  // - 또는 인덱서 DB에서 조회
-  
-  const mockChannels = [
-    {
-      id: '1',
-      name: 'Channel #1',
-      status: 'active',
-      participants: ['0x123...', '0x456...'],
-      totalDeposit: '1000000000000000000',
-    },
-  ];
+    // Get channels from database
+    let channels;
+    if (status === 'active') {
+      channels = await getActiveChannels();
+    } else {
+      channels = await getAllChannels();
+    }
 
-  return NextResponse.json({
-    success: true,
-    data: mockChannels,
-  });
+    // Filter by user address if provided
+    if (userAddress) {
+      channels = channels.filter(channel =>
+        channel.participants?.some(
+          (p: string) => p.toLowerCase() === userAddress.toLowerCase()
+        )
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      data: channels,
+    });
+  } catch (error) {
+    console.error('Error fetching channels:', error);
+    return NextResponse.json(
+      {
+        success: false,
+        error: 'Failed to fetch channels',
+        details: error instanceof Error ? error.message : 'Unknown error',
+      },
+      { status: 500 }
+    );
+  }
 }
 
 /**
