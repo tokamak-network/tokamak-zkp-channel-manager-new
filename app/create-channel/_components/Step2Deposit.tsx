@@ -8,14 +8,7 @@
 
 import { useEffect, useState, Suspense, useCallback, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
-import {
-  useAccount,
-  useSignMessage,
-  useReadContract,
-  useWriteContract,
-  useWaitForTransactionReceipt,
-} from "wagmi";
-import { parseUnits } from "viem";
+import { useAccount } from "wagmi";
 import {
   useChannelFlowStore,
   useDepositStore,
@@ -31,20 +24,25 @@ import {
 } from "@tokamak/ui";
 import { ChannelSelector } from "./ChannelSelector";
 import type { Channel } from "@/lib/db";
-import { L2_PRV_KEY_MESSAGE } from "@/lib/l2KeyMessage";
-import { deriveL2KeysAndAddressFromSignature } from "@/lib/tokamakl2js";
-import { ERC20_ABI } from "@/lib/erc20";
-import { FIXED_TARGET_CONTRACT, getContractAbi } from "@tokamak/config";
-import { useBridgeDepositManagerAddress } from "@/hooks/contract/useBridgeDepositManager";
+import { useGenerateMptKey } from "../_hooks/useGenerateMptKey";
+import { useDeposit } from "../_hooks/useDeposit";
+import { FIXED_TARGET_CONTRACT } from "@tokamak/config";
+import { useBridgeDepositManagerAddress } from "@/hooks/contract";
+import { useTokenApproval } from "@/hooks/useTokenApproval";
+import { useTokenBalance } from "@/hooks/useTokenBalance";
+import { useChannelInfo } from "@/hooks/useChannelInfo";
+import { parseInputAmount, isValidAmount } from "@/lib/utils/format";
 
 function Step2DepositContent() {
   const searchParams = useSearchParams();
   const { address, isConnected } = useAccount();
-  const { signMessageAsync } = useSignMessage();
   const channelId = useChannelFlowStore((state) => state.channelId);
   const setChannelId = useChannelFlowStore((state) => state.setChannelId);
   const participants = useChannelFormStore((state) => state.participants);
   const [selectedChannel, setSelectedChannel] = useState<Channel | null>(null);
+
+  // Get channel info from blockchain
+  const channelInfo = useChannelInfo(channelId);
 
   const {
     deposits,
@@ -52,194 +50,55 @@ function Step2DepositContent() {
     setChannelId: setDepositStoreChannelId,
     setCurrentUserDepositAmount,
     setCurrentUserMPTKey,
-    setDepositing,
-    setDeposit,
-    setNeedsApproval,
-    setApproving,
-    setDepositTxHash,
-    setDepositError,
     areAllDepositsComplete,
   } = useDepositStore();
 
   const [mptKey, setMptKey] = useState("");
   const [depositAmount, setDepositAmount] = useState("");
-  const [isGeneratingMPTKey, setIsGeneratingMPTKey] = useState(false);
-  const [mptKeyError, setMptKeyError] = useState<string>("");
 
-  // Get token address (from selected channel or use FIXED_TARGET_CONTRACT)
+  // MPT Key generation hook
+  const {
+    generateMPTKey: generateMPTKeyHook,
+    isGenerating: isGeneratingMPTKey,
+    error: mptKeyError,
+  } = useGenerateMptKey();
+
+  // Get token address (from blockchain channel info or fallback to FIXED_TARGET_CONTRACT)
   const tokenAddress = useMemo(() => {
     return (
+      channelInfo.targetContract ||
       (selectedChannel?.targetContract as `0x${string}`) ||
       FIXED_TARGET_CONTRACT
     );
-  }, [selectedChannel?.targetContract]);
+  }, [channelInfo.targetContract, selectedChannel?.targetContract]);
 
   // Get BridgeDepositManager address for approval
   const depositManagerAddress = useBridgeDepositManagerAddress();
 
-  // Validate amount input
-  const isValidAmount = useCallback((amount: string): boolean => {
-    if (!amount || amount === "" || amount === "0") return false;
-    try {
-      const num = parseFloat(amount);
-      return num > 0 && isFinite(num) && !isNaN(num);
-    } catch {
-      return false;
-    }
-  }, []);
-
-  // Parse input amount to BigInt (assuming 18 decimals)
-  const parseInputAmount = useCallback((amount: string): bigint => {
-    try {
-      if (!amount || amount === "") return BigInt(0);
-      return parseUnits(amount, 18);
-    } catch {
-      return BigInt(0);
-    }
-  }, []);
-
-  // Check ERC20 token balance
-  const { data: balance } = useReadContract({
-    address: tokenAddress,
-    abi: ERC20_ABI,
-    functionName: "balanceOf",
-    args: address ? [address] : undefined,
-    query: {
-      enabled: !!address && !!tokenAddress,
-    },
-  });
-
-  // Check ERC20 token allowance
-  const { data: allowance } = useReadContract({
-    address: tokenAddress,
-    abi: ERC20_ABI,
-    functionName: "allowance",
-    args:
-      address && depositManagerAddress
-        ? [address, depositManagerAddress]
-        : undefined,
-    query: {
-      enabled:
-        !!address &&
-        !!tokenAddress &&
-        !!depositManagerAddress &&
-        isValidAmount(depositAmount),
-    },
-  });
-
-  // Calculate if approval is needed
-  const needsApproval = useMemo(() => {
-    if (!allowance || !isValidAmount(depositAmount)) return false;
-    const amount = parseInputAmount(depositAmount);
-    return amount > allowance;
-  }, [allowance, depositAmount, isValidAmount, parseInputAmount]);
-
-  // Update store when needsApproval changes
-  useEffect(() => {
-    setNeedsApproval(needsApproval);
-  }, [needsApproval, setNeedsApproval]);
-
-  // Prepare approve transaction
-  const { writeContract: writeApprove, data: approveTxHash } =
-    useWriteContract();
-  const { isLoading: isApproving, isSuccess: approvalSuccess } =
-    useWaitForTransactionReceipt({
-      hash: approveTxHash,
-    });
-
-  // Update approving state
-  useEffect(() => {
-    setApproving(isApproving);
-  }, [isApproving, setApproving]);
-
-  // Get BridgeDepositManager ABI
-  const depositManagerAbi = getContractAbi("BridgeDepositManager");
-
-  // Prepare deposit transaction
-  const { writeContract: writeDeposit, data: depositTxHash } =
-    useWriteContract();
+  // Token approval hook
   const {
-    isLoading: isWaitingDeposit,
-    isSuccess: depositSuccess,
-    error: depositTxError,
-  } = useWaitForTransactionReceipt({
-    hash: depositTxHash,
+    needsApproval,
+    isApproving,
+    approvalSuccess,
+    handleApprove,
+    isValidAmount,
+  } = useTokenApproval({
+    tokenAddress,
+    spenderAddress: depositManagerAddress,
+    depositAmount,
   });
 
-  // Update depositing state
-  useEffect(() => {
-    setDepositing(isWaitingDeposit);
-  }, [isWaitingDeposit, setDepositing]);
+  // Token balance hook
+  const { balance } = useTokenBalance({ tokenAddress });
 
-  // Update deposit tx hash
-  useEffect(() => {
-    if (depositTxHash) {
-      setDepositTxHash(depositTxHash);
-    }
-  }, [depositTxHash, setDepositTxHash]);
-
-  // Handle deposit success
-  useEffect(() => {
-    if (depositSuccess && depositTxHash && channelId && address) {
-      const amount = parseInputAmount(depositAmount);
-      setDeposit(address.toLowerCase(), {
-        amount,
-        mptKey,
-        completed: true,
-        txHash: depositTxHash,
-      });
-      setDepositing(false);
-      console.log("✅ Deposit completed successfully:", depositTxHash);
-    }
-  }, [
-    depositSuccess,
-    depositTxHash,
+  // Deposit hook
+  const { handleDeposit, isDepositing, depositTxHash } = useDeposit({
     channelId,
-    address,
     depositAmount,
     mptKey,
-    parseInputAmount,
-    setDeposit,
-    setDepositing,
-  ]);
-
-  // Handle deposit error
-  useEffect(() => {
-    if (depositTxError) {
-      setDepositError(depositTxError.message || "Deposit transaction failed");
-      setDepositing(false);
-      console.error("❌ Deposit error:", depositTxError);
-    }
-  }, [depositTxError, setDepositError, setDepositing]);
-
-  // Handle approve
-  const handleApprove = useCallback(async () => {
-    if (
-      !tokenAddress ||
-      !depositManagerAddress ||
-      !isValidAmount(depositAmount)
-    )
-      return;
-
-    try {
-      const amount = parseInputAmount(depositAmount);
-      await writeApprove({
-        address: tokenAddress,
-        abi: ERC20_ABI,
-        functionName: "approve",
-        args: [depositManagerAddress, amount],
-      });
-    } catch (error) {
-      console.error("Error approving token:", error);
-    }
-  }, [
-    tokenAddress,
-    depositManagerAddress,
-    depositAmount,
-    isValidAmount,
-    parseInputAmount,
-    writeApprove,
-  ]);
+    needsApproval,
+    approvalSuccess,
+  });
 
   // Handle channel selection
   const handleSelectChannel = (channel: Channel) => {
@@ -285,10 +144,11 @@ function Step2DepositContent() {
     }
   }, [searchParams, setChannelId, setDepositStoreChannelId]);
 
-  // Load channel data if channelId exists but channel not selected
+  // Load channel data from DB as fallback if channelId exists but channel not selected
+  // Note: Primary source is now blockchain via useChannelInfo hook
   useEffect(() => {
-    if (channelId && !selectedChannel) {
-      // Try to fetch channel data
+    if (channelId && !selectedChannel && !channelInfo.isLoading) {
+      // Try to fetch channel data from DB as fallback (for metadata not on-chain)
       fetch(`/api/channels/${channelId.toString()}`)
         .then((res) => res.json())
         .then((data) => {
@@ -298,147 +158,29 @@ function Step2DepositContent() {
         })
         .catch(console.error);
     }
-  }, [channelId, selectedChannel]);
+  }, [channelId, selectedChannel, channelInfo.isLoading]);
 
-  // Generate MPT Key using wallet signature (client-side, matching original manager app)
-  const generateMPTKey = useCallback(async () => {
-    console.log("🚀 generateMPTKey called (client-side)", {
-      isConnected,
-      address,
-      channelId: channelId?.toString(),
-      signMessageAsync: !!signMessageAsync,
-      slotIndex: 0, // Fixed to 0
-    });
-
-    if (!isConnected || !address) {
-      setMptKeyError("Please connect your wallet first");
-      console.error("❌ Wallet not connected");
-      return;
+  // Generate MPT Key handler
+  const handleGenerateMPTKey = useCallback(async () => {
+    const generatedKey = await generateMPTKeyHook();
+    if (generatedKey) {
+      setMptKey(generatedKey);
     }
+  }, [generateMPTKeyHook]);
 
-    if (!channelId) {
-      setMptKeyError("Please select a channel first");
-      console.error("❌ Channel ID not set");
-      return;
+  // Get participants from blockchain channel info, selected channel (DB), or form store
+  const channelParticipants: string[] = useMemo(() => {
+    if (channelInfo.participants && channelInfo.participants.length > 0) {
+      return channelInfo.participants;
     }
-
-    if (!signMessageAsync) {
-      setMptKeyError(
-        "Wallet signing not available. Please reconnect your wallet."
-      );
-      console.error("❌ signMessageAsync not available");
-      return;
+    if (
+      selectedChannel?.participants &&
+      selectedChannel.participants.length > 0
+    ) {
+      return selectedChannel.participants;
     }
-
-    setIsGeneratingMPTKey(true);
-    setMptKeyError("");
-
-    try {
-      const message = L2_PRV_KEY_MESSAGE + channelId.toString();
-      console.log("📝 Signing message:", message);
-
-      const signature = await signMessageAsync({ message });
-      console.log("✅ Signature received:", signature);
-
-      // Generate MPT key directly in browser (client-side)
-      console.log("🔑 Generating MPT key in browser...");
-      const accountL2 = deriveL2KeysAndAddressFromSignature(
-        signature,
-        0 // Slot index fixed to 0
-      );
-      console.log("✅ MPT key generated:", accountL2);
-
-      setMptKey(accountL2.mptKey);
-      setCurrentUserMPTKey(accountL2.mptKey);
-      setMptKeyError("");
-      console.log("✨ MPT Key set successfully:", accountL2.mptKey);
-    } catch (err) {
-      console.error("❌ Error generating MPT key:", err);
-      if (err instanceof Error) {
-        if (
-          err.message.includes("User rejected") ||
-          err.message.includes("rejected")
-        ) {
-          setMptKeyError("Signature cancelled by user");
-        } else if (
-          err.message.includes("ConnectorNotFoundError") ||
-          err.message.includes("Connector not found")
-        ) {
-          setMptKeyError(
-            "Wallet connection lost. Please disconnect and reconnect your wallet."
-          );
-        } else if (err.message.includes("ChainMismatchError")) {
-          setMptKeyError(
-            "Wrong network. Please switch to the correct network."
-          );
-        } else {
-          setMptKeyError(`Error: ${err.message}`);
-        }
-      } else {
-        setMptKeyError("Failed to generate MPT key. Please try again.");
-      }
-    } finally {
-      setIsGeneratingMPTKey(false);
-    }
-  }, [isConnected, address, channelId, signMessageAsync, setCurrentUserMPTKey]);
-
-  // Handle deposit
-  const handleDeposit = useCallback(async () => {
-    if (!depositAmount || !mptKey || !channelId || !address) {
-      console.error("Missing required fields for deposit");
-      return;
-    }
-
-    if (needsApproval && !approvalSuccess) {
-      console.error("Approval required before deposit");
-      setDepositError("Please approve token spending first");
-      return;
-    }
-
-    console.log("Depositing...", {
-      channelId: channelId.toString(),
-      amount: depositAmount,
-      mptKey,
-    });
-
-    setDepositing(true);
-    setDepositError(null);
-
-    try {
-      const amount = parseInputAmount(depositAmount);
-      const mptKeyBytes32 = mptKey as `0x${string}`;
-
-      await writeDeposit({
-        address: depositManagerAddress,
-        abi: depositManagerAbi,
-        functionName: "depositToken",
-        args: [channelId, amount, mptKeyBytes32],
-      });
-    } catch (error) {
-      console.error("Error depositing token:", error);
-      setDepositError(
-        error instanceof Error ? error.message : "Deposit transaction failed"
-      );
-      setDepositing(false);
-    }
-  }, [
-    depositAmount,
-    mptKey,
-    channelId,
-    address,
-    needsApproval,
-    approvalSuccess,
-    parseInputAmount,
-    writeDeposit,
-    depositManagerAddress,
-    depositManagerAbi,
-    setDepositing,
-    setDepositError,
-  ]);
-
-  // Get participants from selected channel or form store
-  const channelParticipants: string[] =
-    selectedChannel?.participants || participants.map((p) => p.address);
+    return participants.map((p) => p.address);
+  }, [channelInfo.participants, selectedChannel?.participants, participants]);
 
   const allDepositsComplete = areAllDepositsComplete(channelParticipants);
 
@@ -469,9 +211,35 @@ function Step2DepositContent() {
           <div>
             <h2 className="text-xl font-semibold">Step 2: Deposit Tokens</h2>
             {channelId && (
-              <p className="text-sm text-gray-600">
-                Channel ID: {channelId.toString()}
-              </p>
+              <div className="space-y-1">
+                <p className="text-sm text-gray-600">
+                  Channel ID: {channelId.toString()}
+                </p>
+                {channelInfo.isLoading ? (
+                  <p className="text-xs text-gray-500">
+                    Loading channel info...
+                  </p>
+                ) : channelInfo.error ? (
+                  <p className="text-xs text-red-500">
+                    Error loading channel: {channelInfo.error.message}
+                  </p>
+                ) : (
+                  <p className="text-xs text-gray-500">
+                    Participants: {channelInfo.participantCount} | State:{" "}
+                    {channelInfo.state === 0
+                      ? "None"
+                      : channelInfo.state === 1
+                      ? "Initialized"
+                      : channelInfo.state === 2
+                      ? "Open"
+                      : channelInfo.state === 3
+                      ? "Closing"
+                      : channelInfo.state === 4
+                      ? "Closed"
+                      : "Unknown"}
+                  </p>
+                )}
+              </div>
             )}
           </div>
           <Button
@@ -503,10 +271,7 @@ function Step2DepositContent() {
               />
               <Button
                 variant="outline"
-                onClick={() => {
-                  console.log("🔘 Generate button clicked!");
-                  generateMPTKey();
-                }}
+                onClick={handleGenerateMPTKey}
                 disabled={isGeneratingMPTKey || !isConnected || !channelId}
               >
                 {isGeneratingMPTKey ? "Generating..." : "Generate"}
@@ -608,13 +373,13 @@ function Step2DepositContent() {
           disabled={
             !depositAmount ||
             !mptKey ||
-            currentUserDeposit.isDepositing ||
+            isDepositing ||
             !!currentUserDeposit.txHash ||
             (needsApproval && !approvalSuccess)
           }
           className="w-full"
         >
-          {currentUserDeposit.isDepositing
+          {isDepositing
             ? "Depositing..."
             : currentUserDeposit.txHash
             ? "Deposit Completed"

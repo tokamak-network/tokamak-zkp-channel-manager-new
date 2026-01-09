@@ -2,6 +2,8 @@
  * Formatting Utilities
  */
 
+import { parseUnits } from "viem";
+
 /**
  * Format Ethereum address
  */
@@ -37,3 +39,27 @@ export function formatTxHash(hash: string): string {
   return `${hash.slice(0, 8)}...${hash.slice(-6)}`;
 }
 
+/**
+ * Validate amount input
+ */
+export function isValidAmount(amount: string): boolean {
+  if (!amount || amount === "" || amount === "0") return false;
+  try {
+    const num = parseFloat(amount);
+    return num > 0 && isFinite(num) && !isNaN(num);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Parse input amount to BigInt (assuming 18 decimals)
+ */
+export function parseInputAmount(amount: string, decimals: number = 18): bigint {
+  try {
+    if (!amount || amount === "") return BigInt(0);
+    return parseUnits(amount, decimals);
+  } catch {
+    return BigInt(0);
+  }
+}

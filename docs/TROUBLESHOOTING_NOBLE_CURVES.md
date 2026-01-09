@@ -3,6 +3,7 @@
 ## Problem
 
 Browser build fails with:
+
 ```
 Module not found: Can't resolve '@noble/curves/abstract/utils'
 ```
@@ -12,6 +13,7 @@ This occurs when using compiled npm packages (like `tokamak-l2js`) that import `
 ## Root Cause
 
 1. **Original Manager App**: Uses TypeScript source from submodule
+
    - Webpack compiles TypeScript → naturally resolves `@noble/curves/misc.js`
    - No special configuration needed
 
@@ -52,7 +54,7 @@ webpack: (config, { isServer }) => {
     const nobleCurvesRoot = path.dirname(
       require.resolve("@noble/curves/package.json")
     );
-    
+
     config.resolve.alias = {
       ...config.resolve.alias,
       "@noble/curves/abstract/utils": path.join(nobleCurvesRoot, "abstract", "utils.js"),
@@ -72,12 +74,11 @@ transpilePackages: ['tokamak-l2js'],
 
 **Note**: This may not work if the package is already compiled to JavaScript.
 
-### Solution 4: Use server-side only (Not ideal)
+### Solution 4: Use server-side only (Not recommended)
 
-Move MPT key generation to API route (already implemented in `/api/mpt-key/generate`).
+~~Move MPT key generation to API route.~~
 
-**Pros**: Avoids browser module resolution issues
-**Cons**: Requires network round-trip, less secure (signature sent to server)
+**Note**: This approach was considered but not implemented. MPT key generation is currently done client-side for better security and user experience. The API route (`/api/mpt-key/generate`) has been removed as it's no longer needed.
 
 ## Recommended Approach
 
@@ -90,6 +91,7 @@ Move MPT key generation to API route (already implemented in `/api/mpt-key/gener
 ## Testing
 
 After applying solution, test:
+
 1. Browser console should not show module resolution errors
 2. MPT key generation should work in browser
 3. `npm run test:tokamak-l2js` should still pass (Node.js environment)
