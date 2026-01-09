@@ -56,3 +56,9 @@ export const TX_SETTINGS = {
   CONFIRMATION_BLOCKS: 2,
 } as const;
 
+/**
+ * Fixed Target Contract Address
+ * 
+ * Default target contract address for channel creation
+ */
+export const FIXED_TARGET_CONTRACT = '0xa30fe40285B8f5c0457DbC3B7C8A280373c40044' as `0x${string}`;

@@ -1,48 +1,48 @@
 # Database Module
 
-공통 데이터베이스 API 모듈입니다. lowdb를 사용하여 로컬 JSON 파일 기반 데이터베이스를 제공합니다.
+Common database API module. Provides a local JSON file-based database using lowdb.
 
-## 설치
+## Installation
 
 ```bash
 npm install lowdb
 ```
 
-## 구조
+## Structure
 
 ```
 lib/db/
-├── client.ts      # lowdb 클라이언트 초기화
-├── helpers.ts     # 공통 CRUD 함수들
-├── channels.ts    # 채널 관련 특화 함수들
-├── index.ts       # 모듈 export
-└── README.md      # 이 파일
+├── client.ts      # lowdb client initialization
+├── helpers.ts     # Common CRUD functions
+├── channels.ts    # Channel-specific functions
+├── index.ts       # Module exports
+└── README.md      # This file
 ```
 
-## 사용법
+## Usage
 
-### 기본 CRUD 작업
+### Basic CRUD Operations
 
 ```typescript
 import { getData, setData, pushData, updateData, deleteData } from '@/lib/db';
 
-// 데이터 읽기
+// Read data
 const channel = await getData('channels.123');
 
-// 데이터 쓰기
+// Write data
 await setData('channels.123', { status: 'active' });
 
-// 배열/객체에 추가 (자동 키 생성)
+// Add to array/object (auto-generated key)
 const key = await pushData('channels.123.proofs', { proofData: '...' });
 
-// 데이터 업데이트 (병합)
+// Update data (merge)
 await updateData('channels.123', { status: 'closed' });
 
-// 데이터 삭제
+// Delete data
 await deleteData('channels.123');
 ```
 
-### 채널 관련 함수
+### Channel-specific Functions
 
 ```typescript
 import {
@@ -59,12 +59,12 @@ import {
   getCurrentStateNumber,
 } from '@/lib/db';
 
-// 채널 조회
+// Query channels
 const channel = await getChannel('123');
 const allChannels = await getAllChannels();
 const activeChannels = await getActiveChannels();
 
-// 채널 저장/업데이트
+// Save/update channel
 await saveChannel('123', {
   status: 'active',
   targetContract: '0x...',
@@ -73,22 +73,22 @@ await saveChannel('123', {
 
 await updateChannel('123', { status: 'closed' });
 
-// 참여자 조회
+// Query participants
 const participants = await getChannelParticipants('123');
 
-// 스냅샷 조회
-const snapshots = await getChannelSnapshots('123', 10); // 최근 10개
+// Query snapshots
+const snapshots = await getChannelSnapshots('123', 10); // Latest 10
 const latest = await getLatestSnapshot('123');
 
-// Proof 조회
+// Query proofs
 const submittedProofs = await getProofs('123', 'submitted');
 const verifiedProofs = await getProofs('123', 'verified');
 
-// 현재 상태 번호
+// Get current state number
 const nextStateNumber = await getCurrentStateNumber('123');
 ```
 
-## API 라우트에서 사용
+## Usage in API Routes
 
 ```typescript
 // app/api/channels/route.ts
@@ -101,9 +101,9 @@ export async function GET() {
 }
 ```
 
-## 데이터 구조
+## Data Structure
 
-데이터는 `data/db.json` 파일에 저장됩니다:
+Data is stored in the `data/db.json` file:
 
 ```json
 {
@@ -136,24 +136,24 @@ export async function GET() {
 }
 ```
 
-## 주의사항
+## Important Notes
 
-1. **서버 사이드 전용**: 이 모듈은 Next.js API 라우트에서만 사용할 수 있습니다. 클라이언트 컴포넌트에서는 사용하지 마세요.
+1. **Server-side only**: This module can only be used in Next.js API routes. Do not use it in client components.
 
-2. **파일 경로**: 데이터베이스 파일은 `data/db.json`에 저장됩니다. 이 디렉토리는 자동으로 생성됩니다.
+2. **File path**: The database file is stored at `data/db.json`. This directory is created automatically.
 
-3. **타임스탬프**: 모든 데이터는 자동으로 `_createdAt` 또는 `_updatedAt` 타임스탬프가 추가됩니다.
+3. **Timestamps**: All data automatically includes `_createdAt` or `_updatedAt` timestamps.
 
-4. **경로 표기법**: 경로는 점(.) 또는 슬래시(/)로 구분할 수 있습니다:
-   - `channels.123` 또는 `channels/123`
-   - `channels.123.participants.0x...` 또는 `channels/123/participants/0x...`
+4. **Path notation**: Paths can be separated by dots (.) or slashes (/):
+   - `channels.123` or `channels/123`
+   - `channels.123.participants.0x...` or `channels/123/participants/0x...`
 
-## 레거시 코드와의 호환성
+## Compatibility with Legacy Code
 
-레거시 코드의 `lib/realtime-db-helpers.ts`와 유사한 API를 제공합니다:
+Provides a similar API to the legacy `lib/realtime-db-helpers.ts`:
 
-| 레거시 (Firebase) | 새로운 (lowdb) |
-|------------------|---------------|
+| Legacy (Firebase) | New (lowdb) |
+|------------------|-------------|
 | `getChannel(id)` | `getChannel(id)` |
 | `getActiveChannels()` | `getActiveChannels()` |
 | `getData(path)` | `getData(path)` |
@@ -162,9 +162,9 @@ export async function GET() {
 | `updateData(path, data)` | `updateData(path, data)` |
 | `deleteData(path)` | `deleteData(path)` |
 
-## 마이그레이션 가이드
+## Migration Guide
 
-레거시 코드에서 새로운 DB 모듈로 마이그레이션:
+Migrating from legacy code to the new DB module:
 
 ```typescript
 // Before (Firebase)
@@ -174,4 +174,4 @@ import { getChannel, getData } from '@/lib/realtime-db-helpers';
 import { getChannel, getData } from '@/lib/db';
 ```
 
-API는 동일하므로 import 경로만 변경하면 됩니다.
+The API is the same, so you only need to change the import path.

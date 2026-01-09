@@ -1,7 +1,11 @@
 /**
  * Network Configuration
+ * 
+ * Uses Wagmi chain definitions for consistency with Wagmi configuration.
+ * RPC URLs default to wallet's connected RPC provider.
  */
 
+import { sepolia, mainnet, type Chain } from "wagmi/chains";
 import { CONTRACT_ADDRESSES as AUTO_GENERATED_ADDRESSES } from "./contracts/addresses";
 import {
   BRIDGECORE_ABI,
@@ -18,33 +22,16 @@ import {
 } from "./contracts/abis";
 import type { Abi } from "viem";
 
-export interface NetworkConfig {
-  id: number;
-  name: string;
-  rpcUrl: string;
-  blockExplorer: string;
-  isTestnet: boolean;
-}
-
 /**
- * Supported Networks
+ * Supported Networks (Wagmi Chains)
+ * 
+ * Uses Wagmi's built-in chain definitions for consistency.
+ * RPC URLs are handled by Wagmi transports, defaulting to wallet's RPC.
  */
 export const NETWORKS = {
-  sepolia: {
-    id: 11155111,
-    name: "Sepolia",
-    rpcUrl: "https://sepolia.infura.io/v3/",
-    blockExplorer: "https://sepolia.etherscan.io",
-    isTestnet: true,
-  },
-  mainnet: {
-    id: 1,
-    name: "Ethereum Mainnet",
-    rpcUrl: "https://mainnet.infura.io/v3/",
-    blockExplorer: "https://etherscan.io",
-    isTestnet: false,
-  },
-} as const satisfies Record<string, NetworkConfig>;
+  sepolia,
+  mainnet,
+} as const;
 
 export type NetworkId = keyof typeof NETWORKS;
 
@@ -54,19 +41,35 @@ export type NetworkId = keyof typeof NETWORKS;
 export const DEFAULT_NETWORK: NetworkId = "sepolia";
 
 /**
- * Get network config by chain ID
+ * Get chain by chain ID
  */
-export function getNetworkByChainId(
-  chainId: number
-): NetworkConfig | undefined {
-  return Object.values(NETWORKS).find((network) => network.id === chainId);
+export function getChainByChainId(chainId: number): Chain | undefined {
+  return Object.values(NETWORKS).find((chain) => chain.id === chainId);
+}
+
+/**
+ * Get network ID from chain ID
+ */
+export function getNetworkIdByChainId(chainId: number): NetworkId | undefined {
+  const found = Object.entries(NETWORKS).find(
+    ([_, chain]) => chain.id === chainId
+  );
+  return found ? (found[0] as NetworkId) : undefined;
 }
 
 /**
  * Check if chain ID is supported
  */
 export function isSupportedChain(chainId: number): boolean {
-  return Object.values(NETWORKS).some((network) => network.id === chainId);
+  return Object.values(NETWORKS).some((chain) => chain.id === chainId);
+}
+
+/**
+ * Get network config by chain ID (for backward compatibility)
+ * @deprecated Use getChainByChainId instead
+ */
+export function getNetworkByChainId(chainId: number) {
+  return getChainByChainId(chainId);
 }
 
 /**
@@ -89,13 +92,15 @@ export const CONTRACT_ABIS = {
 } as const satisfies Record<string, readonly Abi[number][]>;
 
 /**
- * Contract Addresses per Network
+ * Contract Addresses per Network (by Chain ID)
  *
  * Uses auto-generated addresses from contracts/addresses.ts
  * Sepolia addresses are automatically synced from Tokamak-zk-EVM-contracts repository
+ * 
+ * Keyed by chain ID for Wagmi compatibility
  */
 export const CONTRACT_ADDRESSES = {
-  sepolia: {
+  [sepolia.id]: {
     // Bridge contracts
     BridgeCore: AUTO_GENERATED_ADDRESSES.sepolia.BridgeCore,
     BridgeDepositManager: AUTO_GENERATED_ADDRESSES.sepolia.BridgeDepositManager,
@@ -118,7 +123,7 @@ export const CONTRACT_ADDRESSES = {
     // FROST
     ZecFrost: AUTO_GENERATED_ADDRESSES.sepolia.ZecFrost,
   },
-  mainnet: {
+  [mainnet.id]: {
     // TODO: Update when mainnet contracts are deployed
     BridgeCore: "0x0000000000000000000000000000000000000000" as `0x${string}`,
     BridgeDepositManager:
@@ -141,7 +146,7 @@ export const CONTRACT_ADDRESSES = {
       "0x0000000000000000000000000000000000000000" as `0x${string}`,
     ZecFrost: "0x0000000000000000000000000000000000000000" as `0x${string}`,
   },
-} as const satisfies Record<NetworkId, Record<string, `0x${string}`>>;
+} as const satisfies Record<number, Record<string, `0x${string}`>>;
 
 /**
  * Contract name type
@@ -150,12 +155,36 @@ export type ContractName = keyof typeof CONTRACT_ABIS;
 
 /**
  * Get contract address
+ * 
+ * @param contract - Contract name
+ * @param networkOrChainId - Network ID (e.g., 'sepolia') or chain ID (e.g., 11155111). Defaults to DEFAULT_NETWORK
+ * @returns Contract address
  */
 export function getContractAddress(
   contract: ContractName,
-  network: NetworkId = DEFAULT_NETWORK
+  networkOrChainId: NetworkId | number = DEFAULT_NETWORK
 ): `0x${string}` {
-  return CONTRACT_ADDRESSES[network][contract];
+  // If it's a number, treat it as chain ID
+  if (typeof networkOrChainId === "number") {
+    const addresses = CONTRACT_ADDRESSES[networkOrChainId];
+    if (!addresses) {
+      throw new Error(`No contract addresses found for chain ID: ${networkOrChainId}`);
+    }
+    return addresses[contract];
+  }
+  
+  // Otherwise, treat it as network ID and get chain ID
+  const chain = NETWORKS[networkOrChainId];
+  if (!chain) {
+    throw new Error(`Unknown network: ${networkOrChainId}`);
+  }
+  
+  const addresses = CONTRACT_ADDRESSES[chain.id];
+  if (!addresses) {
+    throw new Error(`No contract addresses found for network: ${networkOrChainId}`);
+  }
+  
+  return addresses[contract];
 }
 
 /**

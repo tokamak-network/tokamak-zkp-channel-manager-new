@@ -1,6 +1,6 @@
 /**
  * Channel-specific Database Functions
- * 
+ *
  * High-level functions for channel operations
  */
 

@@ -1,0 +1,67 @@
+import { NextResponse } from "next/server";
+import { saveChannel } from "@/lib/db";
+
+interface RouteParams {
+  params: Promise<{ id: string }>;
+}
+
+/**
+ * POST /api/channels/:id/save - Save channel information after creation
+ * 
+ * Saves channel information to the database based on transaction receipt.
+ */
+export async function POST(request: Request, { params }: RouteParams) {
+  try {
+    const { id } = await params;
+    const body = await request.json();
+
+    const {
+      txHash,
+      targetContract,
+      participants,
+      blockNumber,
+      blockTimestamp,
+    } = body;
+
+    // Validation
+    if (!txHash || !targetContract || !participants) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Missing required fields: txHash, targetContract, participants",
+        },
+        { status: 400 }
+      );
+    }
+
+    // Save channel information
+    await saveChannel(id, {
+      channelId: id,
+      status: "pending", // Pending until initialization
+      targetContract,
+      participants: Array.isArray(participants) ? participants : [participants],
+      openChannelTxHash: txHash,
+      blockNumber: blockNumber?.toString(),
+      blockTimestamp: blockTimestamp?.toString(),
+      createdAt: new Date().toISOString(),
+    });
+
+    return NextResponse.json({
+      success: true,
+      data: {
+        channelId: id,
+        message: "Channel information saved successfully",
+      },
+    });
+  } catch (error) {
+    console.error("Error saving channel:", error);
+    return NextResponse.json(
+      {
+        success: false,
+        error: "Failed to save channel",
+        details: error instanceof Error ? error.message : "Unknown error",
+      },
+      { status: 500 }
+    );
+  }
+}

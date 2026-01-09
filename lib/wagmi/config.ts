@@ -1,31 +1,20 @@
 /**
  * Wagmi Configuration
  * 
- * Configures wagmi with supported chains and providers
+ * Configures wagmi with supported chains and providers.
+ * RPC URLs default to wallet's connected RPC provider.
  */
 
 import { createConfig, http } from 'wagmi';
-import { sepolia, mainnet } from 'wagmi/chains';
 import { injected, metaMask, coinbaseWallet } from 'wagmi/connectors';
 import { NETWORKS } from '@tokamak/config';
 
-// Get RPC URL from environment or use public RPC
-const getRpcUrl = (chainId: number): string => {
-  const network = Object.values(NETWORKS).find(n => n.id === chainId);
-  if (network?.rpcUrl) {
-    // In production, you'd add API key here
-    return network.rpcUrl;
-  }
-  // Fallback to public RPC
-  return chainId === sepolia.id 
-    ? 'https://sepolia.infura.io/v3/'
-    : 'https://mainnet.infura.io/v3/';
-};
-
-// Configure chains
-export const chains = [sepolia, mainnet] as const;
+// Configure chains (using Wagmi chain definitions from config)
+export const chains = [NETWORKS.sepolia, NETWORKS.mainnet] as const;
 
 // Create wagmi config
+// Using http() without arguments defaults to wallet's RPC provider
+// This allows users to use their wallet's configured RPC endpoint
 export const wagmiConfig = createConfig({
   chains,
   connectors: [
@@ -34,8 +23,8 @@ export const wagmiConfig = createConfig({
     coinbaseWallet({ appName: 'Tokamak ZKP Channel Manager' }),
   ],
   transports: {
-    [sepolia.id]: http(getRpcUrl(sepolia.id)),
-    [mainnet.id]: http(getRpcUrl(mainnet.id)),
+    [NETWORKS.sepolia.id]: http(), // Uses wallet's RPC by default
+    [NETWORKS.mainnet.id]: http(), // Uses wallet's RPC by default
   },
 });
 

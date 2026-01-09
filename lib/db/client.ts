@@ -5,7 +5,6 @@
  * Note: This module is server-side only (Next.js API routes)
  */
 
-import { Low } from "lowdb";
 import { JSONFilePreset } from "lowdb/node";
 import path from "path";
 import { existsSync, mkdirSync } from "fs";
@@ -31,22 +30,28 @@ if (typeof window === "undefined" && !existsSync(dataDir)) {
 }
 
 // Database instance (lazy initialized)
-let dbInstance: Low<DatabaseSchema> | null = null;
+// JSONFilePreset returns a Low instance
+let dbInstance: Awaited<
+  ReturnType<typeof JSONFilePreset<DatabaseSchema>>
+> | null = null;
 
 /**
  * Initialize database
  * Reads existing data or creates with default schema
  */
-export async function initDb(): Promise<Low<DatabaseSchema>> {
+export async function initDb(): Promise<
+  Awaited<ReturnType<typeof JSONFilePreset<DatabaseSchema>>>
+> {
   if (dbInstance) {
     return dbInstance;
   }
 
   try {
     // Use JSONFilePreset for easier initialization
+    // JSONFilePreset automatically initializes with defaultData if file doesn't exist
     dbInstance = await JSONFilePreset<DatabaseSchema>(dbPath, defaultData);
 
-    // If database is empty, initialize with default data
+    // Ensure data structure is initialized
     if (!dbInstance.data || Object.keys(dbInstance.data).length === 0) {
       dbInstance.data = defaultData;
       await dbInstance.write();
@@ -64,7 +69,9 @@ export async function initDb(): Promise<Low<DatabaseSchema>> {
 /**
  * Get database instance (ensures it's initialized)
  */
-export async function getDb(): Promise<Low<DatabaseSchema>> {
+export async function getDb(): Promise<
+  Awaited<ReturnType<typeof JSONFilePreset<DatabaseSchema>>>
+> {
   if (!dbInstance) {
     await initDb();
   }
@@ -75,6 +82,8 @@ export async function getDb(): Promise<Low<DatabaseSchema>> {
  * Get database instance (synchronous, may be null if not initialized)
  * Use this only if you're sure the database is already initialized
  */
-export function getDbSync(): Low<DatabaseSchema> | null {
+export function getDbSync(): Awaited<
+  ReturnType<typeof JSONFilePreset<DatabaseSchema>>
+> | null {
   return dbInstance;
 }

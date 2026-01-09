@@ -6,7 +6,7 @@ interface RouteParams {
 }
 
 /**
- * GET /api/channels/:id - 특정 채널 조회
+ * GET /api/channels/:id - Get specific channel
  */
 export async function GET(request: Request, { params }: RouteParams) {
   try {
@@ -42,7 +42,7 @@ export async function GET(request: Request, { params }: RouteParams) {
 }
 
 /**
- * PATCH /api/channels/:id - 채널 상태 업데이트
+ * PATCH /api/channels/:id - Update channel status
  */
 export async function PATCH(request: Request, { params }: RouteParams) {
   try {

@@ -1,27 +1,38 @@
 /**
  * Step 1: Create Channel
- * 
+ *
  * Form for creating a channel transaction
  */
 
-'use client';
+"use client";
 
-import { useState, useEffect, useMemo } from 'react';
-import { useAccount } from 'wagmi';
-import { decodeEventLog } from 'viem';
-import { useChannelFormStore, useChannelFlowStore } from '@/stores';
-import { Button, Input, Label, Card, CardContent, CardHeader } from '@tokamak/ui';
-import { getContractAbi, getContractAddress } from '@tokamak/config';
-import { useBridgeCoreWrite, useBridgeCoreWaitForReceipt } from '@/hooks/contract';
-import { useNetworkId } from '@/hooks/contract/utils';
-
-const FIXED_TARGET_CONTRACT = '0xa30fe40285B8f5c0457DbC3B7C8A280373c40044' as `0x${string}`;
+import { useState, useEffect, useMemo, useCallback } from "react";
+import { useAccount } from "wagmi";
+import { decodeEventLog } from "viem";
+import { useChannelFormStore, useChannelFlowStore } from "@/stores";
+import {
+  Button,
+  Input,
+  Label,
+  Card,
+  CardContent,
+  CardHeader,
+} from "@tokamak/ui";
+import { FIXED_TARGET_CONTRACT } from "@tokamak/config";
+import {
+  useBridgeCoreWriteContract,
+  useBridgeCoreWaitForReceipt,
+  useBridgeCoreAbi,
+} from "@/hooks/contract";
 
 export function Step1CreateChannel() {
   const { address, isConnected } = useAccount();
-  
+  const [isTestingDb, setIsTestingDb] = useState(false);
+  const [dbTestResults, setDbTestResults] = useState<string[] | null>(null);
+
   const {
     participants,
+    targetContract,
     setTargetContract,
     updateParticipant,
     setParticipants,
@@ -41,23 +52,29 @@ export function Step1CreateChannel() {
   } = useChannelFlowStore();
 
   // Initialize participant count from store
+  const MAX_PARTICIPANTS = 128;
   const [participantCount, setParticipantCount] = useState<number>(
-    Math.max(1, participants.length || 1)
+    Math.min(MAX_PARTICIPANTS, Math.max(1, participants.length || 1))
   );
 
-  // Initialize target contract on mount
-  useEffect(() => {
+  // Set fixed target contract (constant, set once if not already set)
+  if (targetContract !== FIXED_TARGET_CONTRACT) {
     setTargetContract(FIXED_TARGET_CONTRACT);
-  }, [setTargetContract]);
+  }
 
   // Initialize participants on mount (only once)
   useEffect(() => {
     const store = useChannelFormStore.getState();
     if (store.participants.length === 0) {
-      const initialCount = Math.max(1, participantCount);
+      const initialCount = Math.min(
+        MAX_PARTICIPANTS,
+        Math.max(1, participantCount)
+      );
       const initialParticipants = Array(initialCount)
         .fill(null)
-        .map(() => ({ address: '0x0000000000000000000000000000000000000000' as `0x${string}` }));
+        .map(() => ({
+          address: "" as `0x${string}`,
+        }));
       store.setParticipants(initialParticipants);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -67,7 +84,7 @@ export function Step1CreateChannel() {
   useEffect(() => {
     const store = useChannelFormStore.getState();
     const currentCount = store.participants.length;
-    const targetCount = participantCount;
+    const targetCount = Math.min(MAX_PARTICIPANTS, participantCount);
 
     if (currentCount !== targetCount) {
       // Create new participants array with the target count
@@ -75,45 +92,45 @@ export function Step1CreateChannel() {
         .fill(null)
         .map((_, index) => {
           // Keep existing participant if available, otherwise use empty address
-          return store.participants[index] || { address: '0x0000000000000000000000000000000000000000' as `0x${string}` };
+          return (
+            store.participants[index] || {
+              address: "" as `0x${string}`,
+            }
+          );
         });
-      
+
       setParticipants(newParticipants);
     }
   }, [participantCount, setParticipants]);
 
   // Handle participant count change
   const handleParticipantCountChange = (count: number) => {
-    const numCount = Math.max(1, count);
+    const numCount = Math.min(MAX_PARTICIPANTS, Math.max(1, count));
     setParticipantCount(numCount);
   };
-
-  const networkId = useNetworkId();
-  const contractAddress = getContractAddress('BridgeCore', networkId);
-  const abi = getContractAbi('BridgeCore');
 
   // Prepare contract call parameters
   const channelParams = useMemo(() => {
     if (!isValid() || !isConnected) return undefined;
-    
+
     return {
       targetContract: FIXED_TARGET_CONTRACT,
-      whitelisted: participants.map(p => p.address),
+      whitelisted: participants.map((p) => p.address),
       enableFrostSignature: false,
     };
   }, [isValid, isConnected, participants]);
 
   // Contract write hook
-  const { 
+  const {
     writeContract,
     isPending: isWriting,
     data: txHash,
     error: writeError,
-  } = useBridgeCoreWrite();
+  } = useBridgeCoreWriteContract();
 
   // Wait for transaction confirmation
-  const { 
-    isLoading: isWaiting, 
+  const {
+    isLoading: isWaiting,
     isSuccess,
     data: receipt,
     error: waitError,
@@ -125,52 +142,108 @@ export function Step1CreateChannel() {
     },
   });
 
-  // Handle transaction success
-  useEffect(() => {
-    if (receipt && isSuccess) {
-      // Extract channel ID from transaction receipt logs
-      try {
-        let channelId: bigint | null = null;
-        
-        // Look for ChannelOpened event in the logs
-        if (receipt.logs && receipt.logs.length > 0) {
-          for (const log of receipt.logs) {
-            try {
-              const decoded = decodeEventLog({
-                abi: abi,
-                data: log.data,
-                topics: log.topics,
-              });
-              
-              if (decoded.eventName === 'ChannelOpened') {
-                channelId = decoded.args.channelId as bigint;
+  // Handle transaction success - extract channel ID and save to database
+  // Get ABI only when needed for decoding (used in handleChannelCreated)
+  const abi = useBridgeCoreAbi();
+
+  const handleChannelCreated = useCallback(async () => {
+    if (!receipt || !isSuccess) return;
+
+    try {
+      let channelId: bigint | null = null;
+
+      // Look for ChannelOpened event in the logs
+      if (receipt.logs && receipt.logs.length > 0) {
+        for (const log of receipt.logs) {
+          try {
+            const decoded = decodeEventLog({
+              abi: abi,
+              data: log.data,
+              topics: log.topics,
+            });
+
+            if (
+              decoded.eventName === "ChannelOpened" &&
+              decoded.args &&
+              typeof decoded.args === "object" &&
+              "channelId" in decoded.args
+            ) {
+              const args = decoded.args as { channelId: bigint };
+              if (typeof args.channelId === "bigint") {
+                channelId = args.channelId;
                 break;
               }
-            } catch (e) {
-              // Not a ChannelOpened event, continue
-              continue;
             }
+          } catch (e) {
+            // Not a ChannelOpened event, continue
+            continue;
           }
         }
-        
-        if (channelId === null) {
-          throw new Error('ChannelOpened event not found in transaction logs');
-        }
-        
-        // Call onChannelCreated which will update step to 2
-        onChannelCreated(channelId);
-        setCreateChannelTxHash('');
-        setConfirmingCreate(false);
-        setCreatingChannel(false);
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'Failed to extract channel ID from transaction';
-        setCreateChannelError(errorMessage);
-        setConfirmingCreate(false);
-        setCreatingChannel(false);
       }
+
+      if (channelId === null) {
+        throw new Error("ChannelOpened event not found in transaction logs");
+      }
+
+      // Save channel information to database
+      try {
+        const channelIdStr = channelId.toString();
+        const response = await fetch(`/api/channels/${channelIdStr}/save`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            txHash: receipt.transactionHash,
+            targetContract: FIXED_TARGET_CONTRACT,
+            participants: participants.map((p) => p.address),
+            blockNumber: receipt.blockNumber.toString(),
+          }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          console.error("Failed to save channel to database:", errorData);
+          // Don't throw - channel is created on-chain, DB save is secondary
+        } else {
+          console.log("Channel information saved to database:", channelIdStr);
+        }
+      } catch (dbError) {
+        console.error("Error saving channel to database:", dbError);
+        // Don't throw - channel is created on-chain, DB save is secondary
+      }
+
+      // Call onChannelCreated which will update step to 2
+      onChannelCreated(channelId);
+      setCreateChannelTxHash("");
+      setConfirmingCreate(false);
+      setCreatingChannel(false);
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "Failed to extract channel ID from transaction";
+      setCreateChannelError(errorMessage);
+      setConfirmingCreate(false);
+      setCreatingChannel(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [receipt, isSuccess, abi]);
+  }, [
+    receipt,
+    isSuccess,
+    abi,
+    participants,
+    onChannelCreated,
+    setCreateChannelTxHash,
+    setConfirmingCreate,
+    setCreatingChannel,
+    setCreateChannelError,
+  ]);
+
+  useEffect(() => {
+    if (receipt && isSuccess) {
+      handleChannelCreated();
+    }
+  }, [receipt, isSuccess, handleChannelCreated]);
 
   // Update store states based on wagmi hooks
   useEffect(() => {
@@ -196,25 +269,60 @@ export function Step1CreateChannel() {
       setConfirmingCreate(false);
       setCreatingChannel(false);
     }
-  }, [writeError, waitError, setCreateChannelError, setCreatingChannel, setConfirmingCreate]);
+  }, [
+    writeError,
+    waitError,
+    setCreateChannelError,
+    setCreatingChannel,
+    setConfirmingCreate,
+  ]);
 
   const handleCreateChannel = async () => {
     if (!channelParams || !isValid() || !isConnected) return;
-    
+
     try {
       setCreateChannelError(null);
       setCreatingChannel(true);
-      
+
       await writeContract({
-        address: contractAddress,
-        abi,
-        functionName: 'openChannel',
+        functionName: "openChannel",
         args: [channelParams],
       });
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to create channel';
+      const errorMessage =
+        error instanceof Error ? error.message : "Failed to create channel";
       setCreateChannelError(errorMessage);
       setCreatingChannel(false);
+    }
+  };
+
+  const handleTestDb = async () => {
+    try {
+      setIsTestingDb(true);
+      setDbTestResults(null);
+
+      const response = await fetch("/api/db/test", {
+        method: "POST",
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setDbTestResults(data.results);
+      } else {
+        setDbTestResults([
+          `❌ Test failed: ${data.error || "Unknown error"}`,
+          data.details ? `Details: ${data.details}` : "",
+        ]);
+      }
+    } catch (error) {
+      setDbTestResults([
+        `❌ Test error: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`,
+      ]);
+    } finally {
+      setIsTestingDb(false);
     }
   };
 
@@ -246,6 +354,7 @@ export function Step1CreateChannel() {
             id="participantCount"
             type="number"
             min="1"
+            max={MAX_PARTICIPANTS}
             value={participantCount}
             onChange={(e) => {
               const count = parseInt(e.target.value) || 1;
@@ -254,21 +363,23 @@ export function Step1CreateChannel() {
             placeholder="Enter number of participants"
             className="mb-4"
           />
-          
+
           <Label required>Participants</Label>
           <div className="space-y-2">
             {participants.map((participant, index) => (
               <div key={index}>
                 <Input
                   value={participant.address}
-                  onChange={(e) => updateParticipant(index, e.target.value as `0x${string}`)}
+                  onChange={(e) =>
+                    updateParticipant(index, e.target.value as `0x${string}`)
+                  }
                   placeholder="Add participant address (0x...)"
                 />
               </div>
             ))}
           </div>
           <p className="text-sm text-gray-500 mt-1">
-            Minimum 1 participant required
+            Minimum 1 participant required (maximum {MAX_PARTICIPANTS})
           </p>
         </div>
 
@@ -283,22 +394,43 @@ export function Step1CreateChannel() {
         {createChannelTxHash && (
           <div className="p-3 bg-blue-50 border border-blue-200 rounded text-blue-700 text-sm">
             Transaction: {createChannelTxHash}
-            {isConfirmingCreate && ' (Confirming...)'}
+            {isConfirmingCreate && " (Confirming...)"}
           </div>
         )}
 
-        {/* Submit Button */}
-        <Button
-          onClick={handleCreateChannel}
-          disabled={!isValid() || isCreatingChannel || isConfirmingCreate}
-          className="w-full"
-        >
-          {isCreatingChannel || isConfirmingCreate
-            ? 'Creating Channel...'
-            : 'Create Channel'}
-        </Button>
+        {/* DB Test Results */}
+        {dbTestResults && (
+          <div className="p-4 bg-gray-50 border border-gray-200 rounded text-sm space-y-1">
+            <div className="font-semibold mb-2">DB Test Results:</div>
+            {dbTestResults.map((result, index) => (
+              <div key={index} className="font-mono text-xs">
+                {result}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Action Buttons */}
+        <div className="flex gap-2">
+          <Button
+            onClick={handleCreateChannel}
+            disabled={!isValid() || isCreatingChannel || isConfirmingCreate}
+            className="flex-1"
+          >
+            {isCreatingChannel || isConfirmingCreate
+              ? "Creating Channel..."
+              : "Create Channel"}
+          </Button>
+          <Button
+            onClick={handleTestDb}
+            disabled={isTestingDb}
+            variant="outline"
+            className="flex-1"
+          >
+            {isTestingDb ? "Testing DB..." : "Test DB"}
+          </Button>
+        </div>
       </CardContent>
     </Card>
   );
 }
-

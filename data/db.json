@@ -1,0 +1,17 @@
+{
+  "channels": {
+    "10": {
+      "channelId": "10",
+      "status": "pending",
+      "targetContract": "0xa30fe40285B8f5c0457DbC3B7C8A280373c40044",
+      "participants": [
+        "0xF9Fa94D45C49e879E46Ea783fc133F41709f3bc7",
+        "0x6233A7c52652282b8b0b85C817537F072228587F"
+      ],
+      "openChannelTxHash": "0xd47e73b349495de8c9d5d3295145229e1f660b9b2d2533f00896c2ceebd2b357",
+      "blockNumber": "10007071",
+      "createdAt": "2026-01-09T04:49:09.345Z",
+      "_updatedAt": "2026-01-09T04:49:09.346Z"
+    }
+  }
+}
