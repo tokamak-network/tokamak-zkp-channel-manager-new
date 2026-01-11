@@ -16,11 +16,18 @@ export async function GET(
 
     const proofs = await getProofs(channelId, type);
 
-    return NextResponse.json({ proofs });
+    return NextResponse.json({ 
+      success: true,
+      data: proofs,
+      proofs // Keep for backward compatibility
+    });
   } catch (error) {
     console.error("Error fetching proofs:", error);
     return NextResponse.json(
-      { error: "Failed to fetch proofs" },
+      { 
+        success: false,
+        error: error instanceof Error ? error.message : "Failed to fetch proofs" 
+      },
       { status: 500 }
     );
   }

@@ -12,8 +12,10 @@ import {
   FolderArchive, 
   Loader2, 
   ExternalLink,
-  Upload
+  Upload,
+  Database
 } from 'lucide-react';
+import JSZip from 'jszip';
 import { useBridgeCoreRead } from '@/hooks/contract/useBridgeCore';
 import { useBridgeProofManagerWrite, useBridgeProofManagerWaitForReceipt } from '@/hooks/contract/useBridgeProofManager';
 import { getContractAbi, getContractAddress } from '@tokamak/config';
@@ -70,6 +72,7 @@ export default function SubmitProofPage() {
   const [draggedItemId, setDraggedItemId] = useState<string | null>(null);
   const [isLoadingProofs, setIsLoadingProofs] = useState(false);
   const [requireSignature, setRequireSignature] = useState(true);
+  const [isProcessingZip, setIsProcessingZip] = useState(false);
 
   // Get channel info from contract
   const { data: channelInfo } = useBridgeCoreRead({
@@ -112,101 +115,174 @@ export default function SubmitProofPage() {
     }
   }, [isFrostSignatureEnabled]);
 
-  // Load proofs from database when channel is selected
-  useEffect(() => {
-    const loadProofsFromDb = async () => {
-      if (!selectedChannelId) {
-        setUploadedProofs([]);
+  // Load proofs from database (manual button click)
+  const loadProofsFromDb = async () => {
+    if (!selectedChannelId) {
+      setProofError('Please enter a channel ID first');
+      return;
+    }
+
+    setIsLoadingProofs(true);
+    setProofError('');
+
+    try {
+      const response = await fetch(`/api/channels/${selectedChannelId}/proofs?type=verified`);
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to load proofs');
+      }
+
+      const proofs = result.data || result.proofs || [];
+
+      if (proofs.length === 0) {
+        setProofError('No verified proofs found for this channel');
+        setIsLoadingProofs(false);
         return;
       }
 
-      setIsLoadingProofs(true);
-      setProofError('');
-
-      try {
-        const response = await fetch(`/api/channels/${selectedChannelId}/proofs?type=verified`);
-        const result = await response.json();
-
-        if (!result.success) {
-          throw new Error(result.error || 'Failed to load proofs');
-        }
-
-        const proofs = result.data || [];
-
-        if (proofs.length === 0) {
-          setUploadedProofs([]);
-          setIsLoadingProofs(false);
-          return;
-        }
-
-        // Convert database proofs to UploadedProof format
-        const formattedProofs: UploadedProof[] = proofs.map((proof: any) => {
-          // Extract proof data from database format
-          // Assuming proof.proofData contains the proof information
-          const proofData = proof.proofData || proof;
-          
-          // Try to parse if it's a string
-          let parsedData: any;
-          if (typeof proofData === 'string') {
-            try {
-              parsedData = JSON.parse(proofData);
-            } catch {
-              parsedData = proofData;
-            }
-          } else {
-            parsedData = proofData;
+      // Convert database proofs to UploadedProof format
+      // Proofs in DB have ZIP file paths, so we need to fetch and parse ZIP files
+      const formattedProofs: UploadedProof[] = [];
+      
+      for (const proof of proofs) {
+        try {
+          // Get ZIP file path or content
+          const zipFile = proof.zipFile;
+          if (!zipFile) {
+            console.warn(`Proof ${proof.key || proof.proofId} has no ZIP file, skipping`);
+            continue;
           }
 
-          // Format proof data to match contract requirements
+          // Fetch ZIP content
+          let zipContent: string;
+          if (zipFile.content) {
+            // Base64 content already available
+            zipContent = zipFile.content;
+          } else if (zipFile.filePath) {
+            // Fetch from file path via API
+            const zipResponse = await fetch(
+              `/api/get-proof-zip?channelId=${selectedChannelId}&proofId=${proof.key || proof.proofId}&status=verifiedProofs&format=base64`
+            );
+            if (!zipResponse.ok) {
+              console.warn(`Failed to fetch ZIP for proof ${proof.key || proof.proofId}`);
+              continue;
+            }
+            const zipResult = await zipResponse.json();
+            if (!zipResult.success || !zipResult.content) {
+              console.warn(`No ZIP content for proof ${proof.key || proof.proofId}`);
+              continue;
+            }
+            zipContent = zipResult.content;
+          } else {
+            console.warn(`Proof ${proof.key || proof.proofId} has no ZIP content or file path, skipping`);
+            continue;
+          }
+
+          // Parse ZIP file
+          const arrayBuffer = await (async () => {
+            const binaryString = atob(zipContent);
+            const bytes = new Uint8Array(binaryString.length);
+            for (let i = 0; i < binaryString.length; i++) {
+              bytes[i] = binaryString.charCodeAt(i);
+            }
+            return bytes.buffer;
+          })();
+
+          const zip = await JSZip.loadAsync(arrayBuffer);
+          
+          // Find proof.json and instance.json
+          let proofJson: string | null = null;
+          let instanceJson: string | null = null;
+          
+          for (const filePath of Object.keys(zip.files)) {
+            const fileName = filePath.split('/').pop()?.toLowerCase();
+            if (fileName === 'proof.json') {
+              proofJson = filePath;
+            } else if (fileName === 'instance.json') {
+              instanceJson = filePath;
+            }
+          }
+
+          if (!proofJson || !instanceJson) {
+            console.warn(`Proof ${proof.key || proof.proofId} missing proof.json or instance.json`);
+            continue;
+          }
+
+          // Read and parse files
+          const proofFile = zip.file(proofJson);
+          const instanceFile = zip.file(instanceJson);
+          
+          if (!proofFile || !instanceFile) {
+            console.warn(`Cannot read files from ZIP for proof ${proof.key || proof.proofId}`);
+            continue;
+          }
+
+          const proofContent = await proofFile.async('string');
+          const instanceContent = await instanceFile.async('string');
+          
+          const proofData = JSON.parse(proofContent);
+          const instanceData = JSON.parse(instanceContent);
+
+          // Validate required fields
+          if (!proofData.proof_entries_part1 || !proofData.proof_entries_part2) {
+            console.warn(`Proof ${proof.key || proof.proofId} missing proof_entries_part1 or part2`);
+            continue;
+          }
+          if (!instanceData.a_pub_user || !instanceData.a_pub_block || !instanceData.a_pub_function) {
+            console.warn(`Proof ${proof.key || proof.proofId} missing public inputs`);
+            continue;
+          }
+
+          // Combine proof and instance data
+          const publicInputsRaw = [...instanceData.a_pub_user, ...instanceData.a_pub_block, ...instanceData.a_pub_function];
+          
           const formattedProof: ProofData = {
-            proofPart1: (parsedData.proof_entries_part1 || parsedData.proofPart1 || []).map((x: string | bigint) => 
-              typeof x === 'string' ? BigInt(x.startsWith('0x') ? x : `0x${x}`) : BigInt(x)
-            ),
-            proofPart2: (parsedData.proof_entries_part2 || parsedData.proofPart2 || []).map((x: string | bigint) => 
-              typeof x === 'string' ? BigInt(x.startsWith('0x') ? x : `0x${x}`) : BigInt(x)
-            ),
-            publicInputs: (() => {
-              // Combine a_pub_user, a_pub_block, a_pub_function if they exist separately
-              if (parsedData.a_pub_user && parsedData.a_pub_block && parsedData.a_pub_function) {
-                return [
-                  ...parsedData.a_pub_user,
-                  ...parsedData.a_pub_block,
-                  ...parsedData.a_pub_function,
-                ].map((x: string | bigint) => 
-                  typeof x === 'string' ? BigInt(x.startsWith('0x') ? x : `0x${x}`) : BigInt(x)
-                );
-              }
-              // Otherwise use publicInputs if available
-              return (parsedData.publicInputs || []).map((x: string | bigint) => 
-                typeof x === 'string' ? BigInt(x.startsWith('0x') ? x : `0x${x}`) : BigInt(x)
-              );
-            })(),
-            smax: BigInt(parsedData.smax || 256),
+            proofPart1: proofData.proof_entries_part1.map((x: string) => BigInt(x.startsWith('0x') ? x : `0x${x}`)),
+            proofPart2: proofData.proof_entries_part2.map((x: string) => BigInt(x.startsWith('0x') ? x : `0x${x}`)),
+            publicInputs: publicInputsRaw.map((x: string) => BigInt(x.startsWith('0x') ? x : `0x${x}`)),
+            smax: BigInt(256),
           };
 
-          return {
+          // Create virtual file for display
+          const virtualFile = new File(
+            [JSON.stringify({ ...proofData, ...instanceData }, null, 2)],
+            `proof_${proof.sequenceNumber || proof.key || 'unknown'}.json`,
+            { type: 'application/json' }
+          );
+
+          formattedProofs.push({
             id: `db_${proof.key || proof.sequenceNumber || Date.now()}`,
-            file: null,
+            file: virtualFile,
             data: formattedProof,
             source: 'db',
             sequenceNumber: proof.sequenceNumber,
-          };
-        });
-
-        // Sort by sequenceNumber
-        formattedProofs.sort((a, b) => (a.sequenceNumber || 0) - (b.sequenceNumber || 0));
-
-        setUploadedProofs(formattedProofs);
-      } catch (error) {
-        console.error('Error loading proofs from database:', error);
-        setProofError(error instanceof Error ? error.message : 'Failed to load proofs from database');
-      } finally {
-        setIsLoadingProofs(false);
+          });
+        } catch (error) {
+          console.error(`Error processing proof ${proof.key || proof.proofId}:`, error);
+          // Continue with next proof
+        }
       }
-    };
 
-    loadProofsFromDb();
-  }, [selectedChannelId]);
+      // Sort by sequenceNumber
+      formattedProofs.sort((a, b) => (a.sequenceNumber || 0) - (b.sequenceNumber || 0));
+
+      // Check if we have room for all proofs
+      const availableSlots = 5 - uploadedProofs.length;
+      if (formattedProofs.length > availableSlots) {
+        setProofError(`Cannot add ${formattedProofs.length} proofs. Only ${availableSlots} slots available (max 5 total).`);
+        setIsLoadingProofs(false);
+        return;
+      }
+
+      setUploadedProofs(prev => [...prev, ...formattedProofs]);
+    } catch (error) {
+      console.error('Error loading proofs from database:', error);
+      setProofError(error instanceof Error ? error.message : 'Failed to load proofs from database');
+    } finally {
+      setIsLoadingProofs(false);
+    }
+  };
 
   // Compute final state root from the last proof's a_pub_user[0] (lower) and a_pub_user[1] (upper)
   const finalStateRoot = useMemo(() => {
@@ -349,6 +425,132 @@ export default function SubmitProofPage() {
     } catch (error) {
       console.error('Error parsing proof file:', error);
       setProofError(error instanceof Error ? error.message : 'Invalid proof file format');
+    }
+  };
+  
+  // Handle verified proofs ZIP upload (from state explorer download)
+  const handleVerifiedProofsZipUpload = async (file: File) => {
+    try {
+      setProofError('');
+      setIsProcessingZip(true);
+      
+      const arrayBuffer = await file.arrayBuffer();
+      const zip = await JSZip.loadAsync(arrayBuffer);
+      
+      // Get all file paths
+      const allFiles = Object.keys(zip.files).filter(name => !name.endsWith('/'));
+      
+      // Find proof folders (proof_1, proof_2, etc.)
+      // Structure: channel-{id}-all-verified-proofs/proof_N/
+      const proofFolders = new Map<number, { proofJson: string | null; instanceJson: string | null }>();
+      
+      for (const filePath of allFiles) {
+        const parts = filePath.split('/');
+        // Look for proof_N folder pattern
+        const proofFolderMatch = parts.find(p => /^proof_\d+$/i.test(p));
+        if (proofFolderMatch) {
+          const proofNumber = parseInt(proofFolderMatch.replace(/proof_/i, ''), 10);
+          const fileName = parts[parts.length - 1].toLowerCase();
+          
+          if (!proofFolders.has(proofNumber)) {
+            proofFolders.set(proofNumber, { proofJson: null, instanceJson: null });
+          }
+          
+          const entry = proofFolders.get(proofNumber)!;
+          if (fileName === 'proof.json') {
+            entry.proofJson = filePath;
+          } else if (fileName === 'instance.json') {
+            entry.instanceJson = filePath;
+          }
+        }
+      }
+      
+      if (proofFolders.size === 0) {
+        throw new Error('No proof folders found. Expected format: proof_1/, proof_2/, etc.');
+      }
+      
+      // Sort by proof number and process
+      const sortedProofNumbers = Array.from(proofFolders.keys()).sort((a, b) => a - b);
+      const newProofs: UploadedProof[] = [];
+      
+      // Check if we have room for all proofs
+      const availableSlots = 5 - uploadedProofs.length;
+      if (sortedProofNumbers.length > availableSlots) {
+        throw new Error(`Cannot add ${sortedProofNumbers.length} proofs. Only ${availableSlots} slots available (max 5 total).`);
+      }
+      
+      for (const proofNumber of sortedProofNumbers) {
+        const entry = proofFolders.get(proofNumber)!;
+        
+        if (!entry.proofJson || !entry.instanceJson) {
+          throw new Error(`proof_${proofNumber}: Missing ${!entry.proofJson ? 'proof.json' : 'instance.json'}`);
+        }
+        
+        // Read proof.json
+        const proofFile = zip.file(entry.proofJson);
+        if (!proofFile) {
+          throw new Error(`Cannot read proof.json from proof_${proofNumber}`);
+        }
+        const proofContent = await proofFile.async('string');
+        const proofData = JSON.parse(proofContent);
+        
+        // Read instance.json
+        const instanceFile = zip.file(entry.instanceJson);
+        if (!instanceFile) {
+          throw new Error(`Cannot read instance.json from proof_${proofNumber}`);
+        }
+        const instanceContent = await instanceFile.async('string');
+        const instanceData = JSON.parse(instanceContent);
+        
+        // Validate required fields
+        if (!proofData.proof_entries_part1 || !Array.isArray(proofData.proof_entries_part1)) {
+          throw new Error(`proof_${proofNumber}: Invalid proof.json - missing proof_entries_part1`);
+        }
+        if (!proofData.proof_entries_part2 || !Array.isArray(proofData.proof_entries_part2)) {
+          throw new Error(`proof_${proofNumber}: Invalid proof.json - missing proof_entries_part2`);
+        }
+        if (!instanceData.a_pub_user || !Array.isArray(instanceData.a_pub_user)) {
+          throw new Error(`proof_${proofNumber}: Invalid instance.json - missing a_pub_user`);
+        }
+        if (!instanceData.a_pub_block || !Array.isArray(instanceData.a_pub_block)) {
+          throw new Error(`proof_${proofNumber}: Invalid instance.json - missing a_pub_block`);
+        }
+        if (!instanceData.a_pub_function || !Array.isArray(instanceData.a_pub_function)) {
+          throw new Error(`proof_${proofNumber}: Invalid instance.json - missing a_pub_function`);
+        }
+        
+        // Combine proof and instance data
+        const publicInputsRaw = [...instanceData.a_pub_user, ...instanceData.a_pub_block, ...instanceData.a_pub_function];
+        
+        const newProofData: ProofData = {
+          proofPart1: proofData.proof_entries_part1.map((x: string) => BigInt(x.startsWith('0x') ? x : `0x${x}`)),
+          proofPart2: proofData.proof_entries_part2.map((x: string) => BigInt(x.startsWith('0x') ? x : `0x${x}`)),
+          publicInputs: publicInputsRaw.map((x: string) => BigInt(x.startsWith('0x') ? x : `0x${x}`)),
+          smax: BigInt(256),
+        };
+        
+        // Create virtual file for display
+        const virtualFile = new File(
+          [JSON.stringify({ ...proofData, ...instanceData }, null, 2)],
+          `proof_${proofNumber}.json`,
+          { type: 'application/json' }
+        );
+        
+        newProofs.push({
+          id: `proof_${Date.now()}_${proofNumber}_${Math.random().toString(36).substr(2, 9)}`,
+          file: virtualFile,
+          data: newProofData,
+          source: 'upload',
+        });
+      }
+      
+      setUploadedProofs(prev => [...prev, ...newProofs]);
+      
+    } catch (error) {
+      console.error('Error processing verified proofs ZIP:', error);
+      setProofError(error instanceof Error ? error.message : 'Failed to process verified proofs ZIP');
+    } finally {
+      setIsProcessingZip(false);
     }
   };
   
@@ -591,17 +793,70 @@ export default function SubmitProofPage() {
                 Individual Proof Files
               </h3>
               <p className="text-gray-600 dark:text-gray-400">
-                Proofs are automatically loaded from database. You can also upload additional proof files (max 5). Drag to reorder - order matters!
+                Upload individual proof files (max 5), arrange in order, and submit with group signature
               </p>
             </div>
             
             <div className="p-6 space-y-6">
-              {isLoadingProofs && (
-                <div className="flex items-center justify-center gap-2 text-gray-600 dark:text-gray-400">
-                  <Loader2 className="h-5 w-5 animate-spin" />
-                  <span>Loading proofs from database...</span>
+              <div className="flex flex-col sm:flex-row justify-center gap-4 mb-6">
+                <button
+                  onClick={loadProofsFromDb}
+                  disabled={!selectedChannelId || isLoadingProofs || uploadedProofs.length >= 5}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-blue-500/10 border border-blue-500/50 text-blue-400 rounded-lg hover:bg-blue-500/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isLoadingProofs ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Loading...
+                    </>
+                  ) : (
+                    <>
+                      <Database className="h-4 w-4" />
+                      Load from Database
+                    </>
+                  )}
+                </button>
+                
+                {/* Auto-format from State Explorer ZIP */}
+                <label className="inline-flex items-center gap-2 px-4 py-2 bg-purple-500/10 border border-purple-500/50 text-purple-400 rounded-lg hover:bg-purple-500/20 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
+                  <input
+                    type="file"
+                    accept=".zip"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (file) await handleVerifiedProofsZipUpload(file);
+                      e.target.value = ''; // Reset input
+                    }}
+                    className="hidden"
+                    disabled={isProcessingZip || uploadedProofs.length >= 5}
+                  />
+                  {isProcessingZip ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      <FolderArchive className="h-4 w-4" />
+                      Import from State Explorer ZIP
+                    </>
+                  )}
+                </label>
+              </div>
+              
+              {/* Info about ZIP import */}
+              <div className="bg-purple-500/10 border border-purple-500/30 rounded-lg p-4 mb-4">
+                <div className="flex items-start gap-3">
+                  <FolderArchive className="h-5 w-5 text-purple-400 flex-shrink-0 mt-0.5" />
+                  <div className="text-sm">
+                    <p className="text-purple-300 font-medium mb-1">Auto-format from State Explorer</p>
+                    <p className="text-purple-400/80">
+                      Upload the ZIP file downloaded from State Explorer's "Download Verified Proofs" button. 
+                      The proofs will be automatically formatted and added in order.
+                    </p>
+                  </div>
                 </div>
-              )}
+              </div>
 
               {/* Upload area */}
               <div className="max-w-2xl mx-auto">
