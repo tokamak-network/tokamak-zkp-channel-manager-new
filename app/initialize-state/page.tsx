@@ -156,16 +156,45 @@ function InitializeStatePageContent() {
     }
   }, [initializeTxHash, setInitializeTxHash]);
 
+  // Save initialization transaction hash to DB on success
   useEffect(() => {
-    if (initializeSuccess) {
+    if (initializeSuccess && initializeTxHash && channelId) {
       setInitializing(false);
       setConfirmingInitialize(false);
       console.log("✅ Channel initialized successfully:", initializeTxHash);
-      // TODO: Handle success - redirect or show success message
+
+      // Save initialization transaction hash to DB
+      const channelIdStr = channelId.toString();
+      fetch(`/api/channels/${channelIdStr}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          initializationTxHash: initializeTxHash,
+          initializedAt: new Date().toISOString(),
+          status: "active", // Update status to active after initialization
+        }),
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.success) {
+            console.log("✅ Initialization transaction hash saved to DB");
+          } else {
+            console.error(
+              "❌ Failed to save initialization tx hash:",
+              data.error
+            );
+          }
+        })
+        .catch((error) => {
+          console.error("❌ Error saving initialization tx hash:", error);
+        });
     }
   }, [
     initializeSuccess,
     initializeTxHash,
+    channelId,
     setInitializing,
     setConfirmingInitialize,
   ]);

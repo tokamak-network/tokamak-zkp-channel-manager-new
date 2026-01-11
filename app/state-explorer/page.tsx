@@ -44,6 +44,7 @@ import {
   AlertCircle,
   Plus,
 } from "lucide-react";
+import { TransactionBundleModal } from "@/components/TransactionBundleModal";
 
 // Types
 interface ParticipantBalance {
@@ -353,6 +354,7 @@ function StateExplorerDetailView({
   );
   const [isLoadingTransitions, setIsLoadingTransitions] = useState(false);
   const [isTransitionsExpanded, setIsTransitionsExpanded] = useState(false);
+  const [isBundleModalOpen, setIsBundleModalOpen] = useState(false);
   const publicClient = usePublicClient();
   const networkId = useNetworkId();
   const bridgeCoreAddress = getContractAddress("BridgeCore", networkId);
@@ -631,10 +633,7 @@ function StateExplorerDetailView({
             {/* Action Buttons */}
             <div className="flex items-center gap-3">
               <button
-                onClick={() => {
-                  // TODO: Open transaction bundle modal or trigger API call
-                  console.log("Create Transaction clicked for channel", channel.id);
-                }}
+                onClick={() => setIsBundleModalOpen(true)}
                 className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded transition-all hover:shadow-lg hover:shadow-green-500/30 font-medium"
               >
                 <Plus className="w-4 h-4" />
@@ -1122,6 +1121,13 @@ function StateExplorerDetailView({
           )}
         </div>
       </div>
+      
+      {/* Transaction Bundle Modal */}
+      <TransactionBundleModal
+        isOpen={isBundleModalOpen}
+        onClose={() => setIsBundleModalOpen(false)}
+        defaultChannelId={channel.id.toString()}
+      />
     </div>
   );
 }

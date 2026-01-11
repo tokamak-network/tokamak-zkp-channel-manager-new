@@ -62,3 +62,18 @@ export const TX_SETTINGS = {
  * Default target contract address for channel creation
  */
 export const FIXED_TARGET_CONTRACT = '0xa30fe40285B8f5c0457DbC3B7C8A280373c40044' as `0x${string}`;
+
+/**
+ * TON Token Address (Sepolia testnet)
+ */
+export const TON_TOKEN_ADDRESS = '0xa30fe40285B8f5c0457DbC3B7C8A280373c40044' as `0x${string}`;
+
+/**
+ * ERC20 Transfer function selectors and slot indices
+ */
+export const ERC20_TRANSFER: Record<`0x${string}`, { selector: `0x${string}`; slot: number }> = {
+  [TON_TOKEN_ADDRESS]: {
+    selector: '0xa9059cbb',
+    slot: 0,
+  },
+};
