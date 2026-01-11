@@ -1,18 +1,25 @@
 /**
  * Initialize State Page
- * 
+ *
  * Initialize channel state (Leader only)
  * Supports channel selection
  */
 
-'use client';
+"use client";
 
-import { Suspense, useEffect, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
-import { useChannelFlowStore, useDepositStore, useInitializeStore } from '@/stores';
-import { Button, Card, CardContent, CardHeader } from '@tokamak/ui';
-import { ChannelSelector } from '@/app/create-channel/_components/ChannelSelector';
-import type { Channel } from '@/lib/db';
+import { Suspense, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { useChannelFlowStore, useInitializeStore } from "@/stores";
+import { Button, Card, CardContent, CardHeader } from "@tokamak/ui";
+import { ChannelSelector } from "@/app/create-channel/_components/ChannelSelector";
+import type { Channel } from "@/lib/db";
+import {
+  useBridgeProofManagerWrite,
+  useBridgeProofManagerWaitForReceipt,
+  useBridgeProofManagerAddress,
+} from "@/hooks/contract";
+import { getContractAbi } from "@tokamak/config";
+import { useGenerateInitialProof } from "./_hooks/useGenerateInitialProof";
 
 function InitializeStatePageContent() {
   const searchParams = useSearchParams();
@@ -21,7 +28,7 @@ function InitializeStatePageContent() {
   const [selectedChannel, setSelectedChannel] = useState<Channel | null>(null);
   const [channelParticipants, setChannelParticipants] = useState<string[]>([]);
 
-  const { areAllDepositsComplete } = useDepositStore();
+  // Note: Leader can initialize channel state at any time, no need to wait for all deposits
   const {
     isGeneratingProof,
     proofData,
@@ -32,17 +39,43 @@ function InitializeStatePageContent() {
     setProofData,
     setInitializing,
     setInitializeTxHash,
+    setConfirmingInitialize,
+    setInitializeError,
+    setProofError,
   } = useInitializeStore();
+
+  // Get contract address and ABI for BridgeProofManager
+  const proofManagerAddress = useBridgeProofManagerAddress();
+  const proofManagerAbi = getContractAbi("BridgeProofManager");
+
+  // Prepare initialize transaction
+  const { writeContract: writeInitialize, data: initializeTxHash } =
+    useBridgeProofManagerWrite();
+  const {
+    isLoading: isWaitingInitialize,
+    isSuccess: initializeSuccess,
+    error: initializeTxError,
+  } = useBridgeProofManagerWaitForReceipt({
+    hash: initializeTxHash,
+  });
+
+  // Proof generation hook
+  const {
+    generateProof,
+    isGenerating: isGeneratingProofHook,
+    status: proofStatus,
+    error: proofError,
+  } = useGenerateInitialProof({ channelId });
 
   // Check URL parameter for channelId
   useEffect(() => {
-    const channelIdParam = searchParams.get('channelId');
+    const channelIdParam = searchParams.get("channelId");
     if (channelIdParam) {
       try {
         const id = BigInt(channelIdParam);
         setChannelId(id);
         setInitializeStoreChannelId(id);
-        
+
         // Fetch channel data
         fetch(`/api/channels/${channelIdParam}`)
           .then((res) => res.json())
@@ -56,7 +89,7 @@ function InitializeStatePageContent() {
           })
           .catch(console.error);
       } catch (error) {
-        console.error('Invalid channelId parameter:', error);
+        console.error("Invalid channelId parameter:", error);
       }
     }
   }, [searchParams, setChannelId, setInitializeStoreChannelId]);
@@ -92,60 +125,128 @@ function InitializeStatePageContent() {
       const id = BigInt(channel.channelId);
       setChannelId(id);
       setInitializeStoreChannelId(id);
-      
+
       if (channel.participants) {
         setChannelParticipants(channel.participants);
       }
-      
+
       // Update URL
-      if (typeof window !== 'undefined') {
+      if (typeof window !== "undefined") {
         const url = new URL(window.location.href);
-        url.searchParams.set('channelId', channel.channelId);
-        window.history.replaceState({}, '', url.toString());
+        url.searchParams.set("channelId", channel.channelId);
+        window.history.replaceState({}, "", url.toString());
       }
     }
   };
 
-  const allDepositsComplete = areAllDepositsComplete(channelParticipants);
+  // Removed deposit completion check - leader can initialize anytime
+
+  // Update initialize state based on transaction status
+  useEffect(() => {
+    setInitializing(isWaitingInitialize);
+  }, [isWaitingInitialize, setInitializing]);
+
+  useEffect(() => {
+    setConfirmingInitialize(isWaitingInitialize);
+  }, [isWaitingInitialize, setConfirmingInitialize]);
+
+  useEffect(() => {
+    if (initializeTxHash) {
+      setInitializeTxHash(initializeTxHash);
+    }
+  }, [initializeTxHash, setInitializeTxHash]);
+
+  useEffect(() => {
+    if (initializeSuccess) {
+      setInitializing(false);
+      setConfirmingInitialize(false);
+      console.log("✅ Channel initialized successfully:", initializeTxHash);
+      // TODO: Handle success - redirect or show success message
+    }
+  }, [
+    initializeSuccess,
+    initializeTxHash,
+    setInitializing,
+    setConfirmingInitialize,
+  ]);
+
+  useEffect(() => {
+    if (initializeTxError) {
+      setInitializeError(
+        initializeTxError.message || "Initialize transaction failed"
+      );
+      setInitializing(false);
+      setConfirmingInitialize(false);
+      console.error("❌ Initialize error:", initializeTxError);
+    }
+  }, [
+    initializeTxError,
+    setInitializeError,
+    setInitializing,
+    setConfirmingInitialize,
+  ]);
 
   const handleGenerateProof = async () => {
     if (!channelId) return;
-    
-    // TODO: Implement actual proof generation
-    console.log('Generating proof...', { channelId: channelId.toString() });
 
     setGeneratingProof(true);
+    setProofError(null);
 
-    // Mock: Simulate proof generation
-    setTimeout(() => {
-      setProofData({
-        pA: [BigInt(1), BigInt(2), BigInt(3), BigInt(4)],
-        pB: [BigInt(5), BigInt(6), BigInt(7), BigInt(8), BigInt(9), BigInt(10), BigInt(11), BigInt(12)],
-        pC: [BigInt(13), BigInt(14), BigInt(15), BigInt(16)],
-        merkleRoot: '0x' + Math.random().toString(16).slice(2, 66),
-      });
+    try {
+      const proof = await generateProof();
+      if (proof) {
+        setProofData(proof);
+      }
+    } catch (error) {
+      console.error("Error generating proof:", error);
+      setProofError(
+        error instanceof Error ? error.message : "Failed to generate proof"
+      );
+    } finally {
       setGeneratingProof(false);
-    }, 3000);
+    }
   };
 
   const handleInitialize = async () => {
-    if (!proofData || !channelId) return;
+    if (!proofData || !channelId) {
+      console.error("Missing proof data or channel ID");
+      return;
+    }
 
-    // TODO: Implement actual initialize transaction
-    console.log('Initializing channel state...', {
+    console.log("Initializing channel state...", {
       channelId: channelId.toString(),
       proofData,
     });
 
     setInitializing(true);
-    setInitializeTxHash('0x' + Math.random().toString(16).slice(2, 66));
+    setInitializeError(null);
 
-    // Mock: Simulate transaction
-    setTimeout(() => {
+    try {
+      // Prepare proof struct for contract
+      const proof = {
+        pA: proofData.pA,
+        pB: proofData.pB,
+        pC: proofData.pC,
+        merkleRoot: proofData.merkleRoot as `0x${string}`,
+      };
+
+      // Call contract (don't await - let wagmi handle the transaction)
+      writeInitialize({
+        address: proofManagerAddress,
+        abi: proofManagerAbi,
+        functionName: "initializeChannelState",
+        args: [channelId, proof],
+      });
+    } catch (error) {
+      console.error("Error initializing channel state:", error);
+      setInitializeError(
+        error instanceof Error
+          ? error.message
+          : "Failed to initialize channel state"
+      );
       setInitializing(false);
-      // TODO: Handle success - redirect or show success message
-      alert('Channel initialized successfully!');
-    }, 2000);
+      setConfirmingInitialize(false);
+    }
   };
 
   // Show channel selector if no channel is selected
@@ -162,7 +263,7 @@ function InitializeStatePageContent() {
         </Card>
         <ChannelSelector
           onSelectChannel={handleSelectChannel}
-          selectedChannelId={selectedChannel?.channelId}
+          selectedChannelId={undefined}
         />
       </div>
     );
@@ -175,7 +276,9 @@ function InitializeStatePageContent() {
           <div>
             <h2 className="text-xl font-semibold">Initialize Channel State</h2>
             {channelId && (
-              <p className="text-sm text-gray-600">Channel ID: {channelId.toString()}</p>
+              <p className="text-sm text-gray-600">
+                Channel ID: {channelId.toString()}
+              </p>
             )}
           </div>
           <Button
@@ -184,10 +287,10 @@ function InitializeStatePageContent() {
             onClick={() => {
               setSelectedChannel(null);
               setChannelId(null);
-              if (typeof window !== 'undefined') {
+              if (typeof window !== "undefined") {
                 const url = new URL(window.location.href);
-                url.searchParams.delete('channelId');
-                window.history.replaceState({}, '', url.toString());
+                url.searchParams.delete("channelId");
+                window.history.replaceState({}, "", url.toString());
               }
             }}
           >
@@ -196,24 +299,27 @@ function InitializeStatePageContent() {
         </div>
       </CardHeader>
       <CardContent className="space-y-6">
-        {/* Deposit Status Check */}
-        {!allDepositsComplete && (
-          <div className="p-3 bg-yellow-50 border border-yellow-200 rounded text-yellow-700 text-sm">
-            ⚠ Waiting for all participants to complete their deposits...
-          </div>
-        )}
-
         {/* Proof Generation */}
         <div>
           <h3 className="font-semibold mb-3">Generate ZK Proof</h3>
           {!proofData ? (
-            <Button
-              onClick={handleGenerateProof}
-              disabled={!allDepositsComplete || isGeneratingProof}
-              className="w-full"
-            >
-              {isGeneratingProof ? 'Generating Proof...' : 'Generate Proof'}
-            </Button>
+            <div className="space-y-2">
+              <Button
+                onClick={handleGenerateProof}
+                disabled={isGeneratingProof || isGeneratingProofHook}
+                className="w-full"
+              >
+                {isGeneratingProof || isGeneratingProofHook
+                  ? "Generating Proof..."
+                  : "Generate Proof"}
+              </Button>
+              {proofStatus && (
+                <p className="text-sm text-gray-600">{proofStatus}</p>
+              )}
+              {proofError && (
+                <p className="text-sm text-red-600">Error: {proofError}</p>
+              )}
+            </div>
           ) : (
             <div className="p-3 bg-green-50 border border-green-200 rounded text-green-700 text-sm">
               ✓ Proof generated successfully
@@ -225,7 +331,7 @@ function InitializeStatePageContent() {
         </div>
 
         {/* Initialize Button */}
-        {proofData && allDepositsComplete && (
+        {proofData && (
           <div>
             <Button
               onClick={handleInitialize}
@@ -233,16 +339,34 @@ function InitializeStatePageContent() {
               className="w-full"
             >
               {isInitializing || isConfirmingInitialize
-                ? 'Initializing...'
-                : 'Initialize Channel State'}
+                ? "Initializing..."
+                : "Initialize Channel State"}
             </Button>
           </div>
         )}
 
         {/* Status Messages */}
-        {isConfirmingInitialize && (
+        {initializeTxHash && !initializeSuccess && (
           <div className="p-3 bg-blue-50 border border-blue-200 rounded text-blue-700 text-sm">
-            Transaction submitted. Waiting for confirmation...
+            Transaction submitted: {initializeTxHash.slice(0, 20)}...
+            {isConfirmingInitialize && " Waiting for confirmation..."}
+          </div>
+        )}
+
+        {initializeSuccess && initializeTxHash && (
+          <div className="p-3 bg-green-50 border border-green-200 rounded text-green-700 text-sm">
+            ✓ Channel initialized successfully!
+            <div className="mt-1 text-xs">
+              Tx: {initializeTxHash.slice(0, 20)}...
+            </div>
+          </div>
+        )}
+
+        {/* Error Messages */}
+        {initializeTxError && (
+          <div className="p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
+            Error:{" "}
+            {initializeTxError.message || "Initialize transaction failed"}
           </div>
         )}
       </CardContent>
@@ -262,11 +386,13 @@ export default function InitializeStatePage() {
         </p>
       </div>
 
-      <Suspense fallback={
-        <div className="p-8 text-center">
-          <p className="text-gray-500">Loading...</p>
-        </div>
-      }>
+      <Suspense
+        fallback={
+          <div className="p-8 text-center">
+            <p className="text-gray-500">Loading...</p>
+          </div>
+        }
+      >
         <InitializeStatePageContent />
       </Suspense>
     </>
