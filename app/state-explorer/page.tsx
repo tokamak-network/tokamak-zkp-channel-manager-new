@@ -45,6 +45,7 @@ import {
   Plus,
 } from "lucide-react";
 import { TransactionBundleModal } from "@/components/TransactionBundleModal";
+import { ProofCard, type ProofData } from "@/components/ProofCard";
 
 // Types
 interface ParticipantBalance {
@@ -355,6 +356,11 @@ function StateExplorerDetailView({
   const [isLoadingTransitions, setIsLoadingTransitions] = useState(false);
   const [isTransitionsExpanded, setIsTransitionsExpanded] = useState(false);
   const [isBundleModalOpen, setIsBundleModalOpen] = useState(false);
+  const [isVerifying, setIsVerifying] = useState<string | null>(null);
+  const [selectedProofForApproval, setSelectedProofForApproval] = useState<
+    string | null
+  >(null);
+  const [isDeletingProof, setIsDeletingProof] = useState<string | null>(null);
   const publicClient = usePublicClient();
   const networkId = useNetworkId();
   const bridgeCoreAddress = getContractAddress("BridgeCore", networkId);
@@ -572,13 +578,126 @@ function StateExplorerDetailView({
     }
   }, [initialDeposits, channel.participants.length, fetchChannelData]);
 
-  const filteredProofs = proofs.filter((proof) => {
-    if (filter === "all") return true;
-    if (filter === "pending") return proof.status === "submitted";
-    if (filter === "verified") return proof.status === "verified";
-    if (filter === "rejected") return proof.status === "rejected";
-    return true;
-  });
+  // Check if user is leader
+  const isLeader = channel.isLeader;
+
+  // Handle proof verification
+  const handleVerifyProof = async (proof: ProofData) => {
+    if (!isLeader || !proof.key || !proof.sequenceNumber) {
+      return;
+    }
+
+    setIsVerifying(proof.key as string);
+
+    try {
+      // Call backend API to perform atomic verification
+      const response = await fetch("/api/verify-proof", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          channelId: channel.id,
+          proofKey: proof.key,
+          sequenceNumber: proof.sequenceNumber,
+          verifierAddress: userAddress,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to verify proof");
+      }
+
+      const result = await response.json();
+      console.log("Proof verified successfully:", result);
+
+      // Refresh proofs
+      await fetchChannelData();
+      setSelectedProofForApproval(null);
+    } catch (error) {
+      console.error("Error verifying proof:", error);
+      alert(
+        `Failed to verify proof: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
+    } finally {
+      setIsVerifying(null);
+    }
+  };
+
+  // Handle proof deletion
+  const handleDeleteProof = async (proof: ProofData) => {
+    if (!proof.key) {
+      return;
+    }
+
+    setIsDeletingProof(proof.key);
+
+    try {
+      const response = await fetch("/api/delete-proof", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          channelId: channel.id,
+          proofKey: proof.key,
+          userAddress: userAddress,
+          isLeader: isLeader,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to delete proof");
+      }
+
+      // Refresh proofs
+      await fetchChannelData();
+    } catch (error) {
+      console.error("Error deleting proof:", error);
+      alert(
+        `Failed to delete proof: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
+    } finally {
+      setIsDeletingProof(null);
+    }
+  };
+
+  const filteredProofs = proofs
+    .map((proof) => {
+      // Convert Proof to ProofData format
+      const proofData: ProofData = {
+        id: proof.key || proof.sequenceNumber || "",
+        status:
+          proof.status === "submitted"
+            ? "pending"
+            : (proof.status as ProofData["status"]) || "pending",
+        timestamp:
+          proof.timestamp ||
+          (proof._createdAt
+            ? new Date(proof._createdAt).getTime()
+            : Date.now()),
+        submitter: proof.submitter || "",
+        channelId: channel.id,
+        proofId: proof.proofId || proof.key,
+        sequenceNumber: proof.sequenceNumber,
+        subNumber: proof.subNumber,
+        key: proof.key,
+      };
+      return proofData;
+    })
+    .filter((proof) => {
+      if (filter === "all") return true;
+      if (filter === "pending") return proof.status === "pending";
+      if (filter === "verified") return proof.status === "verified";
+      if (filter === "rejected") return proof.status === "rejected";
+      return true;
+    });
 
   const stats = {
     total: proofs.length,
@@ -1047,6 +1166,110 @@ function StateExplorerDetailView({
             </div>
           )}
 
+          {/* Pending Proofs Approval Section (Leader Only) */}
+          {isLeader &&
+            filteredProofs.filter((p) => p.status === "pending").length > 0 && (
+              <div className="mb-6 bg-gradient-to-b from-[#1a2347] to-[#0a1930] border border-amber-500/50 p-6 shadow-lg">
+                <div className="flex items-center gap-3 mb-4">
+                  <AlertCircle className="w-5 h-5 text-amber-400" />
+                  <h3 className="text-lg font-semibold text-white">
+                    Pending Proofs Approval
+                  </h3>
+                  <span className="bg-amber-500/20 text-amber-400 text-xs px-2 py-0.5 rounded font-medium">
+                    LEADER ACTION REQUIRED
+                  </span>
+                </div>
+                <p className="text-gray-400 text-sm mb-4">
+                  Select one proof to approve. All other proofs in the same
+                  sequence will be automatically rejected.
+                </p>
+
+                <div className="space-y-3 mb-4">
+                  {filteredProofs
+                    .filter((p) => p.status === "pending")
+                    .map((proof) => (
+                      <label
+                        key={proof.key || proof.id}
+                        className={`flex items-center gap-3 p-4 rounded-lg border cursor-pointer transition-all ${
+                          selectedProofForApproval === proof.key
+                            ? "bg-amber-500/10 border-amber-500/50"
+                            : "bg-[#0a1930]/50 border-[#4fc3f7]/30 hover:border-amber-500/30"
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="proofApproval"
+                          value={proof.key as string}
+                          checked={selectedProofForApproval === proof.key}
+                          onChange={(e) =>
+                            setSelectedProofForApproval(e.target.value)
+                          }
+                          className="w-4 h-4 text-amber-500 focus:ring-amber-500 focus:ring-2"
+                        />
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-white font-medium">
+                              {proof.proofId || proof.id || proof.key}
+                            </span>
+                            <span className="text-xs text-gray-400">
+                              Sequence #{proof.sequenceNumber}
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-2 gap-4 text-sm">
+                            <div>
+                              <span className="text-gray-400">Submitted: </span>
+                              <span className="text-white">
+                                {proof.timestamp
+                                  ? new Date(proof.timestamp).toLocaleString()
+                                  : "N/A"}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="text-gray-400">Submitter: </span>
+                              <span className="text-white font-mono text-xs">
+                                {proof.submitter
+                                  ? `${proof.submitter.slice(
+                                      0,
+                                      6
+                                    )}...${proof.submitter.slice(-4)}`
+                                  : "Unknown"}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </label>
+                    ))}
+                </div>
+
+                <button
+                  onClick={async () => {
+                    if (!selectedProofForApproval) return;
+                    const proofToApprove = filteredProofs.find(
+                      (p) => p.key === selectedProofForApproval
+                    );
+                    if (proofToApprove) {
+                      await handleVerifyProof(proofToApprove);
+                      setSelectedProofForApproval(null);
+                    }
+                  }}
+                  disabled={!selectedProofForApproval || isVerifying !== null}
+                  className="w-full bg-gradient-to-r from-amber-500 to-amber-600 text-white py-3 rounded-lg font-semibold hover:from-amber-600 hover:to-amber-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {isVerifying ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="w-5 h-5" />
+                      Approve Selected Proof
+                    </>
+                  )}
+                </button>
+              </div>
+            )}
+
           {/* Proofs List */}
           {isLoadingProofs ? (
             <div className="bg-gradient-to-b from-[#1a2347] to-[#0a1930] border border-[#4fc3f7]/50 p-12 text-center">
@@ -1068,54 +1291,18 @@ function StateExplorerDetailView({
               </p>
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredProofs.map((proof) => (
-                <div
-                  key={proof.key || proof.sequenceNumber}
-                  className="bg-[#0a1930]/50 border border-[#4fc3f7]/30 rounded-lg p-4"
-                >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="flex items-center gap-2 mb-2">
-                        <span
-                          className={`text-xs px-2 py-1 rounded ${
-                            proof.status === "verified"
-                              ? "bg-green-500/20 text-green-400"
-                              : proof.status === "submitted"
-                              ? "bg-yellow-500/20 text-yellow-400"
-                              : "bg-red-500/20 text-red-400"
-                          }`}
-                        >
-                          {proof.status?.toUpperCase() || "UNKNOWN"}
-                        </span>
-                        {proof.sequenceNumber && (
-                          <span className="text-gray-400 text-xs">
-                            Sequence #{proof.sequenceNumber}
-                          </span>
-                        )}
-                      </div>
-                      <div className="text-white font-medium">
-                        {proof.key || `Proof ${proof.sequenceNumber || "N/A"}`}
-                      </div>
-                      {proof._createdAt && (
-                        <div className="text-gray-400 text-xs mt-1">
-                          {new Date(proof._createdAt).toLocaleString()}
-                        </div>
-                      )}
-                    </div>
-                    <div className="text-right">
-                      {proof.status === "verified" && (
-                        <CheckCircle2 className="w-5 h-5 text-green-400" />
-                      )}
-                      {proof.status === "submitted" && (
-                        <Clock className="w-5 h-5 text-yellow-400" />
-                      )}
-                      {proof.status === "rejected" && (
-                        <XCircle className="w-5 h-5 text-red-400" />
-                      )}
-                    </div>
-                  </div>
-                </div>
+                <ProofCard
+                  key={proof.key || proof.id}
+                  proof={proof}
+                  isLeader={isLeader}
+                  onVerify={handleVerifyProof}
+                  isVerifying={isVerifying === proof.key}
+                  onDelete={handleDeleteProof}
+                  isDeleting={isDeletingProof === proof.key}
+                  userAddress={userAddress}
+                />
               ))}
             </div>
           )}

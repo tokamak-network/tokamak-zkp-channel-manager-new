@@ -195,3 +195,51 @@ export async function getCurrentStateNumber(channelId: string): Promise<number> 
     return 0;
   }
 }
+
+/**
+ * Get ZIP file content as base64
+ * This handles both new format (file on disk) and legacy format (base64 in DB)
+ */
+export async function getProofZipContent(
+  channelId: string,
+  proofId: string,
+  status: "submittedProofs" | "verifiedProofs" | "rejectedProofs" = "submittedProofs"
+): Promise<{ content: string; fileName: string; size: number } | null> {
+  try {
+    const response = await fetch(
+      `/api/get-proof-zip?channelId=${encodeURIComponent(channelId)}&proofId=${encodeURIComponent(proofId)}&status=${status}&format=base64`
+    );
+
+    if (!response.ok) {
+      console.error("Failed to get ZIP file:", response.statusText);
+      return null;
+    }
+
+    const result = await response.json();
+
+    if (!result.success) {
+      console.error("Failed to get ZIP file:", result.error);
+      return null;
+    }
+
+    return {
+      content: result.content,
+      fileName: result.fileName,
+      size: result.size,
+    };
+  } catch (error) {
+    console.error("getProofZipContent error:", error);
+    return null;
+  }
+}
+
+/**
+ * Download ZIP file directly
+ */
+export function getProofZipDownloadUrl(
+  channelId: string,
+  proofId: string,
+  status: "submittedProofs" | "verifiedProofs" | "rejectedProofs" = "submittedProofs"
+): string {
+  return `/api/get-proof-zip?channelId=${encodeURIComponent(channelId)}&proofId=${encodeURIComponent(proofId)}&status=${status}&format=binary`;
+}

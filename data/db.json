@@ -19,8 +19,9 @@
           "_updatedAt": "2026-01-11T15:38:14.275Z"
         }
       },
-      "submittedProofs": {
-        "proof-1": {
+      "submittedProofs": {},
+      "verifiedProofs": {
+        "1768147301537pah1q70": {
           "zipFile": {
             "filePath": "data/uploads/channels/10/proofs/proof-1.zip",
             "fileName": "proof-proof#1.zip",
@@ -36,9 +37,13 @@
           "submitter": "0xF9Fa94D45C49e879E46Ea783fc133F41709f3bc7",
           "timestamp": 1768145898286,
           "uploadStatus": "complete",
-          "status": "pending",
+          "status": "verified",
           "channelId": "10",
-          "_updatedAt": "2026-01-11T15:38:19.758Z"
+          "_updatedAt": "2026-01-11T15:38:19.758Z",
+          "key": "proof-1",
+          "verifiedAt": "2026-01-11T16:01:41.537Z",
+          "verifiedBy": "0xF9Fa94D45C49e879E46Ea783fc133F41709f3bc7",
+          "_createdAt": "2026-01-11T16:01:41.537Z"
         }
       }
     }
