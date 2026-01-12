@@ -1,6 +1,12 @@
 "use client";
 
-import { useState, useEffect, useLayoutEffect, useCallback, Suspense } from "react";
+import {
+  useState,
+  useEffect,
+  useLayoutEffect,
+  useCallback,
+  Suspense,
+} from "react";
 import { useAccount, usePublicClient, useReadContracts } from "wagmi";
 import { useSearchParams, useRouter } from "next/navigation";
 import { formatUnits } from "viem";
@@ -44,7 +50,7 @@ import {
   AlertCircle,
   Plus,
 } from "lucide-react";
-import { TransactionBundleModal } from "@/components/TransactionBundleModal";
+import { TransactionBundleModal } from "./_components/TransactionBundleModal";
 import { ProofCard, type ProofData } from "@/components/ProofCard";
 
 // Types
@@ -377,7 +383,10 @@ function StateExplorerDetailView({
 
   useEffect(() => {
     const fetchTokenInfo = async () => {
-      if (isETH || channel.targetAddress === "0x0000000000000000000000000000000000000000") {
+      if (
+        isETH ||
+        channel.targetAddress === "0x0000000000000000000000000000000000000000"
+      ) {
         setTokenDecimals(18);
         setTokenSymbol("ETH");
         return;
@@ -445,7 +454,11 @@ function StateExplorerDetailView({
 
   // Fetch channel data from database
   const fetchChannelData = useCallback(async () => {
-    if (!publicClient || !initialDeposits || channel.participants.length === 0) {
+    if (
+      !publicClient ||
+      !initialDeposits ||
+      channel.participants.length === 0
+    ) {
       return;
     }
 
@@ -457,19 +470,37 @@ function StateExplorerDetailView({
       const channelId = channel.id.toString();
 
       // Get proofs from API
-      const [verifiedResponse, submittedResponse, rejectedResponse, snapshotsResponse] = await Promise.all([
-        fetch(`/api/channels/${channelId}/proofs?type=verified`).catch(() => ({ ok: false, json: () => Promise.resolve({ proofs: [] }) })),
-        fetch(`/api/channels/${channelId}/proofs?type=submitted`).catch(() => ({ ok: false, json: () => Promise.resolve({ proofs: [] }) })),
-        fetch(`/api/channels/${channelId}/proofs?type=rejected`).catch(() => ({ ok: false, json: () => Promise.resolve({ proofs: [] }) })),
-        fetch(`/api/channels/${channelId}/snapshots?limit=100`).catch(() => ({ ok: false, json: () => Promise.resolve({ snapshots: [] }) })),
+      const [
+        verifiedResponse,
+        submittedResponse,
+        rejectedResponse,
+        snapshotsResponse,
+      ] = await Promise.all([
+        fetch(`/api/channels/${channelId}/proofs?type=verified`).catch(() => ({
+          ok: false,
+          json: () => Promise.resolve({ proofs: [] }),
+        })),
+        fetch(`/api/channels/${channelId}/proofs?type=submitted`).catch(() => ({
+          ok: false,
+          json: () => Promise.resolve({ proofs: [] }),
+        })),
+        fetch(`/api/channels/${channelId}/proofs?type=rejected`).catch(() => ({
+          ok: false,
+          json: () => Promise.resolve({ proofs: [] }),
+        })),
+        fetch(`/api/channels/${channelId}/snapshots?limit=100`).catch(() => ({
+          ok: false,
+          json: () => Promise.resolve({ snapshots: [] }),
+        })),
       ]);
 
-      const [verifiedData, submittedData, rejectedData, snapshotsData] = await Promise.all([
-        verifiedResponse.json().catch(() => ({ proofs: [] })),
-        submittedResponse.json().catch(() => ({ proofs: [] })),
-        rejectedResponse.json().catch(() => ({ proofs: [] })),
-        snapshotsResponse.json().catch(() => ({ snapshots: [] })),
-      ]);
+      const [verifiedData, submittedData, rejectedData, snapshotsData] =
+        await Promise.all([
+          verifiedResponse.json().catch(() => ({ proofs: [] })),
+          submittedResponse.json().catch(() => ({ proofs: [] })),
+          rejectedResponse.json().catch(() => ({ proofs: [] })),
+          snapshotsResponse.json().catch(() => ({ snapshots: [] })),
+        ]);
 
       const verifiedProofs = (verifiedData?.proofs || []) as Proof[];
       const submittedProofs = (submittedData?.proofs || []) as Proof[];
@@ -477,16 +508,25 @@ function StateExplorerDetailView({
 
       // Combine all proofs
       const allProofs: Proof[] = [
-        ...verifiedProofs.map((p: Proof) => ({ ...p, status: "verified" as const })),
-        ...submittedProofs.map((p: Proof) => ({ ...p, status: "submitted" as const })),
-        ...rejectedProofs.map((p: Proof) => ({ ...p, status: "rejected" as const })),
+        ...verifiedProofs.map((p: Proof) => ({
+          ...p,
+          status: "verified" as const,
+        })),
+        ...submittedProofs.map((p: Proof) => ({
+          ...p,
+          status: "submitted" as const,
+        })),
+        ...rejectedProofs.map((p: Proof) => ({
+          ...p,
+          status: "rejected" as const,
+        })),
       ];
 
       setProofs(allProofs);
 
       // Get state snapshots
       const snapshots: StateSnapshot[] = snapshotsData.snapshots || [];
-      
+
       // Process snapshots for state transitions
       const transitions: StateTransition[] = snapshots
         .sort((a, b) => (a.sequenceNumber || 0) - (b.sequenceNumber || 0))
@@ -523,7 +563,7 @@ function StateExplorerDetailView({
           const initialDeposit =
             (initialDeposits?.[idx]?.result as bigint) || BigInt(0);
           const initialDepositFormatted = formatUnits(initialDeposit, decimals);
-          
+
           // Try to get current balance from latest snapshot
           let currentBalance = initialDepositFormatted;
           if (snapshots.length > 0) {
@@ -570,7 +610,14 @@ function StateExplorerDetailView({
       setIsLoadingProofs(false);
       setIsLoadingTransitions(false);
     }
-  }, [initialDeposits, channel.id, channel.participants, publicClient, decimals, symbol]);
+  }, [
+    initialDeposits,
+    channel.id,
+    channel.participants,
+    publicClient,
+    decimals,
+    symbol,
+  ]);
 
   useEffect(() => {
     if (initialDeposits && channel.participants.length > 0) {
@@ -1027,9 +1074,7 @@ function StateExplorerDetailView({
           <div className="mb-6 flex items-center justify-between">
             <select
               value={filter}
-              onChange={(e) =>
-                setFilter(e.target.value as typeof filter)
-              }
+              onChange={(e) => setFilter(e.target.value as typeof filter)}
               className="w-48 bg-gradient-to-b from-[#1a2347] to-[#0a1930] border border-[#4fc3f7]/30 text-white px-4 py-2 rounded"
             >
               <option value="all">All Proofs</option>
@@ -1056,9 +1101,7 @@ function StateExplorerDetailView({
           {stateTransitions.length > 0 && (
             <div className="mb-6 bg-gradient-to-b from-[#1a2347] to-[#0a1930] border border-[#4fc3f7]/50 shadow-lg overflow-hidden">
               <button
-                onClick={() =>
-                  setIsTransitionsExpanded(!isTransitionsExpanded)
-                }
+                onClick={() => setIsTransitionsExpanded(!isTransitionsExpanded)}
                 className="w-full flex items-center justify-between p-4 hover:bg-[#4fc3f7]/5 transition-colors"
               >
                 <div className="flex items-center gap-3">
@@ -1308,7 +1351,7 @@ function StateExplorerDetailView({
           )}
         </div>
       </div>
-      
+
       {/* Transaction Bundle Modal */}
       <TransactionBundleModal
         isOpen={isBundleModalOpen}

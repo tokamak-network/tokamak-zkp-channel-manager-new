@@ -36,13 +36,11 @@ import {
 import { readContracts } from "@wagmi/core";
 import { useBridgeCoreAddress, useBridgeCoreAbi } from "@/hooks/contract";
 import { useSignMessage, useAccount, useChainId } from "wagmi";
-import { usePreviousStateSnapshot } from "./_hooks/usePreviousStateSnapshot";
+import { usePreviousStateSnapshot } from "@/app/state-explorer/_hooks/usePreviousStateSnapshot";
+import { useSynthesizer } from "@/app/state-explorer/_hooks/useSynthesizer";
 import { L2_PRV_KEY_MESSAGE } from "@/lib/l2KeyMessage";
 import { StateSnapshot } from "tokamak-l2js";
-import { createERC20TransferTx } from "@/lib/createERC20TransferTx";
-import { bytesToHex, addHexPrefix } from "@ethereumjs/util";
-import { TON_TOKEN_ADDRESS } from "@tokamak/config";
-import { parseInputAmount } from "@/lib/utils/format";
+import { addHexPrefix } from "@ethereumjs/util";
 // Types (matching server-side types)
 interface Channel {
   channelId?: string;
@@ -79,14 +77,6 @@ interface BundleData {
 }
 
 type ModalStep = "input" | "summary" | "downloading" | "proofReady";
-
-export type SynthesizeTxRequest = {
-  channelId: string;
-  channelInitTxHash: `0x${string}`;
-  signedTxRlpStr: `0x${string}`;
-  previousStateSnapshot: StateSnapshot;
-  includeProof: boolean;
-};
 
 export function TransactionBundleModal({
   isOpen,
@@ -125,6 +115,15 @@ export function TransactionBundleModal({
   const { fetchSnapshot } = usePreviousStateSnapshot({
     channelId: selectedChannelId,
     bundleSnapshot: bundleData?.snapshot || null,
+  });
+
+  // Hook to synthesize L2 transaction
+  const { synthesize, isFormValid: validateForm } = useSynthesizer({
+    channelId: selectedChannelId,
+    recipient,
+    tokenAmount,
+    keySeed,
+    includeProof,
   });
 
   // Auto-select default channel when modal opens
@@ -246,61 +245,8 @@ export function TransactionBundleModal({
     }
   };
 
-  // Validate all input fields
-  const isFormValid = () => {
-    return (
-      keySeed !== null &&
-      recipient !== null &&
-      tokenAmount !== null &&
-      recipient.trim().length > 0 &&
-      tokenAmount.trim().length > 0 &&
-      !isNaN(Number(tokenAmount)) &&
-      Number(tokenAmount) > 0
-    );
-  };
-
-  // Create an L2 ERC20 transfer (signed) and run synthesizer
-  const runSynthesizer = async (
-    initTxHash: `0x${string}`,
-    previousStateSnapshot: StateSnapshot
-  ) => {
-    if (!isFormValid()) {
-      throw new Error("Tx input format is not filled.");
-    }
-
-    // Convert token amount to BigInt (wei units, 18 decimals)
-    const amountInWei = parseInputAmount(tokenAmount!.trim(), 18);
-
-    const signedTx = await createERC20TransferTx(
-      0,
-      recipient!,
-      amountInWei,
-      keySeed!,
-      TON_TOKEN_ADDRESS
-    );
-    const signedTxStr = bytesToHex(signedTx.serialize());
-    const postMessage: SynthesizeTxRequest = {
-      channelId: selectedChannelId,
-      channelInitTxHash: initTxHash,
-      signedTxRlpStr: signedTxStr,
-      previousStateSnapshot,
-      includeProof,
-    };
-
-    const response = await fetch("/api/tokamak-zk-evm", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(postMessage),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || "Failed to synthesize L2 transaction");
-    }
-
-    // Response is a ZIP file blob
-    return await response.blob();
-  };
+  // Validate all input fields (using hook)
+  const isFormValid = validateForm;
 
   // Handle proceed to summary
   const handleProceedToSummary = () => {
@@ -359,7 +305,7 @@ export function TransactionBundleModal({
       }
 
       // Call synthesizer API
-      const zipBlob = await runSynthesizer(initTxHash, previousStateSnapshot);
+      const zipBlob = await synthesize(initTxHash, previousStateSnapshot);
 
       // If proof is included, show options instead of auto-downloading
       if (includeProof) {

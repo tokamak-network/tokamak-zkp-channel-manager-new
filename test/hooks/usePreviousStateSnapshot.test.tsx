@@ -11,7 +11,7 @@ import { renderHook, waitFor } from "@testing-library/react";
 import { WagmiProvider, createConfig, http } from "wagmi";
 import { sepolia } from "wagmi/chains";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { usePreviousStateSnapshot } from "@/components/_hooks/usePreviousStateSnapshot";
+import { usePreviousStateSnapshot } from "@/app/state-explorer/_hooks/usePreviousStateSnapshot";
 import { readFileSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";

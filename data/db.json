@@ -46,6 +46,21 @@
           "_createdAt": "2026-01-11T16:01:41.537Z"
         }
       }
+    },
+    "11": {
+      "channelId": "11",
+      "status": "active",
+      "targetContract": "0xa30fe40285B8f5c0457DbC3B7C8A280373c40044",
+      "participants": [
+        "0xF9Fa94D45C49e879E46Ea783fc133F41709f3bc7",
+        "0x6233A7c52652282b8b0b85C817537F072228587F"
+      ],
+      "openChannelTxHash": "0xfaadb73c45698ca89ec31be2f8d8c4bfd711e6048d03b4c3dec3df07c44e6148",
+      "blockNumber": "10025054",
+      "createdAt": "2026-01-12T00:53:56.403Z",
+      "_updatedAt": "2026-01-12T00:58:29.583Z",
+      "initializationTxHash": "0x03d40da3667e046ef88ec7f62ceac57a7f266cb1ec72a4a4b17f09f62724d701",
+      "initializedAt": "2026-01-12T00:58:29.550Z"
     }
   }
 }

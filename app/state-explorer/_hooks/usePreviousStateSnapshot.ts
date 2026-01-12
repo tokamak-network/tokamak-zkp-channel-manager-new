@@ -77,8 +77,6 @@ export function usePreviousStateSnapshot({
       // Step 3: Fetch initial state from on-chain (first transfer simulation)
       const channelIdNum = Number(channelId);
 
-      console.log("channelIdNum", channelIdNum);
-
       // Get channel info and participants using readContract
       const [channelInfo, participants] = await Promise.all([
         readContract(config, {
@@ -94,8 +92,6 @@ export function usePreviousStateSnapshot({
           args: [BigInt(channelIdNum)],
         }) as Promise<readonly `0x${string}`[]>,
       ]);
-
-      console.log("channelInfo", channelInfo);
 
       const [targetContract, state, participantCount, initialRoot] =
         channelInfo;

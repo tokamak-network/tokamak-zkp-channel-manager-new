@@ -8,7 +8,7 @@
  */
 
 import { useState } from "react";
-import { usePreviousStateSnapshot } from "@/components/_hooks/usePreviousStateSnapshot";
+import { usePreviousStateSnapshot } from "@/app/state-explorer/_hooks/usePreviousStateSnapshot";
 import { Button } from "@tokamak/ui";
 
 export default function TestUsePreviousStateSnapshot() {
