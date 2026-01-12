@@ -4,7 +4,6 @@ import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { useReadContracts, useAccount } from "wagmi";
 import { formatUnits } from "viem";
-import { AppLayout } from "@/components/AppLayout";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 import {
   ArrowLeft,
@@ -23,6 +22,12 @@ import {
 import { getContractAddress, getContractAbi } from "@tokamak/config";
 import { useNetworkId } from "@/hooks/contract/utils";
 import { getData, getProofZipContent } from "@/lib/db-client";
+import {
+  parseProofFromBase64Zip,
+  extractMerkleRoots,
+  type ProofAnalysisResult,
+} from "@/lib/proofAnalyzer";
+import { addHexPrefix, hexToBigInt } from "@ethereumjs/util";
 import JSZip from "jszip";
 
 // Participant Balance Type
@@ -106,6 +111,8 @@ export default function ProofDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [decimals, setDecimals] = useState(18);
   const [symbol, setSymbol] = useState("TOKEN");
+  const [proofAnalysis, setProofAnalysis] = useState<ProofAnalysisResult | null>(null);
+  const [isAnalyzingProof, setIsAnalyzingProof] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
   const [verifyResult, setVerifyResult] = useState<{
     verified: boolean;
@@ -212,6 +219,22 @@ export default function ProofDetailPage() {
   const { data: depositData } = useReadContracts({
     contracts: depositContracts,
     enabled: depositContracts.length > 0,
+  });
+
+  // Fetch MPT keys for all participants to match with state_snapshot.json storageEntries
+  const mptKeyContracts = useMemo(() => {
+    if (!channel || channel.participants.length === 0) return [];
+    return channel.participants.map((participant: string) => ({
+      address: bridgeCoreAddress,
+      abi: bridgeCoreAbi,
+      functionName: "getL2MptKey",
+      args: [BigInt(channel.id), participant as `0x${string}`],
+    }));
+  }, [channel, bridgeCoreAddress, bridgeCoreAbi]);
+
+  const { data: mptKeyData } = useReadContracts({
+    contracts: mptKeyContracts,
+    enabled: mptKeyContracts.length > 0,
   });
 
   // Fetch proof data from database
@@ -375,6 +398,13 @@ export default function ProofDetailPage() {
           };
 
           setProof(proofData);
+
+          // Analyze proof files if ZIP content is available
+          // Note: We need MPT keys to properly match storageEntries with participants
+          // This will be done in a separate useEffect after MPT keys are fetched
+          if (zipFileData?.content) {
+            setZipContent(zipFileData.content);
+          }
         }
       } catch (error) {
         console.error("Error fetching proof:", error);
@@ -384,7 +414,7 @@ export default function ProofDetailPage() {
     };
 
     fetchProof();
-  }, [channelId, proofId]);
+  }, [channelId, proofId, decimals, channelParticipants]);
 
   // Fetch ZIP content (handles both file-based and legacy formats)
   useEffect(() => {
@@ -430,6 +460,103 @@ export default function ProofDetailPage() {
     loadZipContent();
   }, [proof, channelId]);
 
+  // Analyze proof files when ZIP content and MPT keys are available
+  useEffect(() => {
+    const analyzeProofFiles = async () => {
+      if (!zipContent || !channelParticipants || !mptKeyData || !channel) {
+        return;
+      }
+
+      setIsAnalyzingProof(true);
+      try {
+        const { instance, snapshot, error } =
+          await parseProofFromBase64Zip(zipContent);
+
+        if (error) {
+          console.error("Error parsing proof ZIP:", error);
+          return;
+        }
+
+        if (!instance || !snapshot) {
+          return;
+        }
+
+        // Build MPT key map: participant address -> MPT key (hex with 0x prefix)
+        const mptKeyMap = new Map<string, string>();
+        channelParticipants.forEach((participant, idx) => {
+          const mptKeyResult = mptKeyData[idx];
+          if (
+            mptKeyResult?.status === "success" &&
+            mptKeyResult.result !== undefined
+          ) {
+            const mptKeyBigInt = mptKeyResult.result as bigint;
+            // Convert to hex with 0x prefix, padded to 64 characters
+            const mptKeyHex =
+              "0x" + mptKeyBigInt.toString(16).padStart(64, "0");
+            mptKeyMap.set(participant.toLowerCase(), mptKeyHex);
+          }
+        });
+
+        // Match storageEntries with participants by MPT key
+        const balances = snapshot.storageEntries.map((entry) => {
+          // Find participant by matching MPT key
+          let matchedParticipant = "";
+          for (const [participant, mptKey] of mptKeyMap.entries()) {
+            // Normalize keys for comparison (remove 0x prefix and pad)
+            const entryKeyNormalized = entry.key
+              .replace("0x", "")
+              .padStart(64, "0")
+              .toLowerCase();
+            const mptKeyNormalized = mptKey
+              .replace("0x", "")
+              .padStart(64, "0")
+              .toLowerCase();
+
+            if (entryKeyNormalized === mptKeyNormalized) {
+              matchedParticipant = participant;
+              break;
+            }
+          }
+
+          // Convert hex balance to decimal
+          const balanceWei = entry.value === "0x" ? 0n : BigInt(entry.value);
+          const balanceEth = Number(balanceWei) / Math.pow(10, decimals);
+
+          return {
+            l1Addr: matchedParticipant,
+            mptKey: entry.key,
+            balance: entry.value,
+            balanceFormatted: balanceEth.toFixed(decimals),
+          };
+        });
+
+        // Extract Merkle roots
+        const merkleRoots = extractMerkleRoots(instance);
+
+        const analysis: ProofAnalysisResult = {
+          merkleRoots,
+          balances,
+          contractAddress: snapshot.contractAddress,
+        };
+
+        setProofAnalysis(analysis);
+        console.log("Proof analysis completed:", analysis);
+      } catch (error) {
+        console.error("Error analyzing proof:", error);
+      } finally {
+        setIsAnalyzingProof(false);
+      }
+    };
+
+    analyzeProofFiles();
+  }, [
+    zipContent,
+    channelParticipants,
+    mptKeyData,
+    channel,
+    decimals,
+  ]);
+
   // Fetch channel data and participants
   useEffect(() => {
     if (!channelInfo || !channelParticipants || !channelLeader) return;
@@ -463,37 +590,63 @@ export default function ProofDetailPage() {
     setSymbol(String(tokenSymbol ?? "TOKEN"));
   }, [tokenAddress, isEthToken, tokenData]);
 
-  // Fetch participant balances
+  // Fetch participant balances - Uses state_snapshot.json from the proof
   useEffect(() => {
     if (!channel || channel.participants.length === 0) return;
     if (!depositData || depositData.length === 0) return;
 
+    // Build balances from state_snapshot.json (proofAnalysis)
     const balances: ParticipantBalance[] = channel.participants.map(
       (participant: string, idx: number) => {
         const initialDeposit =
           (depositData[idx]?.result as bigint | undefined) ?? BigInt(0);
-        const initialDepositFormatted = formatUnits(initialDeposit, decimals);
+        const initialDepositFormatted = parseFloat(
+          formatUnits(initialDeposit, decimals)
+        ).toFixed(2);
+
+        // Get balance from proof's state_snapshot.json
+        let currentBalance = initialDepositFormatted;
+        let hasProofBalance = false;
+
+        if (proofAnalysis && proofAnalysis.balances) {
+          // Find balance by participant address
+          const proofBalance = proofAnalysis.balances.find(
+            (b) =>
+              hexToBigInt(addHexPrefix(b.l1Addr)) ===
+              hexToBigInt(addHexPrefix(participant))
+          );
+
+          if (proofBalance) {
+            currentBalance = parseFloat(proofBalance.balanceFormatted).toFixed(
+              2
+            );
+            hasProofBalance = true;
+          }
+        }
+
+        // Check if balance changed from initial deposit
+        const hasChange =
+          hasProofBalance && currentBalance !== initialDepositFormatted;
 
         return {
           address: participant,
           initialDeposit: initialDepositFormatted,
-          currentBalance: initialDepositFormatted, // Simplified - would need proof analysis for actual balance
-          symbol,
-          decimals,
+          currentBalance: currentBalance, // Balance from state_snapshot.json
+          symbol: symbol,
+          decimals: decimals,
+          hasChange: hasChange,
         };
       }
     );
 
     setParticipantBalances(balances);
-  }, [channel, depositData, decimals, symbol]);
+  }, [channel, depositData, decimals, symbol, proofAnalysis]);
 
   if (isLoading || !proof) {
     return (
-      <AppLayout>
-        <div className="flex items-center justify-center min-h-screen">
-          <LoadingSpinner size="lg" />
-        </div>
-      </AppLayout>
+      <div className="flex items-center justify-center min-h-screen">
+        <LoadingSpinner size="lg" />
+      </div>
     );
   }
 
@@ -502,8 +655,7 @@ export default function ProofDetailPage() {
   const proofDisplayId = proof.proofId || `#${proof.id || proofId}`;
 
   return (
-    <AppLayout>
-      <div className="p-4 pb-20">
+    <div className="p-4 pb-20">
         <div className="max-w-6xl w-full mx-auto">
           {/* Back Button */}
           <button
@@ -886,6 +1038,5 @@ export default function ProofDetailPage() {
           </div>
         </div>
       </div>
-    </AppLayout>
   );
 }

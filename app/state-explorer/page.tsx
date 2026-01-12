@@ -48,9 +48,11 @@ import {
   Hash,
   RefreshCw,
   AlertCircle,
+  Upload,
   Plus,
 } from "lucide-react";
 import { TransactionBundleModal } from "./_components/TransactionBundleModal";
+import { SubmitProofModal } from "./_components/SubmitProofModal";
 import { ProofCard, type ProofData } from "@/components/ProofCard";
 
 // Types
@@ -362,6 +364,7 @@ function StateExplorerDetailView({
   const [isLoadingTransitions, setIsLoadingTransitions] = useState(false);
   const [isTransitionsExpanded, setIsTransitionsExpanded] = useState(false);
   const [isBundleModalOpen, setIsBundleModalOpen] = useState(false);
+  const [isSubmitProofModalOpen, setIsSubmitProofModalOpen] = useState(false);
   const [isVerifying, setIsVerifying] = useState<string | null>(null);
   const [selectedProofForApproval, setSelectedProofForApproval] = useState<
     string | null
@@ -798,6 +801,18 @@ function StateExplorerDetailView({
             </div>
             {/* Action Buttons */}
             <div className="flex items-center gap-3">
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setIsSubmitProofModalOpen(true);
+                }}
+                type="button"
+                className="flex items-center gap-2 px-4 py-2 bg-[#4fc3f7] hover:bg-[#029bee] text-white rounded transition-all hover:shadow-lg hover:shadow-[#4fc3f7]/30 font-medium cursor-pointer pointer-events-auto"
+              >
+                <Upload className="w-4 h-4" />
+                Submit Proof
+              </button>
               <button
                 onClick={() => setIsBundleModalOpen(true)}
                 className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded transition-all hover:shadow-lg hover:shadow-green-500/30 font-medium"
@@ -1357,6 +1372,17 @@ function StateExplorerDetailView({
         isOpen={isBundleModalOpen}
         onClose={() => setIsBundleModalOpen(false)}
         defaultChannelId={channel.id.toString()}
+      />
+
+      {/* Submit Proof Modal */}
+      <SubmitProofModal
+        isOpen={isSubmitProofModalOpen}
+        onClose={() => setIsSubmitProofModalOpen(false)}
+        channelId={parseInt(channel.id.toString())}
+        onUploadSuccess={() => {
+          // Refresh proofs after successful upload
+          fetchChannelData();
+        }}
       />
     </div>
   );
