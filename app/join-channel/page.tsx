@@ -6,27 +6,26 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAccount } from "wagmi";
 import { Button, Input, Label, Card, CardContent, CardHeader } from "@tokamak/ui";
-import { useBridgeCoreReadContract } from "@/hooks/contract";
+import { useChannelFlowStore } from "@/stores/useChannelFlowStore";
 
 export default function JoinChannelPage() {
   const router = useRouter();
   const { address, isConnected } = useAccount();
+  const { currentChannelId, setCurrentChannelId } = useChannelFlowStore();
   const [channelId, setChannelId] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isChecking, setIsChecking] = useState(false);
 
-  // Read channel info to check if user is a participant
-  const { data: channelInfo } = useBridgeCoreReadContract({
-    functionName: "getChannelInfo",
-    args: channelId ? [BigInt(channelId)] : undefined,
-    query: {
-      enabled: !!channelId && channelId.length > 0,
-    },
-  });
+  // Pre-fill with stored channel ID if available
+  useEffect(() => {
+    if (currentChannelId) {
+      setChannelId(currentChannelId);
+    }
+  }, [currentChannelId]);
 
   const handleJoinChannel = async () => {
     if (!isConnected || !address) {
@@ -43,30 +42,11 @@ export default function JoinChannelPage() {
       setIsChecking(true);
       setError(null);
 
-      // Check if channel info exists
-      if (!channelInfo) {
-        setError("Channel not found. Please check the channel ID.");
-        setIsChecking(false);
-        return;
-      }
+      // Store channel ID in Zustand store (not in URL for privacy)
+      setCurrentChannelId(channelId);
 
-      // Extract whitelisted addresses from channel info
-      // channelInfo structure: [targetContract, whitelisted[], enableFrostSignature, currentStateHash, ...]
-      const whitelisted = channelInfo[1] as `0x${string}`[];
-
-      // Check if current address is in the whitelisted participants
-      const isParticipant = whitelisted.some(
-        (participant) => participant.toLowerCase() === address.toLowerCase()
-      );
-
-      if (!isParticipant) {
-        setError("You are not a participant of this channel");
-        setIsChecking(false);
-        return;
-      }
-
-      // Navigate to state explorer if user is a participant
-      router.push(`/state-explorer?channelId=${channelId}`);
+      // Navigate to state explorer without channel ID in URL
+      router.push("/state-explorer");
     } catch (err) {
       console.error("Error joining channel:", err);
       setError("Failed to join channel. Please try again.");

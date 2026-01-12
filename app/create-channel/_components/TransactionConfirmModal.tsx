@@ -8,6 +8,7 @@
 
 import { useRouter } from "next/navigation";
 import { Button, Card, CardContent, CardHeader } from "@tokamak/ui";
+import { useChannelFlowStore } from "@/stores/useChannelFlowStore";
 
 interface TransactionConfirmModalProps {
   channelId: string;
@@ -23,8 +24,12 @@ export function TransactionConfirmModal({
   const router = useRouter();
 
   const handleConfirm = () => {
+    // Store channel ID in Zustand store (not in URL for privacy)
+    const { setCurrentChannelId } = useChannelFlowStore.getState();
+    setCurrentChannelId(channelId);
+    
     onClose();
-    router.push(`/join-channel?channelId=${channelId}`);
+    router.push("/join-channel");
   };
 
   return (
@@ -68,7 +73,7 @@ export function TransactionConfirmModal({
 
           {/* Info Message */}
           <div className="p-3 bg-blue-50 border border-blue-200 rounded text-sm text-blue-700">
-            Click "Confirm" to proceed to the channel page
+            Click "Confirm" to join the channel
           </div>
 
           {/* Actions */}

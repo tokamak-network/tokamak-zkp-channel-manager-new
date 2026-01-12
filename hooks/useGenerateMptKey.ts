@@ -6,7 +6,8 @@
 
 import { useCallback, useState } from "react";
 import { useAccount, useSignMessage } from "wagmi";
-import { useChannelFlowStore, useDepositStore } from "@/stores";
+import { useChannelFlowStore } from "@/stores/useChannelFlowStore";
+import { useDepositStore } from "@/stores/useDepositStore";
 import { L2_PRV_KEY_MESSAGE } from "@/lib/l2KeyMessage";
 import { deriveL2KeysAndAddressFromSignature } from "@/lib/tokamakl2js";
 
