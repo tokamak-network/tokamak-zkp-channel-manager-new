@@ -33,7 +33,7 @@ import { useTokenBalance } from "@/hooks/useTokenBalance";
 import { useChannelInfo } from "@/hooks/useChannelInfo";
 import { parseInputAmount, isValidAmount } from "@/lib/utils/format";
 
-function Step2DepositContent() {
+function DepositFormContent() {
   const searchParams = useSearchParams();
   const { address, isConnected } = useAccount();
   const channelId = useChannelFlowStore((state) => state.channelId);
@@ -426,7 +426,7 @@ function Step2DepositContent() {
   );
 }
 
-export function Step2Deposit() {
+export function DepositForm() {
   return (
     <Suspense
       fallback={
@@ -437,7 +437,7 @@ export function Step2Deposit() {
         </Card>
       }
     >
-      <Step2DepositContent />
+      <DepositFormContent />
     </Suspense>
   );
 }

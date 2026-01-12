@@ -7,7 +7,7 @@
 "use client";
 
 import { Suspense } from "react";
-import { Step1CreateChannel } from "./_components/Step1CreateChannel";
+import { CreateChannelForm } from "./_components/CreateChannelForm";
 
 function CreateChannelPageContent() {
   return (
@@ -22,7 +22,7 @@ function CreateChannelPageContent() {
       </div>
 
       <div className="mt-8">
-        <Step1CreateChannel />
+        <CreateChannelForm />
       </div>
     </>
   );

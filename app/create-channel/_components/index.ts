@@ -2,7 +2,8 @@
  * Create Channel Components
  */
 
-export { Step1CreateChannel } from './Step1CreateChannel';
-export { Step2Deposit } from './Step2Deposit';
+export { CreateChannelForm } from './CreateChannelForm';
+export { DepositForm } from './DepositForm';
 export { ChannelSelector } from './ChannelSelector';
+export { TransactionConfirmModal } from './TransactionConfirmModal';
 
