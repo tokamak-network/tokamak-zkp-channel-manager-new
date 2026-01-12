@@ -20,6 +20,7 @@ export const maxDuration = 300; // 5 minutes timeout for long-running synthesis
 const execFileAsync = promisify(execFile);
 
 export type SynthesizeTxRequest = {
+  action: "synthesize";
   channelId: string;
   channelInitTxHash: `0x${string}`;
   signedTxRlpStr: `0x${string}`;
@@ -27,6 +28,13 @@ export type SynthesizeTxRequest = {
   includeProof: boolean; // If true, also run prove binary and include proof.json
   chainId?: number; // Chain ID for RPC URL resolution (defaults to Sepolia)
 };
+
+export type VerifyProofRequest = {
+  action: "verify";
+  proofZipBase64: string; // Base64 encoded ZIP file containing proof files
+};
+
+export type TokamakZkEvmRequest = SynthesizeTxRequest | VerifyProofRequest;
 
 async function addDirToZip(zip: JSZip, dir: string, rootDir: string) {
   const entries = await fs.readdir(dir, { withFileTypes: true });
@@ -69,10 +77,259 @@ async function safeRemove(targetPath: string, label: string) {
   }
 }
 
+async function handleVerify(body: VerifyProofRequest) {
+  const { proofZipBase64 } = body;
+  const tokamakRoot = path.join(process.cwd(), "Tokamak-Zk-EVM");
+  const tokamakCli = path.join(tokamakRoot, "tokamak-cli");
+  const tempDir = path.join(tokamakRoot, "temp", `verify-${Date.now()}`);
+
+  try {
+    if (!proofZipBase64) {
+      return NextResponse.json(
+        { error: "Missing required field: proofZipBase64" },
+        { status: 400 }
+      );
+    }
+
+    // Check if tokamak-cli exists
+    await assertPathExists(tokamakCli, "file");
+
+    // Create temp directory with resource structure
+    const resourceDir = path.join(tempDir, "resource");
+    const synthesizerOutputDir = path.join(resourceDir, "synthesizer", "output");
+    const proveOutputDir = path.join(resourceDir, "prove", "output");
+    await fs.mkdir(synthesizerOutputDir, { recursive: true });
+    await fs.mkdir(proveOutputDir, { recursive: true });
+
+    // Decode and extract ZIP file
+    const zipBuffer = Buffer.from(proofZipBase64, "base64");
+    const zip = await JSZip.loadAsync(zipBuffer);
+
+    // Extract files to appropriate locations in resource structure
+    for (const [filePath, file] of Object.entries(zip.files)) {
+      if (file.dir) continue;
+
+      const fileName = path.basename(filePath);
+      const content = await file.async("nodebuffer");
+
+      if (fileName === "proof.json") {
+        // Proof file goes to resource/prove/output/
+        await fs.writeFile(path.join(proveOutputDir, fileName), content);
+      } else if (
+        fileName === "instance.json" ||
+        fileName === "state_snapshot.json" ||
+        fileName === "placementVariables.json" ||
+        fileName === "instance_description.json" ||
+        fileName === "permutation.json"
+      ) {
+        // Synthesizer output files go to resource/synthesizer/output/
+        await fs.writeFile(path.join(synthesizerOutputDir, fileName), content);
+      }
+    }
+
+    // Check if required files exist
+    const requiredFiles = {
+      "instance.json": path.join(synthesizerOutputDir, "instance.json"),
+      "proof.json": path.join(proveOutputDir, "proof.json"),
+    };
+
+    for (const [name, filePath] of Object.entries(requiredFiles)) {
+      try {
+        await fs.access(filePath);
+      } catch {
+        return NextResponse.json(
+          {
+            error: `Missing required file in ZIP: ${name}`,
+            verified: false,
+          },
+          { status: 400 }
+        );
+      }
+    }
+
+    console.log("Using tokamak-cli for verification");
+    console.log("Temp directory:", tempDir);
+
+    const distRoot = getTokamakDistRoot();
+    const distResourceDir = path.join(distRoot, "resource");
+    const distSynthesizerDir = path.join(distResourceDir, "synthesizer", "output");
+    const distPreprocessDir = path.join(distResourceDir, "preprocess", "output");
+    const distProveDir = path.join(distResourceDir, "prove", "output");
+    
+    // Create dist resource directories
+    await fs.mkdir(distSynthesizerDir, { recursive: true });
+    await fs.mkdir(distPreprocessDir, { recursive: true });
+    await fs.mkdir(distProveDir, { recursive: true });
+    
+    // Copy synthesizer files to dist
+    const synthFiles = await fs.readdir(synthesizerOutputDir);
+    for (const file of synthFiles) {
+      await fs.copyFile(
+        path.join(synthesizerOutputDir, file),
+        path.join(distSynthesizerDir, file)
+      );
+    }
+    
+    // Copy proof file to dist
+    await fs.copyFile(
+      path.join(proveOutputDir, "proof.json"),
+      path.join(distProveDir, "proof.json")
+    );
+
+    // STEP 1: Run preprocess using tokamak-cli
+    console.log("Running preprocess...");
+    const preprocessCommand = `"${tokamakCli}" --preprocess`;
+    console.log("Executing:", preprocessCommand);
+
+    try {
+      const { stdout: preprocessStdout, stderr: preprocessStderr } = await execFileAsync(
+        tokamakCli,
+        ["--preprocess"],
+        {
+          cwd: tokamakRoot,
+          timeout: 300000, // 5 minutes timeout
+        }
+      );
+
+      console.log("Preprocess completed");
+      if (preprocessStdout) console.log("Preprocess stdout:", preprocessStdout);
+      if (preprocessStderr) console.warn("Preprocess stderr:", preprocessStderr);
+    } catch (preprocessError: any) {
+      console.error("Preprocess execution error:", preprocessError);
+
+      // Clean up temp and dist directories
+      try {
+        await fs.rm(tempDir, { recursive: true, force: true });
+        const distFiles = [
+          path.join(distSynthesizerDir, "instance.json"),
+          path.join(distProveDir, "proof.json"),
+        ];
+        for (const file of distFiles) {
+          try {
+            await fs.unlink(file);
+          } catch {}
+        }
+      } catch (cleanupErr) {
+        console.warn("Failed to clean up:", cleanupErr);
+      }
+
+      return NextResponse.json({
+        verified: false,
+        message: "Preprocess failed",
+        error: preprocessError.message,
+        stderr: preprocessError.stderr || undefined,
+      });
+    }
+
+    // STEP 2: Run verify using tokamak-cli
+    console.log("Running verify...");
+    const verifyCommand = `"${tokamakCli}" --verify`;
+    console.log("Executing:", verifyCommand);
+
+    try {
+      const { stdout, stderr } = await execFileAsync(
+        tokamakCli,
+        ["--verify"],
+        {
+          cwd: tokamakRoot,
+          timeout: 300000, // 5 minutes timeout
+        }
+      );
+
+      console.log("Verify stdout:", stdout);
+      if (stderr) {
+        console.warn("Verify stderr:", stderr);
+      }
+
+      // Clean up temp directory
+      try {
+        await fs.rm(tempDir, { recursive: true, force: true });
+        const distFiles = [
+          path.join(distSynthesizerDir, "instance.json"),
+          path.join(distProveDir, "proof.json"),
+        ];
+        for (const file of distFiles) {
+          try {
+            await fs.unlink(file);
+          } catch {}
+        }
+      } catch (cleanupErr) {
+        console.warn("Failed to clean up:", cleanupErr);
+      }
+
+      // Check if verification passed
+      const isVerified = stdout.includes("Verify: verify output => true") || 
+                        stdout.includes("✓") ||
+                        stdout.toLowerCase().includes("success");
+      
+      return NextResponse.json({
+        verified: isVerified,
+        message: isVerified
+          ? "Proof verification successful ✓"
+          : "Proof verification failed - invalid proof",
+        output: stdout,
+        stderr: stderr || undefined,
+      });
+    } catch (execError: any) {
+      console.error("Verify execution error:", execError);
+
+      // Clean up directories
+      try {
+        await fs.rm(tempDir, { recursive: true, force: true });
+        const distFiles = [
+          path.join(distSynthesizerDir, "instance.json"),
+          path.join(distProveDir, "proof.json"),
+        ];
+        for (const file of distFiles) {
+          try {
+            await fs.unlink(file);
+          } catch {}
+        }
+      } catch (cleanupErr) {
+        console.warn("Failed to clean up:", cleanupErr);
+      }
+
+      return NextResponse.json({
+        verified: false,
+        message: "Proof verification failed",
+        error: execError.message,
+        stderr: execError.stderr || undefined,
+      });
+    }
+  } catch (error: any) {
+    console.error("Failed to verify proof:", error);
+
+    // Clean up temp directory on error
+    try {
+      await fs.rm(tempDir, { recursive: true, force: true });
+    } catch (cleanupErr) {
+      console.warn("Failed to clean up temp directory:", cleanupErr);
+    }
+
+    return NextResponse.json(
+      {
+        error: "Failed to verify proof",
+        details: error instanceof Error ? error.message : String(error),
+        verified: false,
+      },
+      { status: 500 }
+    );
+  }
+}
+
 export async function POST(req: Request) {
   let outputDir: string | undefined = undefined;
+  let tempDir: string | undefined = undefined;
+  
   try {
-    const body: SynthesizeTxRequest = await req.json();
+    const body: TokamakZkEvmRequest = await req.json();
+    
+    // Route based on action
+    if (body.action === "verify") {
+      return await handleVerify(body);
+    }
+    
+    // Handle synthesize action
     const {
       channelId,
       channelInitTxHash,
@@ -174,7 +431,8 @@ export async function POST(req: Request) {
       }
     };
 
-    // Execute L2 transaction
+    // STEP 1: Execute L2 transaction synthesis using tokamak-cli
+    console.log("Running tokamak-cli synthesize...");
     await runTokamakCli([
       "--synthesize",
       "--tokamak-ch-tx",
@@ -190,10 +448,9 @@ export async function POST(req: Request) {
 
     await assertPathExists(synthOutputPath, "dir");
 
-    // If includeProof is true, run the prove step and extract proof ZIP
+    // STEP 2: If includeProof is true, run prove and extract proof bundle
     if (includeProof) {
       console.log("Running tokamak-cli prove...");
-
       await runTokamakCli(
         ["--prove"],
         {
@@ -201,6 +458,7 @@ export async function POST(req: Request) {
         }
       );
 
+      console.log("Extracting proof bundle...");
       await runTokamakCli(["--extract-proof", outputZipPath]);
 
       await assertPathExists(outputZipPath, "file");

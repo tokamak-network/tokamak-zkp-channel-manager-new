@@ -13,6 +13,7 @@ import { TON_TOKEN_ADDRESS } from "@tokamak/config";
 import { parseInputAmount } from "@/lib/utils/format";
 
 export type SynthesizeTxRequest = {
+  action: "synthesize";
   channelId: string;
   channelInitTxHash: `0x${string}`;
   signedTxRlpStr: `0x${string}`;
@@ -79,6 +80,7 @@ export function useSynthesizer({
       );
       const signedTxStr = bytesToHex(signedTx.serialize());
       const postMessage: SynthesizeTxRequest = {
+        action: "synthesize",
         channelId,
         channelInitTxHash: initTxHash,
         signedTxRlpStr: signedTxStr,

@@ -1,15 +1,15 @@
-"use client";
+'use client';
 
-import { useParams, useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
-import { useReadContracts, useAccount } from "wagmi";
-import { formatUnits } from "viem";
-import { LoadingSpinner } from "@/components/LoadingSpinner";
-import {
-  ArrowLeft,
-  CheckCircle2,
-  Clock,
-  XCircle,
+import { useParams, useRouter } from 'next/navigation';
+import { useEffect, useMemo, useState } from 'react';
+import { useReadContracts } from 'wagmi';
+import { formatUnits } from 'viem';
+import { LoadingSpinner } from '@/components/LoadingSpinner';
+import { 
+  ArrowLeft, 
+  CheckCircle2, 
+  Clock, 
+  XCircle, 
   User,
   Hash,
   Calendar,
@@ -17,33 +17,34 @@ import {
   Coins,
   Download,
   Play,
-  FileText,
-} from "lucide-react";
-import { getContractAddress, getContractAbi } from "@tokamak/config";
-import { useNetworkId } from "@/hooks/contract/utils";
-import { getData, getProofZipContent } from "@/lib/db-client";
-import {
-  parseProofFromBase64Zip,
-  extractMerkleRoots,
-  type ProofAnalysisResult,
-} from "@/lib/proofAnalyzer";
-import { addHexPrefix, hexToBigInt } from "@ethereumjs/util";
-import JSZip from "jszip";
+  FileText
+} from 'lucide-react';
+import { getContractAddress, getContractAbi } from '@tokamak/config';
+import { useNetworkId } from '@/hooks/contract/utils';
+import { getData, getProofZipContent } from '@/lib/db-client';
+import { 
+  parseProofFromBase64Zip, 
+  analyzeProof, 
+  type ProofAnalysisResult 
+} from '@/lib/proofAnalyzer';
+import JSZip from 'jszip';
+import { addHexPrefix, hexToBigInt } from '@ethereumjs/util';
 
 // Participant Balance Type
 interface ParticipantBalance {
   address: string;
   initialDeposit: string;
-  currentBalance: string;
+  currentBalance: string; // Before balance (from latest approved state)
+  newBalance?: string; // After balance (from proof file analysis - to be implemented)
   symbol: string;
   decimals: number;
-  hasChange?: boolean;
+  hasChange?: boolean; // Whether balance changed in this proof
 }
 
 interface ProofData {
   proofId?: string;
   id?: string | number;
-  status: "pending" | "verified" | "rejected";
+  status: 'pending' | 'verified' | 'rejected';
   timestamp: number;
   submitter: string;
   channelId: number | string;
@@ -54,47 +55,45 @@ interface ProofData {
   verifiedBy?: string;
   zipFile?: {
     path?: string;
-    filePath?: string;
+    filePath?: string; // Path to file on disk (new format)
     size: number;
     fileName: string;
-    content?: string;
+    content?: string; // base64 content
   };
-  key?: string;
+  key?: string; // Firebase key
 }
 
 const statusConfig = {
   pending: {
-    label: "Pending",
+    label: 'Pending',
     icon: Clock,
-    badgeClass: "bg-yellow-500/20 border-yellow-500 text-yellow-400",
-    description: "Awaiting leader verification",
+    badgeClass: 'bg-yellow-500/20 border-yellow-500 text-yellow-400',
+    description: 'Awaiting leader verification'
   },
   verified: {
-    label: "Verified",
+    label: 'Verified',
     icon: CheckCircle2,
-    badgeClass: "bg-green-500/20 border-green-500 text-green-400",
-    description: "Proof verified and accepted",
+    badgeClass: 'bg-green-500/20 border-green-500 text-green-400',
+    description: 'Proof verified and accepted'
   },
   rejected: {
-    label: "Rejected",
+    label: 'Rejected',
     icon: XCircle,
-    badgeClass: "bg-red-500/20 border-red-500 text-red-400",
-    description: "Proof rejected - invalid state",
-  },
+    badgeClass: 'bg-red-500/20 border-red-500 text-red-400',
+    description: 'Proof rejected - invalid state'
+  }
 };
 
 export default function ProofDetailPage() {
   const router = useRouter();
   const params = useParams();
   const channelId = params.channelId as string;
-  const proofId = params.proofId
-    ? decodeURIComponent(params.proofId as string)
-    : "";
-  const { address } = useAccount();
+  // Decode the proofId to handle URL-encoded characters like # (%23)
+  const proofId = params.proofId ? decodeURIComponent(params.proofId as string) : '';
   const networkId = useNetworkId();
-  const bridgeCoreAddress = getContractAddress("BridgeCore", networkId);
-  const bridgeCoreAbi = getContractAbi("BridgeCore");
-
+  const bridgeCoreAddress = getContractAddress('BridgeCore', networkId);
+  const bridgeCoreAbi = getContractAbi('BridgeCore');
+  
   const channelIdBigInt = useMemo(() => {
     try {
       return BigInt(channelId);
@@ -102,15 +101,13 @@ export default function ProofDetailPage() {
       return null;
     }
   }, [channelId]);
-
+  
   const [proof, setProof] = useState<ProofData | null>(null);
   const [channel, setChannel] = useState<any>(null);
-  const [participantBalances, setParticipantBalances] = useState<
-    ParticipantBalance[]
-  >([]);
+  const [participantBalances, setParticipantBalances] = useState<ParticipantBalance[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [decimals, setDecimals] = useState(18);
-  const [symbol, setSymbol] = useState("TOKEN");
+  const [symbol, setSymbol] = useState('TOKEN');
   const [proofAnalysis, setProofAnalysis] = useState<ProofAnalysisResult | null>(null);
   const [isAnalyzingProof, setIsAnalyzingProof] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
@@ -149,7 +146,9 @@ export default function ProofDetailPage() {
 
   const { data: channelReads } = useReadContracts({
     contracts: channelContracts,
-    enabled: Boolean(channelContracts),
+    query: {
+      enabled: Boolean(channelContracts),
+    }
   });
 
   const channelInfo = channelReads?.[0]?.result as
@@ -176,34 +175,36 @@ export default function ProofDetailPage() {
         address: tokenAddress as `0x${string}`,
         abi: [
           {
-            name: "decimals",
-            type: "function",
-            stateMutability: "view",
+            name: 'decimals',
+            type: 'function',
+            stateMutability: 'view',
             inputs: [],
-            outputs: [{ name: "", type: "uint8" }],
+            outputs: [{ name: '', type: 'uint8' }],
           },
         ] as const,
-        functionName: "decimals",
+        functionName: 'decimals',
       },
       {
         address: tokenAddress as `0x${string}`,
         abi: [
           {
-            name: "symbol",
-            type: "function",
-            stateMutability: "view",
+            name: 'symbol',
+            type: 'function',
+            stateMutability: 'view',
             inputs: [],
-            outputs: [{ name: "", type: "string" }],
+            outputs: [{ name: '', type: 'string' }],
           },
         ] as const,
-        functionName: "symbol",
+        functionName: 'symbol',
       },
     ] as const;
   }, [tokenAddress, isEthToken]);
 
   const { data: tokenData } = useReadContracts({
     contracts: tokenContracts,
-    enabled: Boolean(tokenContracts),
+    query: {
+      enabled: Boolean(tokenContracts),
+    }
   });
 
   const depositContracts = useMemo(() => {
@@ -218,344 +219,197 @@ export default function ProofDetailPage() {
 
   const { data: depositData } = useReadContracts({
     contracts: depositContracts,
-    enabled: depositContracts.length > 0,
+    query: {
+      enabled: depositContracts.length > 0,
+    }
   });
 
-  // Fetch MPT keys for all participants to match with state_snapshot.json storageEntries
-  const mptKeyContracts = useMemo(() => {
-    if (!channel || channel.participants.length === 0) return [];
-    return channel.participants.map((participant: string) => ({
-      address: bridgeCoreAddress,
-      abi: bridgeCoreAbi,
-      functionName: "getL2MptKey",
-      args: [BigInt(channel.id), participant as `0x${string}`],
-    }));
-  }, [channel, bridgeCoreAddress, bridgeCoreAbi]);
-
-  const { data: mptKeyData } = useReadContracts({
-    contracts: mptKeyContracts,
-    enabled: mptKeyContracts.length > 0,
-  });
-
-  // Fetch proof data from database
+  // Fetch proof data from Firebase
   useEffect(() => {
     const fetchProof = async () => {
       if (!channelId || !proofId) {
-        console.log("ProofDetailPage: Missing channelId or proofId", {
-          channelId,
-          proofId,
-        });
+        console.log('ProofDetailPage: Missing channelId or proofId', { channelId, proofId });
         return;
       }
 
-      console.log("ProofDetailPage: Fetching proof", { channelId, proofId });
+      console.log('ProofDetailPage: Fetching proof', { channelId, proofId });
       setIsLoading(true);
       try {
         const channelIdStr = String(channelId);
-
+        
         // Try to find proof in submittedProofs, verifiedProofs, or rejectedProofs
-        const [submittedProofs, verifiedProofs, rejectedProofs] =
-          await Promise.all([
-            getData<Record<string, any>>(
-              `channels.${channelIdStr}.submittedProofs`
-            ),
-            getData<Record<string, any>>(
-              `channels.${channelIdStr}.verifiedProofs`
-            ),
-            getData<Record<string, any>>(
-              `channels.${channelIdStr}.rejectedProofs`
-            ),
-          ]);
+        const [submittedProofs, verifiedProofs, rejectedProofs] = await Promise.all([
+          getData<Record<string, any>>(`channels.${channelIdStr}.submittedProofs`),
+          getData<Record<string, any>>(`channels.${channelIdStr}.verifiedProofs`),
+          getData<Record<string, any>>(`channels.${channelIdStr}.rejectedProofs`),
+        ]);
 
         let foundProof: any = null;
-        let proofStatus: "submittedProofs" | "verifiedProofs" | "rejectedProofs" =
-          "submittedProofs";
+        let proofStatus: 'submittedProofs' | 'verifiedProofs' | 'rejectedProofs' = 'submittedProofs';
 
         // Search in submittedProofs
         if (submittedProofs) {
-          const submittedList = Object.entries(submittedProofs).map(
-            ([key, value]: [string, any]) => ({ ...value, key })
-          );
+          const submittedList = Object.entries(submittedProofs).map(([key, value]: [string, any]) => ({ ...value, key }));
           foundProof = submittedList.find((p: any) => {
-            const pProofId = String(p.proofId || "").toLowerCase();
-            const pId = String(p.id || "").toLowerCase();
-            const pKey = String(p.key || "").toLowerCase();
-            const searchId = String(proofId || "").toLowerCase();
-            return (
-              pProofId === searchId || pId === searchId || pKey === searchId
-            );
+            // Match by proofId, id, or key (case-insensitive comparison)
+            const pProofId = String(p.proofId || '').toLowerCase();
+            const pId = String(p.id || '').toLowerCase();
+            const pKey = String(p.key || '').toLowerCase();
+            const searchId = String(proofId || '').toLowerCase();
+            return pProofId === searchId || pId === searchId || pKey === searchId;
           });
           if (foundProof) {
-            proofStatus = "submittedProofs";
+            proofStatus = 'submittedProofs';
           }
         }
 
         // Search in verifiedProofs
         if (!foundProof && verifiedProofs) {
-          const verifiedList = Object.entries(verifiedProofs).map(
-            ([key, value]: [string, any]) => ({ ...value, key })
-          );
+          const verifiedList = Object.entries(verifiedProofs).map(([key, value]: [string, any]) => ({ ...value, key }));
           foundProof = verifiedList.find((p: any) => {
-            const pProofId = String(p.proofId || "").toLowerCase();
-            const pId = String(p.id || "").toLowerCase();
-            const pKey = String(p.key || "").toLowerCase();
-            const searchId = String(proofId || "").toLowerCase();
-            return (
-              pProofId === searchId || pId === searchId || pKey === searchId
-            );
+            const pProofId = String(p.proofId || '').toLowerCase();
+            const pId = String(p.id || '').toLowerCase();
+            const pKey = String(p.key || '').toLowerCase();
+            const searchId = String(proofId || '').toLowerCase();
+            return pProofId === searchId || pId === searchId || pKey === searchId;
           });
           if (foundProof) {
-            proofStatus = "verifiedProofs";
+            proofStatus = 'verifiedProofs';
           }
         }
 
         // Search in rejectedProofs
         if (!foundProof && rejectedProofs) {
-          const rejectedList = Object.entries(rejectedProofs).map(
-            ([key, value]: [string, any]) => ({ ...value, key })
-          );
+          const rejectedList = Object.entries(rejectedProofs).map(([key, value]: [string, any]) => ({ ...value, key }));
           foundProof = rejectedList.find((p: any) => {
-            const pProofId = String(p.proofId || "").toLowerCase();
-            const pId = String(p.id || "").toLowerCase();
-            const pKey = String(p.key || "").toLowerCase();
-            const searchId = String(proofId || "").toLowerCase();
-            return (
-              pProofId === searchId || pId === searchId || pKey === searchId
-            );
+            const pProofId = String(p.proofId || '').toLowerCase();
+            const pId = String(p.id || '').toLowerCase();
+            const pKey = String(p.key || '').toLowerCase();
+            const searchId = String(proofId || '').toLowerCase();
+            return pProofId === searchId || pId === searchId || pKey === searchId;
           });
           if (foundProof) {
-            proofStatus = "rejectedProofs";
+            proofStatus = 'rejectedProofs';
           }
         }
 
         if (foundProof) {
           // Get zipFile data if it exists
           let zipFileData = foundProof.zipFile;
-
+          
           // Get the storage key for the proof
-          const storageProofId =
-            foundProof.key ||
-            (foundProof.proofId
-              ? foundProof.proofId.replace(/#/g, "-")
-              : null) ||
+          const storageProofId = foundProof.key || 
+            (foundProof.proofId ? foundProof.proofId.replace(/#/g, '-') : null) ||
             (foundProof.id ? `proof-${foundProof.id}` : null);
-
-          console.log("ProofDetailPage: Looking for ZIP file", {
+          
+          console.log('ProofDetailPage: Looking for ZIP file', {
             channelId,
             proofId,
             foundProofKey: foundProof.key,
             foundProofProofId: foundProof.proofId,
             storageProofId,
-            proofStatus: foundProof.status,
+            proofStatus: foundProof.status
           });
-
+          
           if (storageProofId) {
-            // Use getProofZipContent to fetch ZIP file content
+            // Use getProofZipContent to fetch ZIP file content (handles file-based storage)
             try {
-              const result = await getProofZipContent(
-                channelIdStr,
-                storageProofId,
-                proofStatus
-              );
-
+              const result = await getProofZipContent(channelIdStr, storageProofId, proofStatus);
+              
               if (result?.content) {
-                console.log(
-                  "ProofDetailPage: Found ZIP content, length:",
-                  result.content.length
-                );
+                console.log('ProofDetailPage: Found ZIP content, length:', result.content.length);
                 zipFileData = {
                   ...foundProof.zipFile,
                   size: result.size || foundProof.zipFile?.size || 0,
-                  fileName:
-                    result.fileName ||
-                    foundProof.zipFile?.fileName ||
-                    `proof-${foundProof.proofId || foundProof.id || "unknown"}.zip`,
+                  fileName: result.fileName || foundProof.zipFile?.fileName || `proof-${foundProof.proofId || foundProof.id || 'unknown'}.zip`,
                   content: result.content,
                 };
               } else {
-                console.warn(
-                  "ProofDetailPage: getProofZipContent returned null or no content"
-                );
+                console.warn('ProofDetailPage: getProofZipContent returned null or no content');
               }
             } catch (error) {
-              console.warn("ProofDetailPage: Failed to fetch ZIP content:", error);
+              console.warn('ProofDetailPage: Failed to fetch ZIP content:', error);
             }
           }
+          
+          console.log('ProofDetailPage: Final zipFileData', zipFileData ? { ...zipFileData, content: zipFileData.content ? 'present' : 'missing' } : null);
 
-          const proofData: ProofData = {
+          const proofData = {
             ...foundProof,
             channelId: channelId,
-            status:
-              foundProof.status === "submitted"
-                ? "pending"
-                : (foundProof.status as ProofData["status"]) || "pending",
-            timestamp:
-              foundProof.timestamp ||
-              foundProof.submittedAt ||
-              Date.now(),
+            status: foundProof.status === 'submitted' ? 'pending' : (foundProof.status as ProofData['status']) || 'pending',
+            timestamp: foundProof.timestamp || foundProof.submittedAt || Date.now(),
             verifier: foundProof.verifiedBy || foundProof.verifier,
             zipFile: zipFileData,
           };
-
+          
           setProof(proofData);
-
+          
           // Analyze proof files if ZIP content is available
-          // Note: We need MPT keys to properly match storageEntries with participants
-          // This will be done in a separate useEffect after MPT keys are fetched
           if (zipFileData?.content) {
-            setZipContent(zipFileData.content);
+            setIsAnalyzingProof(true);
+            try {
+              const { instance, snapshot, error } = await parseProofFromBase64Zip(zipFileData.content);
+              
+              if (error) {
+                console.error('Error parsing proof ZIP:', error);
+              } else if (instance && snapshot) {
+                const analysis = await analyzeProof(instance, snapshot, decimals);
+                setProofAnalysis(analysis);
+                console.log('Proof analysis completed:', analysis);
+              }
+            } catch (error) {
+              console.error('Error analyzing proof:', error);
+            } finally {
+              setIsAnalyzingProof(false);
+            }
           }
         }
       } catch (error) {
-        console.error("Error fetching proof:", error);
+        console.error('Error fetching proof:', error);
       } finally {
         setIsLoading(false);
       }
     };
 
     fetchProof();
-  }, [channelId, proofId, decimals, channelParticipants]);
+  }, [channelId, proofId, decimals]);
 
   // Fetch ZIP content (handles both file-based and legacy formats)
   useEffect(() => {
     const loadZipContent = async () => {
       if (!proof || !channelId) return;
-
+      
       // If we already have content in memory, use it
       if (proof.zipFile?.content) {
         setZipContent(proof.zipFile.content);
         return;
       }
-
+      
       // If there's a filePath, fetch from API
       if (proof.zipFile?.filePath || proof.key) {
         setIsLoadingZip(true);
         try {
-          const status =
-            proof.status === "verified"
-              ? "verifiedProofs"
-              : proof.status === "rejected"
-              ? "rejectedProofs"
-              : "submittedProofs";
-
-          const proofKey =
-            proof.key || proof.proofId?.replace("#", "-") || "";
-          const result = await getProofZipContent(
-            String(channelId),
-            proofKey,
-            status
-          );
-
+          const status = proof.status === 'verified' ? 'verifiedProofs' :
+                        proof.status === 'rejected' ? 'rejectedProofs' :
+                        'submittedProofs';
+          
+          const proofKey = proof.key || proof.proofId?.replace('#', '-') || '';
+          const result = await getProofZipContent(String(channelId), proofKey, status);
+          
           if (result?.content) {
             setZipContent(result.content);
           }
         } catch (error) {
-          console.error("Failed to load ZIP content:", error);
+          console.error('Failed to load ZIP content:', error);
         } finally {
           setIsLoadingZip(false);
         }
       }
     };
-
+    
     loadZipContent();
   }, [proof, channelId]);
-
-  // Analyze proof files when ZIP content and MPT keys are available
-  useEffect(() => {
-    const analyzeProofFiles = async () => {
-      if (!zipContent || !channelParticipants || !mptKeyData || !channel) {
-        return;
-      }
-
-      setIsAnalyzingProof(true);
-      try {
-        const { instance, snapshot, error } =
-          await parseProofFromBase64Zip(zipContent);
-
-        if (error) {
-          console.error("Error parsing proof ZIP:", error);
-          return;
-        }
-
-        if (!instance || !snapshot) {
-          return;
-        }
-
-        // Build MPT key map: participant address -> MPT key (hex with 0x prefix)
-        const mptKeyMap = new Map<string, string>();
-        channelParticipants.forEach((participant, idx) => {
-          const mptKeyResult = mptKeyData[idx];
-          if (
-            mptKeyResult?.status === "success" &&
-            mptKeyResult.result !== undefined
-          ) {
-            const mptKeyBigInt = mptKeyResult.result as bigint;
-            // Convert to hex with 0x prefix, padded to 64 characters
-            const mptKeyHex =
-              "0x" + mptKeyBigInt.toString(16).padStart(64, "0");
-            mptKeyMap.set(participant.toLowerCase(), mptKeyHex);
-          }
-        });
-
-        // Match storageEntries with participants by MPT key
-        const balances = snapshot.storageEntries.map((entry) => {
-          // Find participant by matching MPT key
-          let matchedParticipant = "";
-          for (const [participant, mptKey] of mptKeyMap.entries()) {
-            // Normalize keys for comparison (remove 0x prefix and pad)
-            const entryKeyNormalized = entry.key
-              .replace("0x", "")
-              .padStart(64, "0")
-              .toLowerCase();
-            const mptKeyNormalized = mptKey
-              .replace("0x", "")
-              .padStart(64, "0")
-              .toLowerCase();
-
-            if (entryKeyNormalized === mptKeyNormalized) {
-              matchedParticipant = participant;
-              break;
-            }
-          }
-
-          // Convert hex balance to decimal
-          const balanceWei = entry.value === "0x" ? 0n : BigInt(entry.value);
-          const balanceEth = Number(balanceWei) / Math.pow(10, decimals);
-
-          return {
-            l1Addr: matchedParticipant,
-            mptKey: entry.key,
-            balance: entry.value,
-            balanceFormatted: balanceEth.toFixed(decimals),
-          };
-        });
-
-        // Extract Merkle roots
-        const merkleRoots = extractMerkleRoots(instance);
-
-        const analysis: ProofAnalysisResult = {
-          merkleRoots,
-          balances,
-          contractAddress: snapshot.contractAddress,
-        };
-
-        setProofAnalysis(analysis);
-        console.log("Proof analysis completed:", analysis);
-      } catch (error) {
-        console.error("Error analyzing proof:", error);
-      } finally {
-        setIsAnalyzingProof(false);
-      }
-    };
-
-    analyzeProofFiles();
-  }, [
-    zipContent,
-    channelParticipants,
-    mptKeyData,
-    channel,
-    decimals,
-  ]);
 
   // Fetch channel data and participants
   useEffect(() => {
@@ -609,11 +463,9 @@ export default function ProofDetailPage() {
         let hasProofBalance = false;
 
         if (proofAnalysis && proofAnalysis.balances) {
-          // Find balance by participant address
+          // Find balance by participant index
           const proofBalance = proofAnalysis.balances.find(
-            (b) =>
-              hexToBigInt(addHexPrefix(b.l1Addr)) ===
-              hexToBigInt(addHexPrefix(participant))
+            (b) => hexToBigInt(addHexPrefix(b.l1Addr)) === hexToBigInt(addHexPrefix(participant))
           );
 
           if (proofBalance) {
@@ -632,6 +484,7 @@ export default function ProofDetailPage() {
           address: participant,
           initialDeposit: initialDepositFormatted,
           currentBalance: currentBalance, // Balance from state_snapshot.json
+          newBalance: undefined, // Not used in this simplified view
           symbol: symbol,
           decimals: decimals,
           hasChange: hasChange,
@@ -656,387 +509,365 @@ export default function ProofDetailPage() {
 
   return (
     <div className="p-4 pb-20">
-        <div className="max-w-6xl w-full mx-auto">
-          {/* Back Button */}
-          <button
-            onClick={() => router.push(`/state-explorer?channelId=${channelId}`)}
-            className="mb-6 flex items-center gap-2 px-4 py-2 bg-gradient-to-b from-[#1a2347] to-[#0a1930] border border-[#4fc3f7]/30 text-white hover:border-[#4fc3f7] hover:bg-[#1a2347] rounded transition-all"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Back to Explorer
-          </button>
+      <div className="max-w-6xl w-full mx-auto">
+        {/* Back Button */}
+        <button 
+          onClick={() => router.push(`/state-explorer?channelId=${channelId}`)}
+          className="mb-6 flex items-center gap-2 px-4 py-2 bg-gradient-to-b from-[#1a2347] to-[#0a1930] border border-[#4fc3f7]/30 text-white hover:border-[#4fc3f7] hover:bg-[#1a2347] rounded transition-all"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Back to Explorer
+        </button>
 
-          {/* Header Card */}
-          <div className="bg-gradient-to-b from-[#1a2347] to-[#0a1930] border border-[#4fc3f7] p-6 mb-6 shadow-lg shadow-[#4fc3f7]/20">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-              <div>
-                <h2 className="text-3xl font-bold text-white mb-2">
-                  Proof {proofDisplayId}
-                </h2>
-                <p className="text-gray-400">{config.description}</p>
+        {/* Header Card */}
+        <div className="bg-gradient-to-b from-[#1a2347] to-[#0a1930] border border-[#4fc3f7] p-6 mb-6 shadow-lg shadow-[#4fc3f7]/20">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+              <h2 className="text-3xl font-bold text-white mb-2">Proof {proofDisplayId}</h2>
+              <p className="text-gray-400">{config.description}</p>
+            </div>
+            <div className={`inline-flex items-center gap-2 px-4 py-2 border ${config.badgeClass} rounded font-medium w-fit`}>
+              <Icon className="w-5 h-5" />
+              {config.label}
+            </div>
+          </div>
+        </div>
+
+        {/* Basic Info Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
+          <div className="bg-gradient-to-b from-[#1a2347] to-[#0a1930] border border-[#4fc3f7]/30 p-5 hover:border-[#4fc3f7] transition-all hover:shadow-lg hover:shadow-[#4fc3f7]/20">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-sm font-medium text-gray-300">Channel</span>
+              <div className="bg-[#4fc3f7] p-2 rounded">
+                <Hash className="h-4 w-4 text-white" />
               </div>
-              <div
-                className={`inline-flex items-center gap-2 px-4 py-2 border ${config.badgeClass} rounded font-medium w-fit`}
-              >
-                <Icon className="w-5 h-5" />
-                {config.label}
+            </div>
+            <div className="text-2xl font-bold text-[#4fc3f7]">#{channelId}</div>
+          </div>
+
+          <div className="bg-gradient-to-b from-[#1a2347] to-[#0a1930] border border-[#4fc3f7]/30 p-5 hover:border-[#4fc3f7] transition-all hover:shadow-lg hover:shadow-[#4fc3f7]/20">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-sm font-medium text-gray-300">Timestamp</span>
+              <div className="bg-[#4fc3f7] p-2 rounded">
+                <Calendar className="h-4 w-4 text-white" />
               </div>
+            </div>
+            <div className="text-sm text-gray-400">
+              {new Date(proof.timestamp).toLocaleString()}
             </div>
           </div>
 
-          {/* Basic Info Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
-            <div className="bg-gradient-to-b from-[#1a2347] to-[#0a1930] border border-[#4fc3f7]/30 p-5 hover:border-[#4fc3f7] transition-all hover:shadow-lg hover:shadow-[#4fc3f7]/20">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-sm font-medium text-gray-300">Channel</span>
-                <div className="bg-[#4fc3f7] p-2 rounded">
-                  <Hash className="h-4 w-4 text-white" />
-                </div>
-              </div>
-              <div className="text-2xl font-bold text-[#4fc3f7]">
-                #{channelId}
+          <div className="bg-gradient-to-b from-[#1a2347] to-[#0a1930] border border-[#4fc3f7]/30 p-5 hover:border-[#4fc3f7] transition-all hover:shadow-lg hover:shadow-[#4fc3f7]/20">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-sm font-medium text-gray-300">Submitter</span>
+              <div className="bg-[#4fc3f7] p-2 rounded">
+                <User className="h-4 w-4 text-white" />
               </div>
             </div>
-
-            <div className="bg-gradient-to-b from-[#1a2347] to-[#0a1930] border border-[#4fc3f7]/30 p-5 hover:border-[#4fc3f7] transition-all hover:shadow-lg hover:shadow-[#4fc3f7]/20">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-sm font-medium text-gray-300">
-                  Timestamp
-                </span>
-                <div className="bg-[#4fc3f7] p-2 rounded">
-                  <Calendar className="h-4 w-4 text-white" />
-                </div>
-              </div>
-              <div className="text-sm text-gray-400">
-                {new Date(proof.timestamp).toLocaleString()}
-              </div>
+            <div className="text-xs font-mono text-gray-400 break-all">
+              {proof.submitter?.slice(0, 10)}...{proof.submitter?.slice(-8)}
             </div>
+          </div>
 
+          {proof.verifier && (
             <div className="bg-gradient-to-b from-[#1a2347] to-[#0a1930] border border-[#4fc3f7]/30 p-5 hover:border-[#4fc3f7] transition-all hover:shadow-lg hover:shadow-[#4fc3f7]/20">
               <div className="flex items-center justify-between mb-3">
-                <span className="text-sm font-medium text-gray-300">
-                  Submitter
-                </span>
-                <div className="bg-[#4fc3f7] p-2 rounded">
-                  <User className="h-4 w-4 text-white" />
+                <span className="text-sm font-medium text-gray-300">Verifier</span>
+                <div className="bg-green-500 p-2 rounded">
+                  <CheckCircle2 className="h-4 w-4 text-white" />
                 </div>
               </div>
               <div className="text-xs font-mono text-gray-400 break-all">
-                {proof.submitter?.slice(0, 10)}...{proof.submitter?.slice(-8)}
+                {proof.verifier.slice(0, 10)}...{proof.verifier.slice(-8)}
               </div>
             </div>
+          )}
+        </div>
 
-            {proof.verifier && (
-              <div className="bg-gradient-to-b from-[#1a2347] to-[#0a1930] border border-[#4fc3f7]/30 p-5 hover:border-[#4fc3f7] transition-all hover:shadow-lg hover:shadow-[#4fc3f7]/20">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-sm font-medium text-gray-300">
-                    Verifier
-                  </span>
-                  <div className="bg-green-500 p-2 rounded">
-                    <CheckCircle2 className="h-4 w-4 text-white" />
-                  </div>
-                </div>
-                <div className="text-xs font-mono text-gray-400 break-all">
-                  {proof.verifier.slice(0, 10)}...{proof.verifier.slice(-8)}
-                </div>
-              </div>
-            )}
+        {/* Participant Balances Section */}
+        <div className="bg-gradient-to-b from-[#1a2347] to-[#0a1930] border border-[#4fc3f7] p-6 mb-6 shadow-lg shadow-[#4fc3f7]/20">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="bg-[#4fc3f7] p-2 rounded">
+              <Users className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-white">Channel Participants & Token Balances</h3>
+              <p className="text-sm text-gray-400">Token balances for each participant in this state</p>
+            </div>
           </div>
 
-          {/* Participant Balances Section */}
-          <div className="bg-gradient-to-b from-[#1a2347] to-[#0a1930] border border-[#4fc3f7] p-6 mb-6 shadow-lg shadow-[#4fc3f7]/20">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="bg-[#4fc3f7] p-2 rounded">
-                <Users className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold text-white">
-                  Channel Participants & Token Balances
-                </h3>
-                <p className="text-sm text-gray-400">
-                  Token balances for each participant
-                </p>
-              </div>
-            </div>
-
-            {participantBalances.length === 0 ? (
-              <div className="text-center py-8">
+          {participantBalances.length === 0 ? (
+            <div className="text-center py-8">
+              {isAnalyzingProof ? (
+                <div>
+                  <LoadingSpinner size="sm" />
+                  <p className="text-gray-400 mt-2 text-sm">Analyzing proof files...</p>
+                </div>
+              ) : (
                 <LoadingSpinner size="sm" />
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {participantBalances.map((participant, index) => (
+              )}
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {participantBalances.map((participant, index) => {
+                const balanceChanged = participant.hasChange;
+                
+                return (
                   <div
                     key={participant.address}
-                    className="bg-[#0a1930]/50 border border-[#4fc3f7]/30 p-5 hover:border-[#4fc3f7] transition-all rounded"
+                    className="bg-[#0a1930]/50 border border-[#4fc3f7]/30 p-5 hover:border-[#4fc3f7] transition-all"
                   >
+                    {/* Participant Header */}
                     <div className="flex items-center gap-3 mb-4 pb-3 border-b border-[#4fc3f7]/20">
                       <div className="bg-[#4fc3f7] px-3 py-1 rounded text-white font-bold text-sm">
                         #{index + 1}
                       </div>
                       <div className="flex-1">
-                        <div className="text-xs text-gray-400 mb-1">
-                          Participant Address
-                        </div>
+                        <div className="text-xs text-gray-400 mb-1">Participant Address</div>
                         <div className="font-mono text-sm text-[#4fc3f7]">
                           {participant.address}
                         </div>
                       </div>
                     </div>
 
+                    {/* Balance Display - From state_snapshot.json */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Initial Deposit */}
                       <div className="bg-[#1a2347] border border-gray-600/30 p-4 rounded">
-                        <div className="text-xs text-gray-500 mb-2">
-                          Initial Deposit
-                        </div>
+                        <div className="text-xs text-gray-500 mb-2">Initial Deposit</div>
                         <div className="flex items-center gap-2 mb-1">
                           <Coins className="w-4 h-4 text-gray-400" />
-                          <span className="text-sm font-medium text-gray-400">
-                            {participant.symbol}
-                          </span>
+                          <span className="text-sm font-medium text-gray-400">{participant.symbol}</span>
                         </div>
                         <div className="text-xl font-mono text-gray-400">
-                          {parseFloat(participant.initialDeposit).toFixed(2)}
+                          {participant.initialDeposit}
                         </div>
                       </div>
 
-                      <div className="bg-[#1a2347] border border-[#4fc3f7]/30 p-4 rounded">
-                        <div className="text-xs text-[#4fc3f7] mb-2">
-                          Current Balance
+                      {/* Current Balance from state_snapshot.json */}
+                      <div className={`bg-[#1a2347] border p-4 rounded ${
+                        balanceChanged 
+                          ? 'border-green-500/30' 
+                          : 'border-[#4fc3f7]/30'
+                      }`}>
+                        <div className={`text-xs mb-2 ${
+                          balanceChanged ? 'text-green-400' : 'text-[#4fc3f7]'
+                        }`}>
+                          Balance (from state_snapshot.json)
                         </div>
                         <div className="flex items-center gap-2 mb-1">
-                          <Coins className="w-4 h-4 text-[#4fc3f7]" />
-                          <span className="text-sm font-medium text-[#4fc3f7]">
-                            {participant.symbol}
-                          </span>
+                          <Coins className={`w-4 h-4 ${
+                            balanceChanged ? 'text-green-400' : 'text-[#4fc3f7]'
+                          }`} />
+                          <span className={`text-sm font-medium ${
+                            balanceChanged ? 'text-green-400' : 'text-[#4fc3f7]'
+                          }`}>{participant.symbol}</span>
                         </div>
-                        <div className="text-xl font-mono font-semibold text-white">
-                          {parseFloat(participant.currentBalance).toFixed(2)}
+                        <div className={`text-xl font-mono font-semibold ${
+                          balanceChanged ? 'text-green-400' : 'text-white'
+                        }`}>
+                          {isAnalyzingProof ? 'Analyzing...' : participant.currentBalance}
                         </div>
+                        {balanceChanged && (
+                          <div className="mt-2 text-xs text-green-400/70">
+                            Changed from initial deposit
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
-                ))}
-              </div>
-            )}
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Verification & Download Section */}
+        <div className="bg-gradient-to-b from-[#1a2347] to-[#0a1930] border border-[#4fc3f7] p-6 shadow-lg shadow-[#4fc3f7]/20">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="bg-[#4fc3f7] p-2 rounded">
+              <FileText className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-white">Verification & Files</h3>
+              <p className="text-sm text-gray-400">Download proof files and verify independently</p>
+            </div>
           </div>
 
-          {/* Verification & Download Section */}
-          <div className="bg-gradient-to-b from-[#1a2347] to-[#0a1930] border border-[#4fc3f7] p-6 shadow-lg shadow-[#4fc3f7]/20">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="bg-[#4fc3f7] p-2 rounded">
-                <FileText className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold text-white">
-                  Verification & Files
-                </h3>
-                <p className="text-sm text-gray-400">
-                  Download proof files and verify independently
-                </p>
-              </div>
-            </div>
-
-            {/* Verification Result */}
-            {verifyResult && (
-              <div
-                className={`mb-4 p-4 rounded-lg border ${
-                  verifyResult.verified
-                    ? "bg-green-500/10 border-green-500/30"
-                    : "bg-red-500/10 border-red-500/30"
-                }`}
-              >
-                <div className="flex items-center gap-2 mb-2">
-                  {verifyResult.verified ? (
-                    <CheckCircle2 className="w-5 h-5 text-green-400" />
-                  ) : (
-                    <XCircle className="w-5 h-5 text-red-400" />
-                  )}
-                  <span
-                    className={`font-medium ${
-                      verifyResult.verified ? "text-green-400" : "text-red-400"
-                    }`}
-                  >
-                    {verifyResult.message}
-                  </span>
-                </div>
-                {verifyResult.error && (
-                  <p className="text-sm text-red-300 mt-1">
-                    {verifyResult.error}
-                  </p>
-                )}
-                {verifyResult.output && (
-                  <details className="mt-2">
-                    <summary className="text-xs text-gray-400 cursor-pointer hover:text-gray-300">
-                      Show verification output
-                    </summary>
-                    <pre className="mt-2 p-2 bg-black/30 rounded text-xs text-gray-400 overflow-auto max-h-32">
-                      {verifyResult.output}
-                    </pre>
-                  </details>
-                )}
-              </div>
-            )}
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Verify Button */}
-              <button
-                onClick={async () => {
-                  if (!zipContent) {
-                    window.alert(
-                      "ZIP file not found. The proof must have a ZIP file with proof.json to verify."
-                    );
-                    return;
-                  }
-
-                  setIsVerifying(true);
-                  setVerifyResult(null);
-
-                  try {
-                    const response = await fetch("/api/verify-proof-binary", {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({
-                        proofZipBase64: zipContent,
-                      }),
-                    });
-
-                    const result = await response.json();
-                    setVerifyResult({
-                      verified: result.verified,
-                      message:
-                        result.message ||
-                        (result.verified
-                          ? "Verification successful"
-                          : "Verification failed"),
-                      output: result.output,
-                      error: result.error || result.details,
-                    });
-                  } catch (error) {
-                    setVerifyResult({
-                      verified: false,
-                      message: "Verification failed",
-                      error:
-                        error instanceof Error
-                          ? error.message
-                          : "Unknown error occurred",
-                    });
-                  } finally {
-                    setIsVerifying(false);
-                  }
-                }}
-                disabled={isVerifying || isLoadingZip || !zipContent}
-                className={`flex items-center justify-center gap-2 px-6 py-4 rounded transition-all font-medium ${
-                  isVerifying || isLoadingZip || !zipContent
-                    ? "bg-gray-600 cursor-not-allowed text-gray-300"
-                    : "bg-green-600 hover:bg-green-500 text-white hover:shadow-lg hover:shadow-green-500/30"
-                }`}
-              >
-                {isVerifying ? (
-                  <>
-                    <LoadingSpinner size="sm" />
-                    <span>Verifying...</span>
-                  </>
+          {/* Verification Result */}
+          {verifyResult && (
+            <div className={`mb-4 p-4 rounded-lg border ${
+              verifyResult.verified 
+                ? 'bg-green-500/10 border-green-500/30' 
+                : 'bg-red-500/10 border-red-500/30'
+            }`}>
+              <div className="flex items-center gap-2 mb-2">
+                {verifyResult.verified ? (
+                  <CheckCircle2 className="w-5 h-5 text-green-400" />
                 ) : (
-                  <>
-                    <Play className="w-5 h-5" />
-                    <span>Verify Proof</span>
-                  </>
+                  <XCircle className="w-5 h-5 text-red-400" />
                 )}
-              </button>
+                <span className={`font-medium ${verifyResult.verified ? 'text-green-400' : 'text-red-400'}`}>
+                  {verifyResult.message}
+                </span>
+              </div>
+              {verifyResult.error && (
+                <p className="text-sm text-red-300 mt-1">{verifyResult.error}</p>
+              )}
+              {verifyResult.output && (
+                <details className="mt-2">
+                  <summary className="text-xs text-gray-400 cursor-pointer hover:text-gray-300">
+                    Show verification output
+                  </summary>
+                  <pre className="mt-2 p-2 bg-black/30 rounded text-xs text-gray-400 overflow-auto max-h-32">
+                    {verifyResult.output}
+                  </pre>
+                </details>
+              )}
+            </div>
+          )}
 
-              {/* Download All Files (ZIP) */}
-              <button
-                onClick={async () => {
-                  if (!zipContent) {
-                    window.alert(
-                      "ZIP file not found. The proof may not have a ZIP file uploaded."
-                    );
-                    return;
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Verify Button */}
+            <button
+              onClick={async () => {
+                if (!zipContent) {
+                  window.alert('ZIP file not found. The proof must have a ZIP file with proof.json to verify.');
+                  return;
+                }
+
+                setIsVerifying(true);
+                setVerifyResult(null);
+
+                try {
+                  const response = await fetch('/api/tokamak-zk-evm', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      action: 'verify',
+                      proofZipBase64: zipContent,
+                    }),
+                  });
+
+                  const result = await response.json();
+                  setVerifyResult({
+                    verified: result.verified,
+                    message: result.message || (result.verified ? 'Verification successful' : 'Verification failed'),
+                    output: result.output,
+                    error: result.error || result.details,
+                  });
+                } catch (error) {
+                  setVerifyResult({
+                    verified: false,
+                    message: 'Verification failed',
+                    error: error instanceof Error ? error.message : 'Unknown error occurred',
+                  });
+                } finally {
+                  setIsVerifying(false);
+                }
+              }}
+              disabled={isVerifying || isLoadingZip || !zipContent}
+              className={`flex items-center justify-center gap-2 px-6 py-4 rounded transition-all font-medium ${
+                isVerifying || isLoadingZip || !zipContent
+                  ? 'bg-gray-600 cursor-not-allowed text-gray-300'
+                  : 'bg-green-600 hover:bg-green-500 text-white hover:shadow-lg hover:shadow-green-500/30'
+              }`}
+            >
+              {isVerifying ? (
+                <>
+                  <LoadingSpinner size="sm" />
+                  <span>Verifying...</span>
+                </>
+              ) : (
+                <>
+                  <Play className="w-5 h-5" />
+                  <span>Verify Proof</span>
+                </>
+              )}
+            </button>
+
+            {/* Download All Files (ZIP) */}
+            <button
+              onClick={async () => {
+                if (!zipContent) {
+                  window.alert('ZIP file not found. The proof may not have a ZIP file uploaded.');
+                  return;
+                }
+
+                try {
+                  // Convert base64 to bytes
+                  const base64Content = zipContent;
+                  const binaryString = atob(base64Content);
+                  const bytes = new Uint8Array(binaryString.length);
+                  for (let i = 0; i < binaryString.length; i++) {
+                    bytes[i] = binaryString.charCodeAt(i);
                   }
 
-                  try {
-                    // Convert base64 to bytes
-                    const base64Content = zipContent;
-                    const binaryString = atob(base64Content);
-                    const bytes = new Uint8Array(binaryString.length);
-                    for (let i = 0; i < binaryString.length; i++) {
-                      bytes[i] = binaryString.charCodeAt(i);
-                    }
-
-                    // Parse the original ZIP
-                    const originalZip = await JSZip.loadAsync(bytes);
-
-                    // Create a new ZIP with organized structure
-                    const newZip = new JSZip();
-                    const proofFolderName = `channel-proof-${
-                      proof.proofId || proof.id || "unknown"
-                    }`;
-
-                    // Extract files and put them directly in the proof folder
-                    const files = Object.keys(originalZip.files);
-                    for (const filePath of files) {
-                      const file = originalZip.files[filePath];
-                      if (!file.dir) {
-                        const content = await file.async("uint8array");
-
-                        // Extract just the filename
-                        let fileName = filePath;
-                        if (filePath.includes("/")) {
-                          const parts = filePath.split("/");
-                          for (let i = parts.length - 1; i >= 0; i--) {
-                            if (parts[i] && parts[i].trim() !== "") {
-                              fileName = parts[i];
-                              break;
-                            }
+                  // Parse the original ZIP
+                  const originalZip = await JSZip.loadAsync(bytes);
+                  
+                  // Create a new ZIP with organized structure
+                  const newZip = new JSZip();
+                  const proofFolderName = `channel-proof-${proof.proofId || proof.id || 'unknown'}`;
+                  
+                  // Extract files and put them directly in the proof folder (flatten structure)
+                  const files = Object.keys(originalZip.files);
+                  for (const filePath of files) {
+                    const file = originalZip.files[filePath];
+                    if (!file.dir) {
+                      const content = await file.async('uint8array');
+                      
+                      // Extract just the filename (remove any folder paths)
+                      let fileName = filePath;
+                      if (filePath.includes('/')) {
+                        const parts = filePath.split('/');
+                        // Get the last non-empty part (the actual filename)
+                        for (let i = parts.length - 1; i >= 0; i--) {
+                          if (parts[i] && parts[i].trim() !== '') {
+                            fileName = parts[i];
+                            break;
                           }
                         }
-
-                        // Add file to the new ZIP under the proof folder
-                        newZip.file(`${proofFolderName}/${fileName}`, content);
                       }
+                      
+                      // Add file to the new ZIP under the proof folder
+                      newZip.file(`${proofFolderName}/${fileName}`, content);
                     }
-
-                    // Generate the new ZIP
-                    const newZipBlob = await newZip.generateAsync({
-                      type: "blob",
-                    });
-
-                    // Create download link
-                    const url = URL.createObjectURL(newZipBlob);
-                    const link = document.createElement("a");
-                    link.href = url;
-                    link.download = `${proofFolderName}.zip`;
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
-                    URL.revokeObjectURL(url);
-                  } catch (error) {
-                    console.error("Error downloading ZIP file:", error);
-                    window.alert(
-                      "Failed to download ZIP file. Please try again."
-                    );
                   }
-                }}
-                disabled={!zipContent}
-                className="flex items-center justify-center gap-2 px-6 py-4 bg-[#4fc3f7] hover:bg-[#029bee] text-white rounded transition-all hover:shadow-lg hover:shadow-[#4fc3f7]/30 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <Download className="w-5 h-5" />
-                <span>Download Files (ZIP)</span>
-              </button>
-            </div>
 
-            {/* Info Text */}
-            <div className="mt-6 p-4 bg-[#0a1930]/50 border border-[#4fc3f7]/30 rounded">
-              <p className="text-sm text-gray-400">
-                <span className="text-[#4fc3f7] font-semibold">Note:</span>{" "}
-                Download includes both proof and state files in a ZIP archive.
-                You can verify the computation independently using the
-                verification tools.
-              </p>
-            </div>
+                  // Generate the new ZIP
+                  const newZipBlob = await newZip.generateAsync({ type: 'blob' });
+
+                  // Create download link
+                  const url = URL.createObjectURL(newZipBlob);
+                  const link = document.createElement('a');
+                  link.href = url;
+                  link.download = `${proofFolderName}.zip`;
+                  document.body.appendChild(link);
+                  link.click();
+                  document.body.removeChild(link);
+                  URL.revokeObjectURL(url);
+                } catch (error) {
+                  console.error('Error downloading ZIP file:', error);
+                  window.alert('Failed to download ZIP file. Please try again.');
+                }
+              }}
+              disabled={!zipContent}
+              className="flex items-center justify-center gap-2 px-6 py-4 bg-[#4fc3f7] hover:bg-[#029bee] text-white rounded transition-all hover:shadow-lg hover:shadow-[#4fc3f7]/30 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Download className="w-5 h-5" />
+              <span>Download Files (ZIP)</span>
+            </button>
+          </div>
+
+          {/* Info Text */}
+          <div className="mt-6 p-4 bg-[#0a1930]/50 border border-[#4fc3f7]/30 rounded">
+            <p className="text-sm text-gray-400">
+              <span className="text-[#4fc3f7] font-semibold">Note:</span> Download includes both proof and state files in a ZIP archive. You can verify the computation independently using the verification tools.
+            </p>
           </div>
         </div>
       </div>
+    </div>
   );
 }
