@@ -2093,9 +2093,9 @@ export const BRIDGECORE_ABI = [
     inputs: [
       {
         name: "channelId",
-        type: "uint256",
+        type: "bytes32",
         indexed: true,
-        internalType: "uint256",
+        internalType: "bytes32",
       },
       {
         name: "targetContract",

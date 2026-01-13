@@ -5,7 +5,7 @@
  */
 
 import { useState, useEffect, useCallback } from "react";
-import { decodeEventLog } from "viem";
+import { decodeEventLog, getEventSelector } from "viem";
 import {
   useBridgeCoreWriteContract,
   useBridgeCoreWaitForReceipt,
@@ -89,43 +89,73 @@ export function useCreateChannel({
     if (!receipt || !isSuccess) return;
 
     try {
-      let channelId: bigint | null = null;
+      let channelIdBytes32: `0x${string}` | null = null;
+
+      // Get ChannelOpened event selector for filtering
+      // Event signature: ChannelOpened(bytes32 indexed channelId, address targetContract)
+      const channelOpenedSelector = getEventSelector(
+        "ChannelOpened(bytes32,address)"
+      );
 
       // Look for ChannelOpened event in the logs
       if (receipt.logs && receipt.logs.length > 0) {
-        for (const log of receipt.logs) {
-          try {
-            const decoded = decodeEventLog({
-              abi: abi,
-              data: log.data,
-              topics: log.topics,
-            });
+        console.log(
+          `🔍 Searching for ChannelOpened event in ${receipt.logs.length} logs...`
+        );
 
-            if (
-              decoded.eventName === "ChannelOpened" &&
-              decoded.args &&
-              typeof decoded.args === "object" &&
-              "channelId" in decoded.args
-            ) {
-              const args = decoded.args as { channelId: bigint };
-              if (typeof args.channelId === "bigint") {
-                channelId = args.channelId;
-                break;
+        for (const log of receipt.logs) {
+          // Filter by event selector (first topic)
+          if (log.topics && log.topics[0] === channelOpenedSelector) {
+            try {
+              const decoded = decodeEventLog({
+                abi: abi,
+                data: log.data,
+                topics: log.topics,
+                eventName: "ChannelOpened",
+              });
+
+              console.log("✅ Decoded ChannelOpened event:", decoded);
+
+              if (
+                decoded.eventName === "ChannelOpened" &&
+                decoded.args &&
+                typeof decoded.args === "object" &&
+                "channelId" in decoded.args
+              ) {
+                const args = decoded.args as { channelId: `0x${string}` };
+                if (
+                  typeof args.channelId === "string" &&
+                  args.channelId.startsWith("0x")
+                ) {
+                  channelIdBytes32 = args.channelId as `0x${string}`;
+                  console.log(
+                    `✅ Found channel ID (bytes32): ${channelIdBytes32}`
+                  );
+                  break;
+                }
               }
+            } catch (e) {
+              console.error("❌ Error decoding ChannelOpened event:", e);
+              // Continue to next log
+              continue;
             }
-          } catch (e) {
-            // Not a ChannelOpened event, continue
-            continue;
           }
         }
+      } else {
+        console.warn("⚠️ No logs found in transaction receipt");
       }
 
-      if (channelId === null) {
+      if (channelIdBytes32 === null) {
+        console.error(
+          "❌ ChannelOpened event not found. Receipt logs:",
+          receipt.logs
+        );
         throw new Error("ChannelOpened event not found in transaction logs");
       }
 
-      // Save channel information to database
-      const channelIdStr = channelId.toString();
+      // Convert bytes32 channelId to string for storage
+      // Note: channelId is bytes32, we'll use it as hex string
+      const channelIdStr = channelIdBytes32;
       // Filter out empty addresses for DB save
       const validParticipants = participants.filter(
         (p) =>
@@ -147,8 +177,9 @@ export function useCreateChannel({
         // Don't throw - channel is created on-chain, DB save is secondary
       }
 
-      // Set created channel ID
+      // Set created channel ID and transaction hash
       setCreatedChannelId(channelIdStr);
+      setTxHash(receipt.transactionHash); // Ensure txHash is set from receipt
       setIsConfirming(false);
       setIsCreating(false);
     } catch (error) {

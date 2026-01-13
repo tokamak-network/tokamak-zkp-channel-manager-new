@@ -18,6 +18,14 @@ export const CHANNEL_STATUS = {
 export type ChannelStatus = (typeof CHANNEL_STATUS)[keyof typeof CHANNEL_STATUS];
 
 /**
+ * Channel Participant Limits
+ */
+export const CHANNEL_PARTICIPANTS = {
+  MIN: 2,
+  MAX: 128,
+} as const;
+
+/**
  * DKG Status
  */
 export const DKG_STATUS = {
