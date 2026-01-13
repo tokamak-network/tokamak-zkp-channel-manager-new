@@ -4,9 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import {
   useBridgeProofManagerWrite,
   useBridgeProofManagerWaitForReceipt,
-  useBridgeProofManagerAddress,
 } from "@/hooks/contract";
-import { getContractAbi } from "@tokamak/config";
 import { useGenerateInitialProof } from "./useGenerateInitialProof";
 import type { ProofData } from "@/stores/useInitializeStore";
 
@@ -27,11 +25,7 @@ export function useInitializeState({ channelId }: UseInitializeStateParams) {
     error: proofError,
   } = useGenerateInitialProof({ channelId });
 
-  // Get contract address and ABI for BridgeProofManager
-  const proofManagerAddress = useBridgeProofManagerAddress();
-  const proofManagerAbi = getContractAbi("BridgeProofManager");
-
-  // Prepare initialize transaction
+  // Prepare initialize transaction (address and abi are pre-configured)
   const {
     writeContract: writeInitialize,
     data: initializeTxHash,
@@ -148,7 +142,6 @@ export function useInitializeState({ channelId }: UseInitializeStateParams) {
 
       console.log("🔍 Calling initializeChannelState:", {
         channelId,
-        proofManagerAddress,
         proofStruct: {
           pA: proofStruct.pA.map((v) => v.toString()),
           pB: proofStruct.pB.map((v) => v.toString()),
@@ -158,8 +151,6 @@ export function useInitializeState({ channelId }: UseInitializeStateParams) {
       });
 
       await writeInitialize({
-        address: proofManagerAddress,
-        abi: proofManagerAbi,
         functionName: "initializeChannelState",
         args: [channelId, proofStruct],
       });
@@ -193,13 +184,7 @@ export function useInitializeState({ channelId }: UseInitializeStateParams) {
       setError(errorMessage);
       setIsProcessing(false);
     }
-  }, [
-    channelId,
-    generateProof,
-    writeInitialize,
-    proofManagerAddress,
-    proofManagerAbi,
-  ]);
+  }, [channelId, generateProof, writeInitialize]);
 
   return {
     initializeState,

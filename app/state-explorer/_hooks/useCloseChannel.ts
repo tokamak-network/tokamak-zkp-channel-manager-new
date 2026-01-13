@@ -11,9 +11,7 @@ import { useState, useEffect, useCallback } from "react";
 import {
   useBridgeProofManagerWrite,
   useBridgeProofManagerWaitForReceipt,
-  useBridgeProofManagerAddress,
 } from "@/hooks/contract";
-import { getContractAbi } from "@tokamak/config";
 
 interface ChannelFinalizationProof {
   pA: [bigint, bigint, bigint, bigint];
@@ -48,11 +46,7 @@ export function useCloseChannel({
   const [error, setError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
 
-  // Get contract address and ABI for BridgeProofManager
-  const proofManagerAddress = useBridgeProofManagerAddress();
-  const proofManagerAbi = getContractAbi("BridgeProofManager");
-
-  // Prepare close channel transaction
+  // Prepare close channel transaction (address and abi are pre-configured)
   const {
     writeContract: writeCloseChannel,
     data: closeTxHash,
@@ -159,7 +153,12 @@ export function useCloseChannel({
 
         // Convert proof to the format expected by the contract
         const proofStruct = {
-          pA: proofData.pA.map((p) => BigInt(p)) as [bigint, bigint, bigint, bigint],
+          pA: proofData.pA.map((p) => BigInt(p)) as [
+            bigint,
+            bigint,
+            bigint,
+            bigint
+          ],
           pB: proofData.pB.map((p) => BigInt(p)) as [
             bigint,
             bigint,
@@ -168,21 +167,19 @@ export function useCloseChannel({
             bigint,
             bigint,
             bigint,
-            bigint,
+            bigint
           ],
-          pC: proofData.pC.map((p) => BigInt(p)) as [bigint, bigint, bigint, bigint],
+          pC: proofData.pC.map((p) => BigInt(p)) as [
+            bigint,
+            bigint,
+            bigint,
+            bigint
+          ],
         };
 
         await writeCloseChannel({
-          address: proofManagerAddress,
-          abi: proofManagerAbi,
           functionName: "verifyFinalBalancesGroth16",
-          args: [
-            channelId as `0x${string}`,
-            balances,
-            perm,
-            proofStruct,
-          ],
+          args: [channelId as `0x${string}`, balances, perm, proofStruct],
         });
 
         console.log("✅ Close channel transaction submitted");
@@ -204,15 +201,7 @@ export function useCloseChannel({
         setIsProcessing(false);
       }
     },
-    [
-      channelId,
-      finalBalances,
-      permutation,
-      proof,
-      proofManagerAddress,
-      proofManagerAbi,
-      writeCloseChannel,
-    ]
+    [channelId, finalBalances, permutation, proof, writeCloseChannel]
   );
 
   return {

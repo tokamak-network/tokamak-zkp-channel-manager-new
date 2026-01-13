@@ -16,9 +16,7 @@ import type { Channel } from "@/lib/db";
 import {
   useBridgeProofManagerWrite,
   useBridgeProofManagerWaitForReceipt,
-  useBridgeProofManagerAddress,
 } from "@/hooks/contract";
-import { getContractAbi } from "@tokamak/config";
 import { useGenerateInitialProof } from "./_hooks/useGenerateInitialProof";
 
 function InitializeStatePageContent() {
@@ -44,11 +42,7 @@ function InitializeStatePageContent() {
     setProofError,
   } = useInitializeStore();
 
-  // Get contract address and ABI for BridgeProofManager
-  const proofManagerAddress = useBridgeProofManagerAddress();
-  const proofManagerAbi = getContractAbi("BridgeProofManager");
-
-  // Prepare initialize transaction
+  // Prepare initialize transaction (address and abi are pre-configured)
   const { writeContract: writeInitialize, data: initializeTxHash } =
     useBridgeProofManagerWrite();
   const {
@@ -261,8 +255,6 @@ function InitializeStatePageContent() {
 
       // Call contract (don't await - let wagmi handle the transaction)
       writeInitialize({
-        address: proofManagerAddress,
-        abi: proofManagerAbi,
         functionName: "initializeChannelState",
         args: [channelId, proof],
       });

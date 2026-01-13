@@ -18,8 +18,6 @@ import {
 import JSZip from 'jszip';
 import { useBridgeCoreRead } from '@/hooks/contract/useBridgeCore';
 import { useBridgeProofManagerWrite, useBridgeProofManagerWaitForReceipt } from '@/hooks/contract/useBridgeProofManager';
-import { getContractAbi, getContractAddress } from '@tokamak/config';
-import { useNetworkId } from '@/hooks/contract/utils';
 
 interface ProofData {
   proofPart1: bigint[];
@@ -362,8 +360,7 @@ export default function SubmitProofPage() {
     return colors[stateNumber as keyof typeof colors] || 'text-gray-500';
   };
 
-  // Contract write
-  const networkId = useNetworkId();
+  // Contract write (address and abi are pre-configured)
   const { writeContract, isPending: isWritePending } = useBridgeProofManagerWrite();
   const [txHash, setTxHash] = useState<`0x${string}` | null>(null);
   
@@ -656,12 +653,7 @@ export default function SubmitProofPage() {
     try {
       setIsLoading(true);
 
-      const proofManagerAbi = getContractAbi('BridgeProofManager');
-      const proofManagerAddress = getContractAddress('BridgeProofManager', networkId);
-      
       const hash = await writeContract({
-        address: proofManagerAddress,
-        abi: proofManagerAbi,
         functionName: 'submitProofAndSignature',
         args: [
           BigInt(selectedChannelId),
