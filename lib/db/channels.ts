@@ -83,26 +83,50 @@ export async function getActiveChannels(): Promise<Channel[]> {
 
 /**
  * Create or update a channel
+ * Normalizes channel ID to lowercase for consistent storage
+ * (Ethereum addresses/hashes are case-insensitive)
  */
 export async function saveChannel(channelId: string, channelData: Partial<Channel>): Promise<void> {
-  await setData(`channels.${channelId}`, {
+  // Normalize channel ID to lowercase for consistent storage
+  const normalizedId = channelId.toLowerCase();
+  
+  await setData(`channels.${normalizedId}`, {
     ...channelData,
-    channelId,
+    channelId: normalizedId, // Store normalized ID in channel data as well
   });
 }
 
 /**
  * Update channel fields
+ * Normalizes channel ID to lowercase for consistent storage
+ * (Ethereum addresses/hashes are case-insensitive)
  */
 export async function updateChannel(channelId: string, updates: Partial<Channel>): Promise<void> {
-  await updateData(`channels.${channelId}`, updates);
+  // Normalize channel ID to lowercase for consistent storage
+  const normalizedId = channelId.toLowerCase();
+  
+  // If channelId is being updated, normalize it too
+  const normalizedUpdates = {
+    ...updates,
+    ...(updates.channelId && { channelId: updates.channelId.toLowerCase() }),
+  };
+  
+  await updateData(`channels.${normalizedId}`, normalizedUpdates);
 }
 
 /**
  * Delete a channel
  */
+/**
+ * Delete a channel
+ * Normalizes channel ID to lowercase for consistent lookup
+ * (Ethereum addresses/hashes are case-insensitive)
+ */
 export async function deleteChannel(channelId: string): Promise<void> {
-  await deleteData(`channels.${channelId}`);
+  // Normalize channel ID to lowercase for consistent lookup
+  const normalizedId = channelId.toLowerCase();
+  
+  await deleteData(`channels.${normalizedId}`);
 }
 
 // ============================================================================
@@ -116,10 +140,12 @@ export interface Participant {
 
 /**
  * Get channel participants
+ * Normalizes channel ID to lowercase for consistent lookup
  */
 export async function getChannelParticipants(channelId: string): Promise<Participant[]> {
+  const normalizedId = channelId.toLowerCase();
   const participantsData = await getData<Record<string, Participant>>(
-    `channels.${channelId}.participants`
+    `channels.${normalizedId}.participants`
   );
   
   if (!participantsData) return [];
@@ -132,13 +158,15 @@ export async function getChannelParticipants(channelId: string): Promise<Partici
 
 /**
  * Add or update a participant
+ * Normalizes channel ID to lowercase for consistent storage
  */
 export async function saveParticipant(
   channelId: string,
   address: string,
   participantData: Partial<Participant>
 ): Promise<void> {
-  await setData(`channels.${channelId}.participants.${address}`, {
+  const normalizedId = channelId.toLowerCase();
+  await setData(`channels.${normalizedId}.participants.${address}`, {
     ...participantData,
     address,
   });
@@ -159,13 +187,15 @@ export interface StateSnapshot {
 
 /**
  * Get channel state snapshots
+ * Normalizes channel ID to lowercase for consistent lookup
  */
 export async function getChannelSnapshots(
   channelId: string,
   limitCount: number = 10
 ): Promise<StateSnapshot[]> {
+  const normalizedId = channelId.toLowerCase();
   const snapshotsData = await getData<Record<string, StateSnapshot>>(
-    `channels.${channelId}.stateSnapshots`
+    `channels.${normalizedId}.stateSnapshots`
   );
   
   if (!snapshotsData) return [];
@@ -191,12 +221,14 @@ export async function getLatestSnapshot(channelId: string): Promise<StateSnapsho
 
 /**
  * Save a state snapshot
+ * Normalizes channel ID to lowercase for consistent storage
  */
 export async function saveSnapshot(
   channelId: string,
   snapshotData: Omit<StateSnapshot, 'snapshotId' | '_createdAt'>
 ): Promise<string> {
-  return await pushData(`channels.${channelId}.stateSnapshots`, snapshotData);
+  const normalizedId = channelId.toLowerCase();
+  return await pushData(`channels.${normalizedId}.stateSnapshots`, snapshotData);
 }
 
 // ============================================================================
@@ -212,10 +244,12 @@ export interface UserBalance {
 
 /**
  * Get user balances for a channel
+ * Normalizes channel ID to lowercase for consistent lookup
  */
 export async function getChannelUserBalances(channelId: string): Promise<UserBalance[]> {
+  const normalizedId = channelId.toLowerCase();
   const balancesData = await getData<Record<string, UserBalance>>(
-    `channels.${channelId}.userBalances`
+    `channels.${normalizedId}.userBalances`
   );
   
   if (!balancesData) return [];
@@ -228,13 +262,15 @@ export async function getChannelUserBalances(channelId: string): Promise<UserBal
 
 /**
  * Save or update user balance
+ * Normalizes channel ID to lowercase for consistent storage
  */
 export async function saveUserBalance(
   channelId: string,
   address: string,
   balanceData: Partial<UserBalance>
 ): Promise<void> {
-  await setData(`channels.${channelId}.userBalances.${address}`, {
+  const normalizedId = channelId.toLowerCase();
+  await setData(`channels.${normalizedId}.userBalances.${address}`, {
     ...balanceData,
     address,
   });
@@ -256,13 +292,15 @@ export interface Proof {
 
 /**
  * Get proofs by type (submitted, verified, rejected)
+ * Normalizes channel ID to lowercase for consistent lookup
  */
 export async function getProofs(
   channelId: string,
   type: 'submitted' | 'verified' | 'rejected' = 'submitted'
 ): Promise<Proof[]> {
+  const normalizedId = channelId.toLowerCase();
   const proofsData = await getData<Record<string, Proof>>(
-    `channels.${channelId}.${type}Proofs`
+    `channels.${normalizedId}.${type}Proofs`
   );
   
   if (!proofsData) return [];
@@ -275,17 +313,20 @@ export async function getProofs(
 
 /**
  * Save a proof
+ * Normalizes channel ID to lowercase for consistent storage
  */
 export async function saveProof(
   channelId: string,
   type: 'submitted' | 'verified' | 'rejected',
   proofData: Omit<Proof, 'key' | '_createdAt'>
 ): Promise<string> {
-  return await pushData(`channels.${channelId}.${type}Proofs`, proofData);
+  const normalizedId = channelId.toLowerCase();
+  return await pushData(`channels.${normalizedId}.${type}Proofs`, proofData);
 }
 
 /**
  * Move proof from one type to another (e.g., submitted -> verified)
+ * Normalizes channel ID to lowercase for consistent lookup
  */
 export async function moveProof(
   channelId: string,
@@ -293,17 +334,18 @@ export async function moveProof(
   toType: 'submitted' | 'verified' | 'rejected',
   proofKey: string
 ): Promise<void> {
-  const proof = await getData<Proof>(`channels.${channelId}.${fromType}Proofs.${proofKey}`);
+  const normalizedId = channelId.toLowerCase();
+  const proof = await getData<Proof>(`channels.${normalizedId}.${fromType}Proofs.${proofKey}`);
   
   if (!proof) {
     throw new Error(`Proof not found: ${proofKey}`);
   }
   
   // Save to new location
-  await saveProof(channelId, toType, proof);
+  await saveProof(normalizedId, toType, proof);
   
   // Delete from old location
-  await deleteData(`channels.${channelId}.${fromType}Proofs.${proofKey}`);
+  await deleteData(`channels.${normalizedId}.${fromType}Proofs.${proofKey}`);
 }
 
 /**
