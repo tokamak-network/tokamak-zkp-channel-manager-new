@@ -38,42 +38,39 @@ export function useGenerateInitialProof({
   const [status, setStatus] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
 
-  // Convert bytes32 channelId to bigint for contract calls
-  const channelIdBigInt = channelId ? BigInt(channelId) : null;
-
-  // Get channel participants
+  // Get channel participants (uses bytes32 directly)
   const { data: channelParticipants } = useBridgeCoreRead({
     functionName: "getChannelParticipants",
-    args: channelIdBigInt ? [channelIdBigInt] : undefined,
+    args: channelId ? [channelId] : undefined,
     query: {
-      enabled: !!channelIdBigInt && isConnected,
+      enabled: !!channelId && isConnected,
     },
   });
 
-  // Get tree size for the selected channel
+  // Get tree size for the selected channel (uses bytes32 directly)
   const { data: channelTreeSize } = useBridgeCoreRead({
     functionName: "getChannelTreeSize",
-    args: channelIdBigInt ? [channelIdBigInt] : undefined,
+    args: channelId ? [channelId] : undefined,
     query: {
-      enabled: !!channelIdBigInt && isConnected,
+      enabled: !!channelId && isConnected,
     },
   });
 
-  // Get target contract for the selected channel
+  // Get target contract for the selected channel (uses bytes32 directly)
   const { data: channelTargetContract } = useBridgeCoreRead({
     functionName: "getChannelTargetContract",
-    args: channelIdBigInt ? [channelIdBigInt] : undefined,
+    args: channelId ? [channelId] : undefined,
     query: {
-      enabled: !!channelIdBigInt && isConnected,
+      enabled: !!channelId && isConnected,
     },
   });
 
-  // Get pre-allocated leaves count for the channel
+  // Get pre-allocated leaves count for the channel (uses bytes32 directly)
   const { data: preAllocatedCount } = useBridgeCoreRead({
     functionName: "getChannelPreAllocatedLeavesCount",
-    args: channelIdBigInt ? [channelIdBigInt] : undefined,
+    args: channelId ? [channelId] : undefined,
     query: {
-      enabled: !!channelIdBigInt && isConnected,
+      enabled: !!channelId && isConnected,
     },
   });
 
@@ -87,7 +84,7 @@ export function useGenerateInitialProof({
   });
 
   const generateProof = useCallback(async (): Promise<ProofData | null> => {
-    if (!channelId || !channelIdBigInt || !channelParticipants) {
+    if (!channelId || !channelParticipants) {
       throw new Error("Missing channel data");
     }
 
@@ -202,13 +199,13 @@ export function useGenerateInitialProof({
                 address: bridgeCoreAddress,
                 abi: bridgeCoreAbi,
                 functionName: "getL2MptKey",
-                args: [channelIdBigInt, participant],
+                args: [channelId, participant],
               },
               {
                 address: bridgeCoreAddress,
                 abi: bridgeCoreAbi,
                 functionName: "getParticipantDeposit",
-                args: [channelIdBigInt, participant],
+                args: [channelId, participant],
               },
             ],
           });
@@ -338,7 +335,6 @@ export function useGenerateInitialProof({
     }
   }, [
     channelId,
-    channelIdBigInt,
     channelParticipants,
     channelTreeSize,
     channelTargetContract,
