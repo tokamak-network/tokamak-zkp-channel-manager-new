@@ -12,6 +12,8 @@ import {
   UseReadContractParameters,
   UseWriteContractParameters,
   UseWaitForTransactionReceiptParameters,
+  WriteContractParameters,
+  WriteContractReturnType,
 } from "wagmi";
 import {
   CONTRACT_ABIS,
@@ -55,37 +57,30 @@ export function useBridgeCoreRead<
 
 /**
  * Hook for writing to BridgeCore contract
+ * Returns a writeContract function with address and abi pre-configured
  */
 export function useBridgeCoreWrite() {
-  return useWriteContract();
-}
-
-/**
- * Hook for writing to BridgeCore contract with automatic address and ABI
- * Returns a writeContract function that automatically includes address and abi
- */
-export function useBridgeCoreWriteContract() {
   const address = useBridgeCoreAddress();
   const abi = useBridgeCoreAbi();
   const { writeContract, ...rest } = useWriteContract();
 
-  const write = useCallback(
-    (config: {
-      functionName: string;
-      args?: readonly unknown[];
-      value?: bigint;
-      account?: `0x${string}`;
-    }) => {
+  const writeContractWithConfig = useCallback(
+    async (
+      params: Omit<WriteContractParameters, 'address' | 'abi'>
+    ): Promise<WriteContractReturnType> => {
       return writeContract({
+        ...params,
         address,
-        abi,
-        ...config,
+        abi: abi as Abi,
       });
     },
     [writeContract, address, abi]
   );
 
-  return { writeContract: write, ...rest };
+  return {
+    writeContract: writeContractWithConfig,
+    ...rest,
+  };
 }
 
 /**

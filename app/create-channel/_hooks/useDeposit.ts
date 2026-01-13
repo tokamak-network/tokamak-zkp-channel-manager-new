@@ -11,9 +11,7 @@ import { parseInputAmount } from "@/lib/utils/format";
 import {
   useBridgeDepositManagerWrite,
   useBridgeDepositManagerWaitForReceipt,
-  useBridgeDepositManagerAddress,
 } from "@/hooks/contract";
-import { getContractAbi } from "@tokamak/config";
 
 interface UseDepositParams {
   channelId: bigint | null;
@@ -41,11 +39,7 @@ export function useDeposit({
     setDepositError,
   } = useDepositStore();
 
-  // Get contract address and ABI
-  const depositManagerAddress = useBridgeDepositManagerAddress();
-  const depositManagerAbi = getContractAbi("BridgeDepositManager");
-
-  // Prepare deposit transaction
+  // Prepare deposit transaction (address and abi are pre-configured)
   const { writeContract: writeDeposit, data: depositTxHash } =
     useBridgeDepositManagerWrite();
   const {
@@ -130,8 +124,6 @@ export function useDeposit({
       const mptKeyBytes32 = mptKey as `0x${string}`;
 
       await writeDeposit({
-        address: depositManagerAddress,
-        abi: depositManagerAbi,
         functionName: "depositToken",
         args: [channelId, amount, mptKeyBytes32],
       });
@@ -152,8 +144,6 @@ export function useDeposit({
     needsApproval,
     approvalSuccess,
     writeDeposit,
-    depositManagerAddress,
-    depositManagerAbi,
     setDepositing,
     setDepositError,
   ]);

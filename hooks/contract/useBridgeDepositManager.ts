@@ -10,6 +10,8 @@ import {
   useWaitForTransactionReceipt,
   UseReadContractParameters,
   UseWaitForTransactionReceiptParameters,
+  WriteContractParameters,
+  WriteContractReturnType,
 } from 'wagmi';
 import { 
   CONTRACT_ABIS, 
@@ -18,6 +20,7 @@ import {
 } from '@tokamak/config';
 import type { Abi } from 'viem';
 import { useNetworkId } from './utils';
+import { useCallback } from 'react';
 
 /**
  * Get BridgeDepositManager contract address for current network
@@ -52,9 +55,30 @@ export function useBridgeDepositManagerRead<TAbi extends Abi = typeof CONTRACT_A
 
 /**
  * Hook for writing to BridgeDepositManager contract
+ * Returns a writeContract function with address and abi pre-configured
  */
 export function useBridgeDepositManagerWrite() {
-  return useWriteContract();
+  const address = useBridgeDepositManagerAddress();
+  const abi = useBridgeDepositManagerAbi();
+  const { writeContract, ...rest } = useWriteContract();
+
+  const writeContractWithConfig = useCallback(
+    async (
+      params: Omit<WriteContractParameters, 'address' | 'abi'>
+    ): Promise<WriteContractReturnType> => {
+      return writeContract({
+        ...params,
+        address,
+        abi: abi as Abi,
+      });
+    },
+    [writeContract, address, abi]
+  );
+
+  return {
+    writeContract: writeContractWithConfig,
+    ...rest,
+  };
 }
 
 /**

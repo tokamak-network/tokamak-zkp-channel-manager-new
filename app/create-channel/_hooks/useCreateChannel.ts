@@ -7,7 +7,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { decodeEventLog, getEventSelector } from "viem";
 import {
-  useBridgeCoreWriteContract,
+  useBridgeCoreWrite,
   useBridgeCoreWaitForReceipt,
   useBridgeCoreAbi,
 } from "@/hooks/contract";
@@ -33,13 +33,13 @@ export function useCreateChannel({
   const [createdChannelId, setCreatedChannelId] = useState<string | null>(null);
   const [txHash, setTxHash] = useState<string>("");
 
-  // Contract write hook
+  // Contract write hook (address and abi are pre-configured)
   const {
     writeContract,
     isPending: isWriting,
     data: writeTxHash,
     error: writeError,
-  } = useBridgeCoreWriteContract();
+  } = useBridgeCoreWrite();
 
   // Wait for transaction confirmation
   const {

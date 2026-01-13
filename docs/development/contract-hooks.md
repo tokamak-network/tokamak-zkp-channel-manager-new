@@ -52,10 +52,10 @@ function MyComponent() {
 ### Writing to Contracts
 
 ```tsx
-import { useBridgeCoreWriteContract, useBridgeCoreWaitForReceipt } from '@/hooks/contract';
+import { useBridgeCoreWrite, useBridgeCoreWaitForReceipt } from '@/hooks/contract';
 
 function MyComponent() {
-  const { writeContract, data: txHash, isPending } = useBridgeCoreWriteContract();
+  const { writeContract, data: txHash, isPending } = useBridgeCoreWrite();
   const { isLoading: isWaiting, isSuccess } = useBridgeCoreWaitForReceipt({
     hash: txHash,
   });
@@ -105,7 +105,7 @@ function MyComponent() {
 - `useBridgeCoreAbi()`: Get contract ABI
 - `useBridgeCoreRead(config)`: Read from contract
 - `useBridgeCoreWrite()`: Write to contract (returns `useWriteContract()`)
-- `useBridgeCoreWriteContract()`: Write with auto address/ABI
+- `useBridgeCoreWrite()`: Write with auto address/ABI
 - `useBridgeCoreWaitForReceipt(config)`: Wait for transaction receipt
 
 ### BridgeDepositManager
@@ -147,8 +147,6 @@ export function useDeposit({ channelId, depositAmount, mptKey }) {
 
   const handleDeposit = async () => {
     await writeContract({
-      address: depositManagerAddress, // Get from hook
-      abi: depositManagerAbi, // Get from hook
       functionName: 'depositToken',
       args: [channelId, amount, mptKey],
     });
@@ -178,7 +176,7 @@ All contract hooks can be imported from the centralized index:
 ```tsx
 import {
   useBridgeCoreRead,
-  useBridgeCoreWriteContract,
+  useBridgeCoreWrite,
   useBridgeDepositManagerWrite,
   // ... etc
 } from '@/hooks/contract';
@@ -230,10 +228,10 @@ function MyComponent() {
 ### After
 
 ```tsx
-import { useBridgeCoreWriteContract } from '@/hooks/contract';
+import { useBridgeCoreWrite } from '@/hooks/contract';
 
 function MyComponent() {
-  const { writeContract } = useBridgeCoreWriteContract();
+  const { writeContract } = useBridgeCoreWrite();
   
   const handleAction = () => {
     writeContract({
