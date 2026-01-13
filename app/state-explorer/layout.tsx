@@ -16,6 +16,7 @@ import { AppLayout } from "@/components/AppLayout";
 import { formatAddress } from "@/lib/utils/format";
 import { useInitializeState } from "./_hooks/useInitializeState";
 import { InitializeStateConfirmModal } from "./_components/InitializeStateConfirmModal";
+import { useCloseChannel } from "./_hooks/useCloseChannel";
 import { useBridgeCoreRead } from "@/hooks/contract";
 
 // ChannelState enum from contract: 0=None, 1=Initialized, 2=Open, 3=Closing, 4=Closed
@@ -88,6 +89,19 @@ export default function StateExplorerLayout({
     channelId: channelId as `0x${string}` | null,
   });
 
+  // Close channel hook
+  const {
+    closeChannel,
+    isProcessing: isClosingChannel,
+    isWriting: isWritingClose,
+    isWaiting: isWaitingClose,
+    closeSuccess,
+    closeTxHash,
+    error: closeError,
+  } = useCloseChannel({
+    channelId: channelId as `0x${string}` | null,
+  });
+
   // Modal state
   const [showConfirmModal, setShowConfirmModal] = useState(false);
 
@@ -97,6 +111,13 @@ export default function StateExplorerLayout({
       setShowConfirmModal(true);
     }
   }, [initializeSuccess, initializeTxHash]);
+
+  // Refetch channel state when close succeeds
+  useEffect(() => {
+    if (closeSuccess) {
+      refetchChannelState();
+    }
+  }, [closeSuccess, refetchChannelState]);
 
   // No auto-redirect needed - page.tsx handles conditional rendering
 
@@ -125,11 +146,31 @@ export default function StateExplorerLayout({
     await refetchChannelState();
   };
 
-  const handleCloseChannel = () => {
-    // TODO: Implement close channel
-    console.log("Close channel:", channelId);
-    setChannelState("closed");
-    router.push("/state-explorer/withdraw");
+  const handleCloseChannel = async () => {
+    if (!channelId) return;
+
+    // TODO: For now, show an error message that final balances, permutation, and proof are required
+    // In the future, this should open a modal or navigate to a page where the user can:
+    // 1. Upload final state snapshot
+    // 2. Generate final balances from snapshot
+    // 3. Generate permutation
+    // 4. Generate Groth16 proof
+    // 5. Submit the close channel transaction
+    
+    alert(
+      "Close Channel functionality requires:\n" +
+      "- Final balances for all participants\n" +
+      "- Permutation array\n" +
+      "- Groth16 proof\n\n" +
+      "This feature will be implemented in a future update."
+    );
+    
+    // Uncomment when ready to use:
+    // await closeChannel({
+    //   finalBalances: [...],
+    //   permutation: [...],
+    //   proof: { pA: [...], pB: [...], pC: [...] }
+    // });
   };
 
   return (
@@ -162,18 +203,38 @@ export default function StateExplorerLayout({
             )}
             {/* state === 2 (Open): Show Close Channel button during transaction phase */}
             {contractChannelState === 2 && (
-              <Button onClick={handleCloseChannel} variant="outline">
-                Close Channel
+              <Button
+                onClick={handleCloseChannel}
+                disabled={isClosingChannel}
+                variant="outline"
+              >
+                {isClosingChannel
+                  ? isWritingClose
+                    ? "Signing Transaction..."
+                    : isWaitingClose
+                    ? "Waiting for Confirmation..."
+                    : "Processing..."
+                  : "Close Channel"}
               </Button>
             )}
             {/* state === 3 (Closing) or state === 4 (Closed): No buttons during withdraw phase */}
           </div>
         )}
 
-        {/* Error Message */}
+        {/* Error Messages */}
         {initializeError && (
           <div className="p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
             {initializeError}
+          </div>
+        )}
+        {closeError && (
+          <div className="p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
+            Close Channel Error: {closeError}
+          </div>
+        )}
+        {closeSuccess && closeTxHash && (
+          <div className="p-3 bg-green-50 border border-green-200 rounded text-green-700 text-sm">
+            Channel closed successfully! Transaction: {closeTxHash}
           </div>
         )}
 
