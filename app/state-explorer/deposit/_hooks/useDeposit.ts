@@ -141,12 +141,12 @@ export function useDeposit({
 
     try {
       const amount = parseUnits(depositAmount, 18);
-      const channelIdBigInt = BigInt(currentChannelId);
+      const channelIdBytes32 = currentChannelId as `0x${string}`;
       const mptKeyBytes32 = mptKey as `0x${string}`;
 
       console.log("📝 Deposit params:", {
         address: depositManagerAddress,
-        channelId: channelIdBigInt.toString(),
+        channelId: channelIdBytes32,
         amount: amount.toString(),
         mptKey: mptKeyBytes32,
       });
@@ -155,7 +155,7 @@ export function useDeposit({
         address: depositManagerAddress,
         abi: depositManagerAbi,
         functionName: "depositToken",
-        args: [channelIdBigInt, amount, mptKeyBytes32],
+        args: [channelIdBytes32, amount, mptKeyBytes32],
       });
 
       console.log("✅ Deposit transaction sent");

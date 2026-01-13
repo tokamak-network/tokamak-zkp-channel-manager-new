@@ -13,6 +13,24 @@ import { Button, Input, Label, Card, CardContent, CardHeader } from "@tokamak/ui
 import { useChannelFlowStore } from "@/stores/useChannelFlowStore";
 import { recoverChannelId } from "@/lib/channelId";
 import { type Address } from "viem";
+import { useBridgeCoreRead } from "@/hooks/contract";
+
+// Validate bytes32 format (0x + 64 hex characters)
+function isValidBytes32(value: string): boolean {
+  if (!value || value.trim() === "") return false;
+  
+  // Must start with 0x
+  if (!value.startsWith("0x") && !value.startsWith("0X")) return false;
+  
+  // Remove 0x prefix
+  const hexPart = value.slice(2);
+  
+  // Must be exactly 64 hex characters
+  if (hexPart.length !== 64) return false;
+  
+  // Must be valid hex characters
+  return /^[0-9a-fA-F]{64}$/.test(hexPart);
+}
 
 export default function JoinChannelPage() {
   const router = useRouter();
@@ -21,6 +39,8 @@ export default function JoinChannelPage() {
   const [channelId, setChannelId] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isChecking, setIsChecking] = useState(false);
+  const [validationError, setValidationError] = useState<string | null>(null);
+  const [participantError, setParticipantError] = useState<string | null>(null);
   
   // Channel ID recovery state
   const [showRecovery, setShowRecovery] = useState(false);
@@ -29,12 +49,65 @@ export default function JoinChannelPage() {
   const [recoveredChannelId, setRecoveredChannelId] = useState<`0x${string}` | null>(null);
   const [recoveryError, setRecoveryError] = useState<string | null>(null);
 
+  // Check if connected wallet is a participant of the channel
+  const { data: isParticipant, isLoading: isCheckingParticipant, error: participantCheckError } = useBridgeCoreRead({
+    functionName: "isChannelParticipant",
+    args: channelId && isValidBytes32(channelId) && address
+      ? [channelId as `0x${string}`, address]
+      : undefined,
+    query: {
+      enabled: isConnected && !!address && !!channelId && isValidBytes32(channelId),
+      refetchInterval: false,
+    },
+  });
+
   // Pre-fill with stored channel ID if available
   useEffect(() => {
     if (currentChannelId) {
       setChannelId(currentChannelId);
     }
   }, [currentChannelId]);
+
+  // Validate channel ID format on input change
+  useEffect(() => {
+    if (!channelId || channelId.trim() === "") {
+      setValidationError(null);
+      setParticipantError(null);
+      return;
+    }
+
+    if (!isValidBytes32(channelId)) {
+      setValidationError("Channel ID must be a valid bytes32 format (0x + 64 hex characters)");
+      setParticipantError(null);
+    } else {
+      setValidationError(null);
+    }
+  }, [channelId]);
+
+  // Check participant status when channel ID is valid and wallet is connected
+  useEffect(() => {
+    if (!isConnected || !address || !channelId || !isValidBytes32(channelId)) {
+      setParticipantError(null);
+      return;
+    }
+
+    if (isCheckingParticipant) {
+      // Still checking, don't show error yet
+      setParticipantError(null);
+      return;
+    }
+
+    if (participantCheckError) {
+      setParticipantError("Failed to check participant status. Please try again.");
+      return;
+    }
+
+    if (isParticipant === false) {
+      setParticipantError("Your wallet address is not registered as a participant in this channel.");
+    } else if (isParticipant === true) {
+      setParticipantError(null);
+    }
+  }, [isConnected, address, channelId, isParticipant, isCheckingParticipant, participantCheckError]);
 
   const handleJoinChannel = async () => {
     if (!isConnected || !address) {
@@ -44,6 +117,22 @@ export default function JoinChannelPage() {
 
     if (!channelId || channelId.trim() === "") {
       setError("Please enter a channel ID");
+      return;
+    }
+
+    if (!isValidBytes32(channelId)) {
+      setError("Invalid channel ID format. Must be bytes32 (0x + 64 hex characters)");
+      return;
+    }
+
+    // Check participant status before proceeding
+    if (isParticipant === false) {
+      setError("Your wallet address is not registered as a participant in this channel.");
+      return;
+    }
+
+    if (isCheckingParticipant) {
+      setError("Please wait while we verify your participant status...");
       return;
     }
 
@@ -92,13 +181,77 @@ export default function JoinChannelPage() {
                 setChannelId(e.target.value);
                 setError(null);
               }}
-              placeholder="Enter channel ID (e.g., 1, 2, 3...)"
+              placeholder="Enter channel ID (e.g., 0x...)"
               disabled={isChecking}
+              className={`w-full font-mono text-sm ${
+                validationError
+                  ? "border-red-500 focus:border-red-500 focus:ring-red-500"
+                  : channelId && isValidBytes32(channelId)
+                  ? "border-green-500 focus:border-green-500 focus:ring-green-500"
+                  : ""
+              }`}
             />
-            <p className="text-sm text-gray-500 mt-1">
-              Enter the ID of the channel you want to join
-            </p>
+            {validationError && (
+              <p className="text-xs text-red-500 mt-1">{validationError}</p>
+            )}
+            {!validationError && channelId && isValidBytes32(channelId) && (
+              <p className="text-xs text-green-500 mt-1 flex items-center gap-1">
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M5 13l4 4L19 7"
+                  />
+                </svg>
+                Valid bytes32 format
+              </p>
+            )}
+            {!validationError && !channelId && (
+              <p className="text-sm text-gray-500 mt-1">
+                Enter the ID of the channel you want to join (bytes32 format)
+              </p>
+            )}
           </div>
+
+          {/* Participant Status Check */}
+          {isConnected && address && channelId && isValidBytes32(channelId) && (
+            <div>
+              {isCheckingParticipant && (
+                <div className="p-3 bg-blue-50 border border-blue-200 rounded text-blue-700 text-sm">
+                  Checking participant status...
+                </div>
+              )}
+              {!isCheckingParticipant && isParticipant === true && (
+                <div className="p-3 bg-green-50 border border-green-200 rounded text-green-700 text-sm flex items-center gap-2">
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M5 13l4 4L19 7"
+                    />
+                  </svg>
+                  You are registered as a participant in this channel
+                </div>
+              )}
+              {participantError && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
+                  {participantError}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Error Message */}
           {error && (
@@ -118,10 +271,17 @@ export default function JoinChannelPage() {
           <div className="flex gap-3">
             <Button
               onClick={handleJoinChannel}
-              disabled={!isConnected || !channelId || isChecking}
+              disabled={
+                !isConnected ||
+                !channelId ||
+                !isValidBytes32(channelId) ||
+                isChecking ||
+                isCheckingParticipant ||
+                isParticipant === false
+              }
               className="flex-1"
             >
-              {isChecking ? "Checking..." : "Join Channel"}
+              {isChecking || isCheckingParticipant ? "Checking..." : "Join Channel"}
             </Button>
             <Button
               variant="outline"

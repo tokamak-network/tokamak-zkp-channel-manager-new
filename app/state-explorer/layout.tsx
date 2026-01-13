@@ -13,6 +13,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@tokamak/ui";
 import { useChannelFlowStore } from "@/stores/useChannelFlowStore";
 import { AppLayout } from "@/components/AppLayout";
+import { formatAddress } from "@/lib/utils/format";
 
 type ChannelState = "not-initialized" | "active" | "closed";
 
@@ -87,7 +88,7 @@ export default function StateExplorerLayout({
       <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold">Channel #{channelId}</h1>
+          <h1 className="text-3xl font-bold">Channel #{formatAddress(channelId)}</h1>
         </div>
 
         {/* Leader Actions */}
