@@ -64,12 +64,40 @@ export function useInitializeState({ channelId }: UseInitializeStateParams) {
     }
   }, [proofError, writeError, waitError]);
 
-  // Handle successful initialization
+  // Handle successful initialization and save to DB
   useEffect(() => {
-    if (initializeSuccess && initializeTxHash) {
+    if (initializeSuccess && initializeTxHash && channelId) {
       setIsProcessing(false);
+      console.log("✅ Channel initialized successfully:", initializeTxHash);
+
+      // Save initialization transaction hash to DB
+      fetch(`/api/channels/${channelId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          initializationTxHash: initializeTxHash,
+          initializedAt: new Date().toISOString(),
+          status: "active", // Update status to active after initialization
+        }),
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.success) {
+            console.log("✅ Initialization transaction hash saved to DB");
+          } else {
+            console.error(
+              "❌ Failed to save initialization tx hash:",
+              data.error
+            );
+          }
+        })
+        .catch((error) => {
+          console.error("❌ Error saving initialization tx hash:", error);
+        });
     }
-  }, [initializeSuccess, initializeTxHash]);
+  }, [initializeSuccess, initializeTxHash, channelId]);
 
   // Initialize state function
   const initializeState = useCallback(async () => {
