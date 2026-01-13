@@ -9,9 +9,10 @@
  *   - state === 0: Channel created, before deposits
  *   - state === 1: Deposits complete, before initializeChannelState call
  *
- * - state >= 2 (Open or later): Uses isChannelParticipant
+ * - state >= 2 (Open or later): Uses getChannelParticipants (temporary workaround)
  *   - After initializeChannelState is called, channel state becomes Open (2)
- *   - isChannelParticipant checks if user is registered as participant
+ *   - Currently uses getChannelParticipants and filters array (isChannelParticipant has issues)
+ *   - TODO: Switch back to isChannelParticipant once contract function is fixed
  *   - state === 2: initializeChannelState called, channel is open
  *   - state === 3: Channel is closing
  *   - state === 4: Channel is closed
@@ -58,7 +59,7 @@ export function useChannelParticipantCheck(
 
   // Determine which function to use based on channel state
   // state < 2 (None or Initialized): use isChannelWhitelisted (before initializeChannelState)
-  // state >= 2 (Open or later): use isChannelParticipant (after initializeChannelState)
+  // state >= 2 (Open or later): use getChannelParticipants and filter array (temporary workaround)
   const useWhitelistCheck = useMemo(() => {
     if (!channelInfo || channelInfo.isLoading) return undefined;
     // state < 2 means before initializeChannelState is called
@@ -68,93 +69,135 @@ export function useChannelParticipantCheck(
     return channelInfo.state < 2;
   }, [channelInfo]);
 
-  // Check if connected wallet is a participant
-  const contractArgs = useMemo(() => {
-    if (!isValidChannelId || !address) return undefined;
+  // For whitelist check (state < 2): use isChannelWhitelisted
+  const whitelistCheckArgs = useMemo(() => {
+    if (!isValidChannelId || !address || !useWhitelistCheck) return undefined;
     return [channelId as `0x${string}`, address] as const;
-  }, [isValidChannelId, channelId, address]);
+  }, [isValidChannelId, channelId, address, useWhitelistCheck]);
 
-  // Determine function name based on channel state
-  const functionName = useMemo(() => {
-    if (useWhitelistCheck === undefined) return undefined;
-    return useWhitelistCheck ? "isChannelWhitelisted" : "isChannelParticipant";
-  }, [useWhitelistCheck]);
+  // For participant check (state >= 2): use getChannelParticipants
+  const participantsCheckArgs = useMemo(() => {
+    if (!isValidChannelId || useWhitelistCheck !== false) return undefined;
+    return [channelId as `0x${string}`] as const;
+  }, [isValidChannelId, channelId, useWhitelistCheck]);
 
-  // Debug logging
-  useEffect(() => {
-    if (isValidChannelId && address && contractArgs && functionName) {
-      console.log("[useChannelParticipantCheck] Contract call params:", {
-        functionName,
-        channelId: contractArgs[0],
-        address: contractArgs[1],
-        channelIdLength: contractArgs[0]?.length,
-        addressLength: contractArgs[1]?.length,
-        channelState: channelInfo?.state,
-        useWhitelistCheck,
-        enabled: isConnected && !!address && isValidChannelId,
-      });
-    }
-  }, [
-    contractArgs,
-    isValidChannelId,
-    address,
-    isConnected,
-    functionName,
-    channelInfo?.state,
-    useWhitelistCheck,
-  ]);
-
+  // Get whitelist status (for state < 2)
   const {
-    data: isParticipantRaw,
-    isLoading: isCheckingParticipant,
-    error: participantCheckError,
+    data: isWhitelistedRaw,
+    isLoading: isCheckingWhitelist,
+    error: whitelistCheckError,
   } = useBridgeCoreRead({
-    functionName: functionName as
-      | "isChannelWhitelisted"
-      | "isChannelParticipant",
-    args: contractArgs,
+    functionName: "isChannelWhitelisted",
+    args: whitelistCheckArgs,
     query: {
       enabled:
         isConnected &&
         !!address &&
         isValidChannelId &&
-        functionName !== undefined &&
+        useWhitelistCheck === true &&
         !channelInfo.isLoading,
       refetchInterval: false,
     },
   });
 
-  // Convert result to boolean (contract returns bool, but wagmi might return it as bigint or other types)
-  const isParticipant = useMemo(() => {
-    if (isParticipantRaw === undefined) return undefined;
-    if (typeof isParticipantRaw === "boolean") return isParticipantRaw;
-    if (typeof isParticipantRaw === "bigint")
-      return isParticipantRaw !== BigInt(0);
-    return Boolean(isParticipantRaw);
-  }, [isParticipantRaw]);
+  // Get participants array (for state >= 2) - temporary workaround for isChannelParticipant
+  const {
+    data: participantsArray,
+    isLoading: isCheckingParticipants,
+    error: participantsCheckError,
+  } = useBridgeCoreRead({
+    functionName: "getChannelParticipants",
+    args: participantsCheckArgs,
+    query: {
+      enabled:
+        isConnected &&
+        !!address &&
+        isValidChannelId &&
+        useWhitelistCheck === false &&
+        !channelInfo.isLoading,
+      refetchInterval: false,
+    },
+  });
 
-  // Debug logging for result
+  // Convert whitelist result to boolean
+  const isWhitelisted = useMemo(() => {
+    if (isWhitelistedRaw === undefined) return undefined;
+    if (typeof isWhitelistedRaw === "boolean") return isWhitelistedRaw;
+    if (typeof isWhitelistedRaw === "bigint")
+      return isWhitelistedRaw !== BigInt(0);
+    return Boolean(isWhitelistedRaw);
+  }, [isWhitelistedRaw]);
+
+  // Check if address is in participants array (for state >= 2)
+  // TODO: Replace with isChannelParticipant once contract function is fixed
+  const isParticipantFromArray = useMemo(() => {
+    if (!address || !participantsArray) return undefined;
+    if (!Array.isArray(participantsArray)) return false;
+    
+    // Check if address (case-insensitive) is in participants array
+    return participantsArray.some(
+      (participant) =>
+        typeof participant === "string" &&
+        participant.toLowerCase() === address.toLowerCase()
+    );
+  }, [address, participantsArray]);
+
+  // Combine results based on state
+  const isParticipant = useMemo(() => {
+    if (useWhitelistCheck === undefined) return undefined;
+    if (useWhitelistCheck) {
+      return isWhitelisted;
+    } else {
+      return isParticipantFromArray;
+    }
+  }, [useWhitelistCheck, isWhitelisted, isParticipantFromArray]);
+
+  // Combined loading state
+  const isCheckingParticipant = useMemo(() => {
+    if (useWhitelistCheck === undefined) return true;
+    return useWhitelistCheck ? isCheckingWhitelist : isCheckingParticipants;
+  }, [useWhitelistCheck, isCheckingWhitelist, isCheckingParticipants]);
+
+  // Combined error state
+  const participantCheckError = useMemo(() => {
+    if (useWhitelistCheck === undefined) return null;
+    return useWhitelistCheck ? whitelistCheckError : participantsCheckError;
+  }, [useWhitelistCheck, whitelistCheckError, participantsCheckError]);
+
+  // Debug logging
   useEffect(() => {
-    if (!isCheckingParticipant && contractArgs && functionName) {
-      console.log("[useChannelParticipantCheck] Result:", {
-        functionName,
-        isParticipant,
-        isCheckingParticipant,
-        error: participantCheckError,
-        channelId: contractArgs[0],
-        address: contractArgs[1],
+    if (isValidChannelId && address && !isCheckingParticipant) {
+      const participantsList = Array.isArray(participantsArray)
+        ? participantsArray
+            .map((p) => (typeof p === "string" ? p : String(p)))
+            .filter((p): p is string => typeof p === "string")
+        : null;
+
+      console.log("[useChannelParticipantCheck] State:", {
+        channelId,
+        address,
         channelState: channelInfo?.state,
         useWhitelistCheck,
+        isWhitelisted,
+        isParticipantFromArray,
+        isParticipant,
+        participantsArray: participantsList,
+        isCheckingParticipant,
+        error: participantCheckError,
       });
     }
   }, [
-    isParticipant,
-    isCheckingParticipant,
-    participantCheckError,
-    contractArgs,
-    functionName,
+    channelId,
+    address,
     channelInfo?.state,
     useWhitelistCheck,
+    isWhitelisted,
+    isParticipantFromArray,
+    isParticipant,
+    participantsArray,
+    isCheckingParticipant,
+    participantCheckError,
+    isValidChannelId,
   ]);
 
   // Determine error message
