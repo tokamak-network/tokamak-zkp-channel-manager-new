@@ -64,7 +64,21 @@ const initialState = {
 export const useDepositStore = create<DepositState>()((set, get) => ({
   ...initialState,
   
-  setChannelId: (id) => set({ channelId: id }),
+  setChannelId: (id) => {
+    const currentChannelId = get().channelId;
+    // Clear MPT Key when channel changes
+    if (currentChannelId !== id) {
+      set({
+        channelId: id,
+        currentUserDeposit: {
+          ...get().currentUserDeposit,
+          mptKey: null, // Clear MPT Key when channel changes
+        },
+      });
+    } else {
+      set({ channelId: id });
+    }
+  },
   
   setDeposit: (address, deposit) => set((state) => ({
     deposits: {

@@ -20,9 +20,21 @@ import { formatUnits } from "viem";
 export function DepositPage() {
   const { currentChannelId } = useChannelFlowStore();
   const currentUserMPTKey = useDepositStore((state) => state.currentUserDeposit.mptKey);
+  const setCurrentUserMPTKey = useDepositStore((state) => state.setCurrentUserMPTKey);
   const depositError = useDepositStore((state) => state.currentUserDeposit.error);
   
   const [depositAmount, setDepositAmount] = useState("");
+
+  // Clear MPT Key when channel changes or component unmounts
+  useEffect(() => {
+    // Clear MPT Key when channel changes
+    setCurrentUserMPTKey(null);
+    
+    // Clear MPT Key on unmount
+    return () => {
+      setCurrentUserMPTKey(null);
+    };
+  }, [currentChannelId, setCurrentUserMPTKey]);
 
   // Get channel info to get target token address and decimals
   const { data: channelInfo } = useChannelInfo(
