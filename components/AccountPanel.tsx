@@ -7,11 +7,16 @@
 'use client';
 
 import { useState } from 'react';
-import { useAccount, useConnect, useDisconnect, useBalance, useChainId } from 'wagmi';
+import { useAccount, useConnect, useDisconnect, useBalance, useChainId, useSignMessage } from 'wagmi';
 import { sepolia, mainnet } from 'wagmi/chains';
-import { Button } from '@tokamak/ui';
+import { Button, Input, Label } from '@tokamak/ui';
 import { Card, CardContent, CardHeader } from '@tokamak/ui';
 import { formatAddress, formatBalance } from '@/lib/utils/format';
+import { deriveL2KeysAndAddressFromSignature } from '@/lib/tokamakl2js';
+import { L2_PRV_KEY_MESSAGE } from '@/lib/l2KeyMessage';
+import { isValidBytes32 } from '@/lib/channelId';
+import { LoadingSpinner } from '@/components/LoadingSpinner';
+import { Copy, CheckCircle2, AlertCircle } from 'lucide-react';
 
 /**
  * Copy Address Button Component
@@ -74,11 +79,19 @@ export function AccountPanel() {
   const { address, isConnected } = useAccount();
   const { connect, connectors, isPending } = useConnect();
   const { disconnect } = useDisconnect();
+  const { signMessageAsync } = useSignMessage();
   const chainId = useChainId();
   const chains = [sepolia, mainnet];
   const { data: balance } = useBalance({
     address,
   });
+
+  // L2 Address calculation state
+  const [channelId, setChannelId] = useState('');
+  const [l2Address, setL2Address] = useState<`0x${string}` | null>(null);
+  const [isComputing, setIsComputing] = useState(false);
+  const [l2Error, setL2Error] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   const handleConnect = () => {
     // Try to connect with injected connector first
@@ -92,6 +105,72 @@ export function AccountPanel() {
 
   const handleDisconnect = () => {
     disconnect();
+  };
+
+  const computeL2Address = async () => {
+    if (!isConnected || !address) {
+      setL2Error("Please connect your wallet first");
+      return;
+    }
+
+    if (!signMessageAsync) {
+      setL2Error("Wallet signing not available. Please reconnect your wallet.");
+      return;
+    }
+
+    if (!channelId || channelId.trim() === "") {
+      setL2Error("Please enter a channel ID");
+      return;
+    }
+
+    if (!isValidBytes32(channelId)) {
+      setL2Error("Invalid channel ID format. Must be bytes32 (0x + 64 hex characters)");
+      return;
+    }
+
+    setIsComputing(true);
+    setL2Error(null);
+    setL2Address(null);
+
+    try {
+      const message = L2_PRV_KEY_MESSAGE + channelId;
+      const signature = await signMessageAsync({ message });
+      const accountL2 = deriveL2KeysAndAddressFromSignature(signature, 0); // slotIndex fixed to 0
+      setL2Address(accountL2.l2Address);
+      setL2Error(null);
+    } catch (err) {
+      if (err instanceof Error) {
+        if (err.message.includes("User rejected") || err.message.includes("rejected")) {
+          setL2Error("Signature cancelled by user");
+        } else if (
+          err.message.includes("ConnectorNotFoundError") ||
+          err.message.includes("Connector not found")
+        ) {
+          setL2Error("Wallet connection lost. Please disconnect and reconnect your wallet.");
+        } else if (err.message.includes("ChainMismatchError")) {
+          setL2Error("Wrong network. Please switch to the correct network.");
+        } else {
+          setL2Error(`Error: ${err.message}`);
+        }
+      } else {
+        setL2Error("Failed to compute L2 address. Please try again.");
+      }
+      setL2Address(null);
+    } finally {
+      setIsComputing(false);
+    }
+  };
+
+  const handleCopyL2Address = async () => {
+    if (!l2Address) return;
+
+    try {
+      await navigator.clipboard.writeText(l2Address);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy L2 address:', err);
+    }
   };
 
   if (!isConnected) {
@@ -165,6 +244,79 @@ export function AccountPanel() {
             <p className="text-sm font-semibold">
               {chains.find(c => c.id === chainId)?.name || `Chain ${chainId}`}
             </p>
+          </div>
+        </div>
+
+        {/* L2 Address Calculator */}
+        <div className="pt-4 border-t border-gray-200">
+          <div className="space-y-3">
+            <div>
+              <Label className="text-xs text-[var(--muted-foreground)] mb-1">
+                L2 Address Calculator
+              </Label>
+              <p className="text-xs text-[var(--muted-foreground)] mb-2">
+                Enter channel ID to calculate your L2 address
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Input
+                type="text"
+                placeholder="0x..."
+                value={channelId}
+                onChange={(e) => {
+                  setChannelId(e.target.value);
+                  setL2Error(null);
+                  setL2Address(null);
+                }}
+                className="font-mono text-sm"
+              />
+              <Button
+                onClick={computeL2Address}
+                disabled={isComputing || !channelId || !isValidBytes32(channelId)}
+                variant="outline"
+                size="sm"
+                className="w-full"
+              >
+                {isComputing ? (
+                  <>
+                    <LoadingSpinner size="sm" className="mr-2" />
+                    Computing...
+                  </>
+                ) : (
+                  "Calculate L2 Address"
+                )}
+              </Button>
+            </div>
+
+            {/* Error Message */}
+            {l2Error && (
+              <div className="flex items-center gap-2 p-2 bg-red-50 border border-red-200 rounded text-red-700 text-xs">
+                <AlertCircle className="w-3 h-3 flex-shrink-0" />
+                <span>{l2Error}</span>
+              </div>
+            )}
+
+            {/* L2 Address Result */}
+            {l2Address && (
+              <div className="p-3 bg-gray-50 border border-gray-200 rounded">
+                <div className="flex items-center justify-between mb-1">
+                  <p className="text-xs text-[var(--muted-foreground)]">L2 Address</p>
+                  <button
+                    onClick={handleCopyL2Address}
+                    className="p-1 hover:bg-gray-200 rounded transition-colors"
+                    title={copied ? 'Copied!' : 'Copy L2 address'}
+                  >
+                    {copied ? (
+                      <CheckCircle2 className="w-3.5 h-3.5 text-green-600" />
+                    ) : (
+                      <Copy className="w-3.5 h-3.5 text-gray-500" />
+                    )}
+                  </button>
+                </div>
+                <p className="font-mono text-xs break-all">{l2Address}</p>
+              </div>
+            )}
           </div>
         </div>
       </CardContent>
