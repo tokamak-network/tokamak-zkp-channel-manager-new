@@ -118,7 +118,7 @@ export function TransactionPage() {
       return;
     }
 
-    setShowConfirmModal(false);
+    // Keep modal open to show loading state
     setIsDownloading(true);
     setError(null);
 
@@ -157,7 +157,8 @@ export function TransactionPage() {
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
 
-      // Reset form
+      // Close modal and reset form after successful download
+      setShowConfirmModal(false);
       setKeySeed(null);
       setRecipient(null);
       setTokenAmount("");
@@ -305,79 +306,101 @@ export function TransactionPage() {
       </Card>
 
       {/* Confirmation Modal */}
-      <Dialog open={showConfirmModal} onOpenChange={setShowConfirmModal}>
+      <Dialog open={showConfirmModal} onOpenChange={(open) => {
+        if (!isDownloading) {
+          setShowConfirmModal(open);
+        }
+      }}>
         <DialogContent className="sm:max-w-lg bg-white border-gray-200">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-gray-900">
-              <div className="bg-blue-100 p-1.5 rounded">
-                <CheckCircle className="h-4 w-4 text-blue-600" />
-              </div>
-              Transaction Summary
-            </DialogTitle>
-            <DialogDescription className="text-gray-600">
-              Review your transaction details before synthesizing
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4 py-4">
-            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-3">
-              <div className="flex items-center justify-between py-2 border-b border-gray-200">
-                <span className="text-gray-600 text-sm">Signed</span>
-                <div className="flex items-center gap-2 text-green-600">
-                  <CheckCircle className="w-4 h-4" />
-                  <span className="text-sm font-medium">Yes</span>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between py-2 border-b border-gray-200">
-                <span className="text-gray-600 text-sm flex items-center gap-2">
-                  <Wallet className="w-4 h-4" />
-                  To Address
-                </span>
-                <span className="text-gray-900 font-mono text-sm">
-                  {(recipient ?? "").slice(0, 6)}...
-                  {(recipient ?? "").slice(-4)}
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between py-2">
-                <span className="text-gray-600 text-sm flex items-center gap-2">
-                  <CheckCircle className="w-4 h-4" />
-                  Generate ZK Proof
-                </span>
-                <span className="font-medium text-green-600">
-                  Yes
-                </span>
+          {isDownloading ? (
+            // Loading State
+            <div className="flex flex-col items-center justify-center py-12 space-y-4">
+              <LoadingSpinner size="lg" />
+              <div className="text-center space-y-2">
+                <p className="text-lg font-semibold text-gray-900">
+                  Generating ZK Proof...
+                </p>
+                <p className="text-sm text-gray-600">
+                  This may take a few minutes. Please wait.
+                </p>
               </div>
             </div>
+          ) : (
+            // Normal Content
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2 text-gray-900">
+                  <div className="bg-blue-100 p-1.5 rounded">
+                    <CheckCircle className="h-4 w-4 text-blue-600" />
+                  </div>
+                  Transaction Summary
+                </DialogTitle>
+                <DialogDescription className="text-gray-600">
+                  Review your transaction details before synthesizing
+                </DialogDescription>
+              </DialogHeader>
 
-            <div className="flex flex-col gap-3">
-              <Button
-                onClick={handleSynthesize}
-                disabled={isDownloading}
-                className="w-full"
-              >
-                {isDownloading ? (
-                  <>
-                    <LoadingSpinner size="sm" className="mr-2" />
-                    Generating ZK Proof...
-                  </>
-                ) : (
-                  <>
+              <div className="space-y-4 py-4">
+                {/* Error Message in Modal */}
+                {error && (
+                  <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
+                    <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                    {error}
+                  </div>
+                )}
+
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-3">
+                  <div className="flex items-center justify-between py-2 border-b border-gray-200">
+                    <span className="text-gray-600 text-sm">Signed</span>
+                    <div className="flex items-center gap-2 text-green-600">
+                      <CheckCircle className="w-4 h-4" />
+                      <span className="text-sm font-medium">Yes</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between py-2 border-b border-gray-200">
+                    <span className="text-gray-600 text-sm flex items-center gap-2">
+                      <Wallet className="w-4 h-4" />
+                      To Address
+                    </span>
+                    <span className="text-gray-900 font-mono text-sm">
+                      {(recipient ?? "").slice(0, 6)}...
+                      {(recipient ?? "").slice(-4)}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between py-2">
+                    <span className="text-gray-600 text-sm flex items-center gap-2">
+                      <CheckCircle className="w-4 h-4" />
+                      Generate ZK Proof
+                    </span>
+                    <span className="font-medium text-green-600">
+                      Yes
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-3">
+                  <Button
+                    onClick={handleSynthesize}
+                    disabled={isDownloading}
+                    className="w-full"
+                  >
                     <Download className="w-4 h-4 mr-2" />
                     Generate ZK Proof & Download
-                  </>
-                )}
-              </Button>
-              <Button
-                onClick={() => setShowConfirmModal(false)}
-                variant="outline"
-                className="w-full"
-              >
-                Back
-              </Button>
-            </div>
-          </div>
+                  </Button>
+                  <Button
+                    onClick={() => setShowConfirmModal(false)}
+                    variant="outline"
+                    className="w-full"
+                    disabled={isDownloading}
+                  >
+                    Back
+                  </Button>
+                </div>
+              </div>
+            </>
+          )}
         </DialogContent>
       </Dialog>
     </div>
