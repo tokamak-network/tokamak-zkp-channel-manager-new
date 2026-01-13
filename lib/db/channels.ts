@@ -28,14 +28,35 @@ export interface Channel {
 
 /**
  * Get channel by ID
+ * Normalizes channel ID to lowercase for consistent lookup
+ * (Ethereum addresses/hashes are case-insensitive)
  */
 export async function getChannel(channelId: string): Promise<Channel | null> {
-  const channel = await getData<Channel>(`channels.${channelId}`);
+  // Normalize channel ID to lowercase for consistent lookup
+  const normalizedId = channelId.toLowerCase();
+  
+  // Try exact match first (normalized)
+  let channel = await getData<Channel>(`channels.${normalizedId}`);
+  
+  // If not found, try case-insensitive search through channels object
+  if (!channel) {
+    const channelsData = await getData<Record<string, Channel>>('channels');
+    if (channelsData) {
+      // Find channel with case-insensitive match
+      const foundKey = Object.keys(channelsData).find(
+        (key) => key.toLowerCase() === normalizedId
+      );
+      if (foundKey) {
+        channel = channelsData[foundKey];
+      }
+    }
+  }
+  
   if (!channel) return null;
   
   return {
     ...channel,
-    channelId,
+    channelId: channel.channelId || normalizedId,
   };
 }
 
