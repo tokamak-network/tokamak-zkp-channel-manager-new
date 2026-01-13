@@ -7,7 +7,7 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useAccount, useSignMessage } from "wagmi";
 import { Button, Input, Label, Card, CardContent } from "@tokamak/ui";
 import {
@@ -24,7 +24,6 @@ import { usePreviousStateSnapshot } from "@/app/state-explorer/_hooks/usePreviou
 import { useSynthesizer } from "@/app/state-explorer/_hooks/useSynthesizer";
 import { L2_PRV_KEY_MESSAGE } from "@/lib/l2KeyMessage";
 import { addHexPrefix } from "@ethereumjs/util";
-import { getCurrentStateNumber } from "@/lib/db-client";
 
 type Step = "input" | "confirm";
 
@@ -39,7 +38,6 @@ export function TransactionPage() {
   const [recipient, setRecipient] = useState<`0x${string}` | null>(null);
   const [tokenAmount, setTokenAmount] = useState<string>("");
   const [includeProof, setIncludeProof] = useState(false);
-  const [currentStateNumber, setCurrentStateNumber] = useState<number | null>(null);
 
   // UI state
   const [isSigning, setIsSigning] = useState(false);
@@ -61,20 +59,6 @@ export function TransactionPage() {
     keySeed,
     includeProof,
   });
-
-  // Fetch current state number
-  useEffect(() => {
-    if (currentChannelId) {
-      getCurrentStateNumber(currentChannelId)
-        .then((stateNumber) => {
-          setCurrentStateNumber(stateNumber);
-        })
-        .catch((err) => {
-          console.error("Failed to get current state number:", err);
-          setCurrentStateNumber(0);
-        });
-    }
-  }, [currentChannelId]);
 
   // Generate key seed using MetaMask
   const generateKeySeed = async () => {
@@ -312,23 +296,6 @@ export function TransactionPage() {
             </label>
           </div>
 
-          {/* Next State Number */}
-          <div>
-            <Label>Next State</Label>
-            <div className="mt-2 border border-gray-200 rounded-md px-4 py-3 bg-gray-50">
-              {currentStateNumber !== null ? (
-                <span className="text-lg font-semibold text-blue-600">
-                  State #{currentStateNumber}
-                </span>
-              ) : (
-                <span className="text-gray-500">Loading...</span>
-              )}
-            </div>
-            <p className="text-xs text-gray-500 mt-1">
-              State number for this transaction (calculated from latest verified proof + 1)
-            </p>
-          </div>
-
           {/* Continue Button */}
           <Button
             onClick={handleContinue}
@@ -374,26 +341,6 @@ export function TransactionPage() {
                 <span className="text-gray-900 font-mono text-sm">
                   {(recipient ?? "").slice(0, 6)}...
                   {(recipient ?? "").slice(-4)}
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between py-2 border-b border-gray-200">
-                <span className="text-gray-600 text-sm flex items-center gap-2">
-                  <Coins className="w-4 h-4" />
-                  Token Amount
-                </span>
-                <span className="text-gray-900 font-medium">{tokenAmount}</span>
-              </div>
-
-              <div className="flex items-center justify-between py-2 border-b border-gray-200">
-                <span className="text-gray-600 text-sm flex items-center gap-2">
-                  <Key className="w-4 h-4" />
-                  Next State
-                </span>
-                <span className="text-gray-900 font-medium">
-                  {currentStateNumber !== null
-                    ? `State #${currentStateNumber}`
-                    : "Loading..."}
                 </span>
               </div>
 
