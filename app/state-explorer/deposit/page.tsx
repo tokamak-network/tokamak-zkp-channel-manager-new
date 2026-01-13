@@ -20,22 +20,29 @@ import { formatUnits } from "viem";
 
 export function DepositPage() {
   const { currentChannelId } = useChannelFlowStore();
-  const currentUserMPTKey = useDepositStore((state) => state.currentUserDeposit.mptKey);
-  const setCurrentUserMPTKey = useDepositStore((state) => state.setCurrentUserMPTKey);
-  const depositError = useDepositStore((state) => state.currentUserDeposit.error);
-  
+  const currentUserMPTKey = useDepositStore(
+    (state) => state.currentUserDeposit.mptKey
+  );
+  const setCurrentUserMPTKey = useDepositStore(
+    (state) => state.setCurrentUserMPTKey
+  );
+  const depositError = useDepositStore(
+    (state) => state.currentUserDeposit.error
+  );
+
   const [depositAmount, setDepositAmount] = useState("");
 
   // Clear MPT Key when channel changes or component unmounts
   useEffect(() => {
     // Clear MPT Key when channel changes
     setCurrentUserMPTKey(null);
-    
+
     // Clear MPT Key on unmount
     return () => {
       setCurrentUserMPTKey(null);
     };
   }, [currentChannelId, setCurrentUserMPTKey]);
+
 
   // Get channel info to get target token address and decimals
   const channelInfo = useChannelInfo(
@@ -49,9 +56,13 @@ export function DepositPage() {
   const { balance: userTokenBalance } = useTokenBalance({
     tokenAddress: tokenAddress || "0x",
   });
-  
+
   // Use the MPT key generation hook
-  const { generate, isGenerating, error: mptKeyError } = useGenerateMptKey({
+  const {
+    generate,
+    isGenerating,
+    error: mptKeyError,
+  } = useGenerateMptKey({
     channelId: currentChannelId,
     slotIndex: 0,
     onMptKeyGenerated: setCurrentUserMPTKey,
@@ -97,7 +108,6 @@ export function DepositPage() {
     tokenDecimals,
   });
 
-
   const handleGenerateKey = async () => {
     const accountInfo = await generate();
     if (accountInfo) {
@@ -127,18 +137,23 @@ export function DepositPage() {
             />
             <Button
               onClick={handleGenerateKey}
-              disabled={isGenerating || !!currentUserMPTKey}
+              disabled={isGenerating || !currentChannelId}
               variant="outline"
             >
-              {isGenerating ? "Generating..." : "Generate"}
+              {isGenerating ? "Signing & Generating..." : currentUserMPTKey ? "Regenerate" : "Generate & Sign"}
             </Button>
           </div>
           {mptKeyError && (
             <p className="text-sm text-red-500 mt-1">{mptKeyError}</p>
           )}
-          {!mptKeyError && (
+          {!mptKeyError && !currentUserMPTKey && (
             <p className="text-sm text-gray-500 mt-1">
-              Generate a unique key for this channel
+              Click "Generate & Sign" to sign a message and generate your unique MPT key for this channel
+            </p>
+          )}
+          {!mptKeyError && currentUserMPTKey && (
+            <p className="text-sm text-green-600 mt-1">
+              ✓ MPT Key generated. You can regenerate if needed.
             </p>
           )}
         </div>
@@ -159,14 +174,16 @@ export function DepositPage() {
           />
           {userTokenBalance !== undefined && (
             <p className="text-sm text-gray-500 mt-1">
-              Your balance: <span className="font-semibold">
+              Your balance:{" "}
+              <span className="font-semibold">
                 {formatUnits(userTokenBalance, tokenDecimals)} {tokenSymbol}
               </span>
             </p>
           )}
           {isInsufficientBalance && (
             <p className="text-sm text-red-500 mt-1">
-              Insufficient balance. You cannot deposit more than your current balance.
+              Insufficient balance. You cannot deposit more than your current
+              balance.
             </p>
           )}
           {!isInsufficientBalance && userTokenBalance === undefined && (
@@ -186,7 +203,9 @@ export function DepositPage() {
         {/* Deposit Error */}
         {(depositError || depositTxError) && (
           <div className="p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
-            {depositError || depositTxError?.message || "Failed to deposit tokens"}
+            {depositError ||
+              depositTxError?.message ||
+              "Failed to deposit tokens"}
           </div>
         )}
 
@@ -200,7 +219,9 @@ export function DepositPage() {
           <div className="p-3 bg-blue-50 border border-blue-200 rounded text-blue-700 text-sm">
             <p className="font-semibold mb-1">Transaction Submitted</p>
             <p className="text-xs font-mono break-all">{depositTxHash}</p>
-            {isDepositing && <p className="text-xs mt-1">Waiting for confirmation...</p>}
+            {isDepositing && (
+              <p className="text-xs mt-1">Waiting for confirmation...</p>
+            )}
           </div>
         )}
 
