@@ -5,7 +5,7 @@
  * This is a common hook that can be used across the application.
  */
 
-import { useCallback, useState } from "react";
+import { useCallback, useState, useEffect } from "react";
 import { useAccount, useSignMessage } from "wagmi";
 import { L2_PRV_KEY_MESSAGE } from "@/lib/l2KeyMessage";
 import { deriveL2KeysAndAddressFromSignature } from "@/lib/tokamakl2js";
@@ -68,6 +68,12 @@ export function useGenerateMptKey(
   const [error, setError] = useState<string | null>(null);
   const [accountInfo, setAccountInfo] = useState<L2AccountInfo | null>(null);
 
+  // Reset accountInfo when channelId changes
+  useEffect(() => {
+    setAccountInfo(null);
+    setError(null);
+  }, [channelId]);
+
   const generate = useCallback(async (): Promise<L2AccountInfo | null> => {
     console.log("🚀 useGenerateMptKey.generate called (client-side)", {
       isConnected,
@@ -97,6 +103,8 @@ export function useGenerateMptKey(
 
     setIsGenerating(true);
     setError(null);
+    // Always clear previous accountInfo to force new signature
+    setAccountInfo(null);
 
     try {
       const message = L2_PRV_KEY_MESSAGE + channelId.toString();

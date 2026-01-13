@@ -43,7 +43,6 @@ export function DepositPage() {
     };
   }, [currentChannelId, setCurrentUserMPTKey]);
 
-
   // Get channel info to get target token address and decimals
   const channelInfo = useChannelInfo(
     currentChannelId ? (currentChannelId as `0x${string}`) : null
@@ -140,7 +139,11 @@ export function DepositPage() {
               disabled={isGenerating || !currentChannelId}
               variant="outline"
             >
-              {isGenerating ? "Signing & Generating..." : currentUserMPTKey ? "Regenerate" : "Generate & Sign"}
+              {isGenerating
+                ? "Signing & Generating..."
+                : currentUserMPTKey
+                ? "Regenerate"
+                : "Generate & Sign"}
             </Button>
           </div>
           {mptKeyError && (
@@ -148,7 +151,8 @@ export function DepositPage() {
           )}
           {!mptKeyError && !currentUserMPTKey && (
             <p className="text-sm text-gray-500 mt-1">
-              Click "Generate & Sign" to sign a message and generate your unique MPT key for this channel
+              Click "Generate & Sign" to sign a message and generate your unique
+              MPT key for this channel
             </p>
           )}
           {!mptKeyError && currentUserMPTKey && (
