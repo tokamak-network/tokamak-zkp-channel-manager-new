@@ -8,6 +8,28 @@ import { keccak256, encodePacked } from "viem";
 import { type Address } from "viem";
 
 /**
+ * Validate bytes32 format (0x + 64 hex characters)
+ * 
+ * @param value - The string to validate
+ * @returns true if the value is a valid bytes32 format
+ */
+export function isValidBytes32(value: string): boolean {
+  if (!value || value.trim() === "") return false;
+  
+  // Must start with 0x
+  if (!value.startsWith("0x") && !value.startsWith("0X")) return false;
+  
+  // Remove 0x prefix
+  const hexPart = value.slice(2);
+  
+  // Must be exactly 64 hex characters
+  if (hexPart.length !== 64) return false;
+  
+  // Must be valid hex characters
+  return /^[0-9a-fA-F]{64}$/.test(hexPart);
+}
+
+/**
  * Compute channel ID from leader address and salt
  * 
  * @param leaderAddress - The leader's Ethereum address

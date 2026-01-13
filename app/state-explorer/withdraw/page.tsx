@@ -1,7 +1,7 @@
 /**
- * Withdraw Page
+ * Withdraw Component
  *
- * Page for withdrawing tokens from closed channel
+ * Component for withdrawing tokens from closed channel
  * Shows when channel is closed
  */
 
@@ -11,7 +11,7 @@ import { useState } from "react";
 import { Button, Card, CardContent } from "@tokamak/ui";
 import { useChannelFlowStore } from "@/stores/useChannelFlowStore";
 
-export default function WithdrawPage() {
+export function WithdrawPage() {
   const { currentChannelId } = useChannelFlowStore();
   const [isWithdrawing, setIsWithdrawing] = useState(false);
   const [hasWithdrawn, setHasWithdrawn] = useState(false);

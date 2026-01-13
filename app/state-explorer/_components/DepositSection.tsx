@@ -11,7 +11,7 @@ import { useState, useEffect } from "react";
 import { Button, Input, Label, Card, CardContent } from "@tokamak/ui";
 import { useChannelFlowStore } from "@/stores/useChannelFlowStore";
 import { useDepositStore } from "@/stores/useDepositStore";
-import { useGenerateMptKey } from "@/app/create-channel/_hooks/useGenerateMptKey";
+import { useGenerateMptKey } from "@/app/state-explorer/deposit/_hooks/useGenerateMptKey";
 
 interface DepositSectionProps {
   channelId: string;

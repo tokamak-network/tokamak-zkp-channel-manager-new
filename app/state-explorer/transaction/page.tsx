@@ -1,7 +1,7 @@
 /**
- * Transaction Page
+ * Transaction Component
  *
- * Page for creating and viewing transactions
+ * Component for creating and viewing transactions
  * Shows when channel is active (initialized)
  */
 
@@ -19,7 +19,7 @@ interface Transaction {
   status: "pending" | "completed";
 }
 
-export default function TransactionPage() {
+export function TransactionPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [toAddress, setToAddress] = useState("");

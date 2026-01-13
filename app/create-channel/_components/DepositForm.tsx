@@ -24,7 +24,7 @@ import {
 } from "@tokamak/ui";
 import { ChannelSelector } from "./ChannelSelector";
 import type { Channel } from "@/lib/db";
-import { useGenerateMptKey } from "../_hooks/useGenerateMptKey";
+import { useGenerateMptKey } from "@/app/state-explorer/deposit/_hooks/useGenerateMptKey";
 import { useDeposit } from "../_hooks/useDeposit";
 import { FIXED_TARGET_CONTRACT } from "@tokamak/config";
 import { useBridgeDepositManagerAddress } from "@/hooks/contract";

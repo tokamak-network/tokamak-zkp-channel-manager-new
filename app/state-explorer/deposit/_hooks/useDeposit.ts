@@ -8,7 +8,6 @@ import { useEffect, useCallback } from "react";
 import { useAccount } from "wagmi";
 import { parseUnits } from "viem";
 import { useDepositStore } from "@/stores/useDepositStore";
-import { useChannelFlowStore } from "@/stores/useChannelFlowStore";
 import {
   useBridgeDepositManagerWrite,
   useBridgeDepositManagerWaitForReceipt,
@@ -17,23 +16,26 @@ import {
 import { getContractAbi } from "@tokamak/config";
 
 interface UseDepositParams {
+  channelId: string | null;
   depositAmount: string;
   mptKey: string | null;
   needsApproval: boolean;
   approvalSuccess: boolean;
+  tokenDecimals: number;
 }
 
 /**
  * Hook for managing deposit transactions
  */
 export function useDeposit({
+  channelId,
   depositAmount,
   mptKey,
   needsApproval,
   approvalSuccess,
+  tokenDecimals,
 }: UseDepositParams) {
   const { address } = useAccount();
-  const { currentChannelId } = useChannelFlowStore();
   const {
     setDeposit,
     setDepositing,
@@ -77,8 +79,8 @@ export function useDeposit({
 
   // Handle deposit success
   useEffect(() => {
-    if (depositSuccess && depositTxHash && currentChannelId && address && mptKey) {
-      const amount = parseUnits(depositAmount, 18);
+    if (depositSuccess && depositTxHash && channelId && address && mptKey) {
+      const amount = parseUnits(depositAmount, tokenDecimals);
       setDeposit(address.toLowerCase(), {
         amount,
         mptKey,
@@ -91,10 +93,11 @@ export function useDeposit({
   }, [
     depositSuccess,
     depositTxHash,
-    currentChannelId,
+    channelId,
     address,
     depositAmount,
     mptKey,
+    tokenDecimals,
     setDeposit,
     setDepositing,
   ]);
@@ -112,11 +115,11 @@ export function useDeposit({
 
   // Handle deposit
   const handleDeposit = useCallback(async () => {
-    if (!depositAmount || !mptKey || !currentChannelId || !address) {
+    if (!depositAmount || !mptKey || !channelId || !address) {
       console.error("Missing required fields for deposit", {
         depositAmount,
         mptKey,
-        currentChannelId,
+        channelId,
         address,
       });
       setDepositError("Missing required fields for deposit");
@@ -130,7 +133,7 @@ export function useDeposit({
     }
 
     console.log("🚀 Starting deposit...", {
-      channelId: currentChannelId,
+      channelId: channelId,
       amount: depositAmount,
       mptKey,
       depositManagerAddress,
@@ -140,8 +143,8 @@ export function useDeposit({
     setDepositError(null);
 
     try {
-      const amount = parseUnits(depositAmount, 18);
-      const channelIdBytes32 = currentChannelId as `0x${string}`;
+      const amount = parseUnits(depositAmount, tokenDecimals);
+      const channelIdBytes32 = channelId as `0x${string}`;
       const mptKeyBytes32 = mptKey as `0x${string}`;
 
       console.log("📝 Deposit params:", {
@@ -171,10 +174,11 @@ export function useDeposit({
   }, [
     depositAmount,
     mptKey,
-    currentChannelId,
+    channelId,
     address,
     needsApproval,
     approvalSuccess,
+    tokenDecimals,
     writeDeposit,
     depositManagerAddress,
     depositManagerAbi,

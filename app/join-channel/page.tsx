@@ -9,28 +9,17 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAccount } from "wagmi";
-import { Button, Input, Label, Card, CardContent, CardHeader } from "@tokamak/ui";
+import {
+  Button,
+  Input,
+  Label,
+  Card,
+  CardContent,
+  CardHeader,
+} from "@tokamak/ui";
 import { useChannelFlowStore } from "@/stores/useChannelFlowStore";
-import { recoverChannelId } from "@/lib/channelId";
-import { type Address } from "viem";
-import { useBridgeCoreRead } from "@/hooks/contract";
-
-// Validate bytes32 format (0x + 64 hex characters)
-function isValidBytes32(value: string): boolean {
-  if (!value || value.trim() === "") return false;
-  
-  // Must start with 0x
-  if (!value.startsWith("0x") && !value.startsWith("0X")) return false;
-  
-  // Remove 0x prefix
-  const hexPart = value.slice(2);
-  
-  // Must be exactly 64 hex characters
-  if (hexPart.length !== 64) return false;
-  
-  // Must be valid hex characters
-  return /^[0-9a-fA-F]{64}$/.test(hexPart);
-}
+import { isValidBytes32 } from "@/lib/channelId";
+import { useChannelParticipantCheck } from "./_hooks/useChannelParticipantCheck";
 
 export default function JoinChannelPage() {
   const router = useRouter();
@@ -40,26 +29,35 @@ export default function JoinChannelPage() {
   const [error, setError] = useState<string | null>(null);
   const [isChecking, setIsChecking] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
-  const [participantError, setParticipantError] = useState<string | null>(null);
-  
-  // Channel ID recovery state
-  const [showRecovery, setShowRecovery] = useState(false);
-  const [leaderAddress, setLeaderAddress] = useState("");
-  const [salt, setSalt] = useState("");
-  const [recoveredChannelId, setRecoveredChannelId] = useState<`0x${string}` | null>(null);
-  const [recoveryError, setRecoveryError] = useState<string | null>(null);
 
   // Check if connected wallet is a participant of the channel
-  const { data: isParticipant, isLoading: isCheckingParticipant, error: participantCheckError } = useBridgeCoreRead({
-    functionName: "isChannelParticipant",
-    args: channelId && isValidBytes32(channelId) && address
-      ? [channelId as `0x${string}`, address]
-      : undefined,
-    query: {
-      enabled: isConnected && !!address && !!channelId && isValidBytes32(channelId),
-      refetchInterval: false,
-    },
-  });
+  const {
+    isParticipant,
+    isChecking: isCheckingParticipant,
+    error: participantError,
+    isValidChannelId,
+  } = useChannelParticipantCheck(channelId);
+
+  // Debug logging
+  useEffect(() => {
+    console.log("[JoinChannelPage] Participant check state:", {
+      channelId,
+      address,
+      isConnected,
+      isValidChannelId,
+      isParticipant,
+      isCheckingParticipant,
+      participantError,
+    });
+  }, [
+    channelId,
+    address,
+    isConnected,
+    isValidChannelId,
+    isParticipant,
+    isCheckingParticipant,
+    participantError,
+  ]);
 
   // Pre-fill with stored channel ID if available
   useEffect(() => {
@@ -72,42 +70,17 @@ export default function JoinChannelPage() {
   useEffect(() => {
     if (!channelId || channelId.trim() === "") {
       setValidationError(null);
-      setParticipantError(null);
       return;
     }
 
     if (!isValidBytes32(channelId)) {
-      setValidationError("Channel ID must be a valid bytes32 format (0x + 64 hex characters)");
-      setParticipantError(null);
+      setValidationError(
+        "Channel ID must be a valid bytes32 format (0x + 64 hex characters)"
+      );
     } else {
       setValidationError(null);
     }
   }, [channelId]);
-
-  // Check participant status when channel ID is valid and wallet is connected
-  useEffect(() => {
-    if (!isConnected || !address || !channelId || !isValidBytes32(channelId)) {
-      setParticipantError(null);
-      return;
-    }
-
-    if (isCheckingParticipant) {
-      // Still checking, don't show error yet
-      setParticipantError(null);
-      return;
-    }
-
-    if (participantCheckError) {
-      setParticipantError("Failed to check participant status. Please try again.");
-      return;
-    }
-
-    if (isParticipant === false) {
-      setParticipantError("Your wallet address is not registered as a participant in this channel.");
-    } else if (isParticipant === true) {
-      setParticipantError(null);
-    }
-  }, [isConnected, address, channelId, isParticipant, isCheckingParticipant, participantCheckError]);
 
   const handleJoinChannel = async () => {
     if (!isConnected || !address) {
@@ -120,14 +93,18 @@ export default function JoinChannelPage() {
       return;
     }
 
-    if (!isValidBytes32(channelId)) {
-      setError("Invalid channel ID format. Must be bytes32 (0x + 64 hex characters)");
+    if (!isValidChannelId) {
+      setError(
+        "Invalid channel ID format. Must be bytes32 (0x + 64 hex characters)"
+      );
       return;
     }
 
     // Check participant status before proceeding
     if (isParticipant === false) {
-      setError("Your wallet address is not registered as a participant in this channel.");
+      setError(
+        "Your wallet address is not registered as a participant in this channel."
+      );
       return;
     }
 
@@ -186,7 +163,7 @@ export default function JoinChannelPage() {
               className={`w-full font-mono text-sm ${
                 validationError
                   ? "border-red-500 focus:border-red-500 focus:ring-red-500"
-                  : channelId && isValidBytes32(channelId)
+                  : channelId && isValidChannelId
                   ? "border-green-500 focus:border-green-500 focus:ring-green-500"
                   : ""
               }`}
@@ -194,7 +171,7 @@ export default function JoinChannelPage() {
             {validationError && (
               <p className="text-xs text-red-500 mt-1">{validationError}</p>
             )}
-            {!validationError && channelId && isValidBytes32(channelId) && (
+            {!validationError && channelId && isValidChannelId && (
               <p className="text-xs text-green-500 mt-1 flex items-center gap-1">
                 <svg
                   className="w-4 h-4"
@@ -220,7 +197,7 @@ export default function JoinChannelPage() {
           </div>
 
           {/* Participant Status Check */}
-          {isConnected && address && channelId && isValidBytes32(channelId) && (
+          {isConnected && address && channelId && isValidChannelId && (
             <div>
               {isCheckingParticipant && (
                 <div className="p-3 bg-blue-50 border border-blue-200 rounded text-blue-700 text-sm">
@@ -274,14 +251,16 @@ export default function JoinChannelPage() {
               disabled={
                 !isConnected ||
                 !channelId ||
-                !isValidBytes32(channelId) ||
+                !isValidChannelId ||
                 isChecking ||
                 isCheckingParticipant ||
                 isParticipant === false
               }
               className="flex-1"
             >
-              {isChecking || isCheckingParticipant ? "Checking..." : "Join Channel"}
+              {isChecking || isCheckingParticipant
+                ? "Checking..."
+                : "Join Channel"}
             </Button>
             <Button
               variant="outline"

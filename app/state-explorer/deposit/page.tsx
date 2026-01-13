@@ -1,41 +1,67 @@
 /**
- * Deposit Page
+ * Deposit Component
  *
- * Page for depositing tokens to channel
+ * Component for depositing tokens to channel
  * Shows when channel is not initialized
  */
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Button, Input, Label, Card, CardContent } from "@tokamak/ui";
 import { useChannelFlowStore } from "@/stores/useChannelFlowStore";
 import { useDepositStore } from "@/stores/useDepositStore";
-import { useGenerateMptKey } from "@/hooks/useGenerateMptKey";
-import { useApprove, useDeposit } from "./_hooks";
+import { useApprove, useDeposit, useGenerateMptKey } from "./_hooks";
+import { useChannelInfo } from "@/hooks/useChannelInfo";
+import { useTokenBalance } from "@/hooks/useTokenBalance";
 import { FIXED_TARGET_CONTRACT } from "@tokamak/config";
+import { formatUnits } from "viem";
 
-export default function DepositPage() {
-  const { currentChannelId, setChannelId } = useChannelFlowStore();
+export function DepositPage() {
+  const { currentChannelId } = useChannelFlowStore();
   const currentUserMPTKey = useDepositStore((state) => state.currentUserDeposit.mptKey);
   const depositError = useDepositStore((state) => state.currentUserDeposit.error);
   
   const [depositAmount, setDepositAmount] = useState("");
+
+  // Get channel info to get target token address and decimals
+  const { data: channelInfo } = useChannelInfo(
+    currentChannelId ? (currentChannelId as `0x${string}`) : null
+  );
+  const tokenAddress = channelInfo?.targetContract || FIXED_TARGET_CONTRACT;
+  const tokenDecimals = 18; // TODO: Get from token contract
+  const tokenSymbol = "TON"; // TODO: Get from token contract
+
+  // Fetch user's token balance
+  const { balance: userTokenBalance } = useTokenBalance({
+    tokenAddress: tokenAddress || "0x",
+  });
   
   // Use the MPT key generation hook
   const { generateMPTKey, isGenerating, error: mptKeyError } = useGenerateMptKey();
 
+  // Determine if deposit amount exceeds user's balance
+  const isInsufficientBalance = useMemo(() => {
+    if (!depositAmount || !userTokenBalance) return false;
+    try {
+      const amount = parseFloat(depositAmount);
+      if (isNaN(amount) || amount <= 0) return false;
+      const amountWei = BigInt(Math.floor(amount * 10 ** tokenDecimals));
+      return amountWei > userTokenBalance;
+    } catch {
+      return false;
+    }
+  }, [depositAmount, userTokenBalance, tokenDecimals]);
+
   // Use the approval hook
   const {
     needsApproval,
-    isInsufficientBalance,
-    balance,
     isApproving,
     approvalSuccess,
     handleApprove,
     approveError,
   } = useApprove({
-    tokenAddress: FIXED_TARGET_CONTRACT,
+    tokenAddress: tokenAddress as `0x${string}`,
     depositAmount,
   });
 
@@ -46,18 +72,14 @@ export default function DepositPage() {
     depositTxHash,
     depositError: depositTxError,
   } = useDeposit({
+    channelId: currentChannelId,
     depositAmount,
     mptKey: currentUserMPTKey,
     needsApproval,
     approvalSuccess,
+    tokenDecimals,
   });
 
-  // Set channel ID in store when component mounts
-  useEffect(() => {
-    if (currentChannelId) {
-      setChannelId(BigInt(currentChannelId));
-    }
-  }, [currentChannelId, setChannelId]);
 
   const handleGenerateKey = async () => {
     const mptKey = await generateMPTKey();
@@ -118,9 +140,11 @@ export default function DepositPage() {
                 : ""
             }`}
           />
-          {balance && (
+          {userTokenBalance !== undefined && (
             <p className="text-sm text-gray-500 mt-1">
-              Balance: {(Number(balance) / 1e18).toFixed(4)} TON
+              Your balance: <span className="font-semibold">
+                {formatUnits(userTokenBalance, tokenDecimals)} {tokenSymbol}
+              </span>
             </p>
           )}
           {isInsufficientBalance && (
@@ -128,9 +152,9 @@ export default function DepositPage() {
               Insufficient balance. You cannot deposit more than your current balance.
             </p>
           )}
-          {!isInsufficientBalance && !balance && (
+          {!isInsufficientBalance && userTokenBalance === undefined && (
             <p className="text-sm text-gray-500 mt-1">
-              Enter the amount of TON to deposit
+              Enter the amount of {tokenSymbol} to deposit
             </p>
           )}
         </div>
