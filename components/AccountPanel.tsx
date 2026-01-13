@@ -89,9 +89,11 @@ export function AccountPanel() {
   // L2 Address calculation state
   const [channelId, setChannelId] = useState('');
   const [l2Address, setL2Address] = useState<`0x${string}` | null>(null);
+  const [l2MptKey, setL2MptKey] = useState<`0x${string}` | null>(null);
   const [isComputing, setIsComputing] = useState(false);
   const [l2Error, setL2Error] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [copiedMptKey, setCopiedMptKey] = useState(false);
 
   const handleConnect = () => {
     // Try to connect with injected connector first
@@ -131,12 +133,14 @@ export function AccountPanel() {
     setIsComputing(true);
     setL2Error(null);
     setL2Address(null);
+    setL2MptKey(null);
 
     try {
       const message = L2_PRV_KEY_MESSAGE + channelId;
       const signature = await signMessageAsync({ message });
       const accountL2 = deriveL2KeysAndAddressFromSignature(signature, 0); // slotIndex fixed to 0
       setL2Address(accountL2.l2Address);
+      setL2MptKey(accountL2.mptKey);
       setL2Error(null);
     } catch (err) {
       if (err instanceof Error) {
@@ -156,6 +160,7 @@ export function AccountPanel() {
         setL2Error("Failed to compute L2 address. Please try again.");
       }
       setL2Address(null);
+      setL2MptKey(null);
     } finally {
       setIsComputing(false);
     }
@@ -170,6 +175,18 @@ export function AccountPanel() {
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
       console.error('Failed to copy L2 address:', err);
+    }
+  };
+
+  const handleCopyMptKey = async () => {
+    if (!l2MptKey) return;
+
+    try {
+      await navigator.clipboard.writeText(l2MptKey);
+      setCopiedMptKey(true);
+      setTimeout(() => setCopiedMptKey(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy MPT key:', err);
     }
   };
 
@@ -268,6 +285,7 @@ export function AccountPanel() {
                   setChannelId(e.target.value);
                   setL2Error(null);
                   setL2Address(null);
+                  setL2MptKey(null);
                 }}
                 className="font-mono text-sm"
               />
@@ -299,22 +317,44 @@ export function AccountPanel() {
 
             {/* L2 Address Result */}
             {l2Address && (
-              <div className="p-3 bg-gray-50 border border-gray-200 rounded">
-                <div className="flex items-center justify-between mb-1">
-                  <p className="text-xs text-[var(--muted-foreground)]">L2 Address</p>
-                  <button
-                    onClick={handleCopyL2Address}
-                    className="p-1 hover:bg-gray-200 rounded transition-colors"
-                    title={copied ? 'Copied!' : 'Copy L2 address'}
-                  >
-                    {copied ? (
-                      <CheckCircle2 className="w-3.5 h-3.5 text-green-600" />
-                    ) : (
-                      <Copy className="w-3.5 h-3.5 text-gray-500" />
-                    )}
-                  </button>
+              <div className="p-3 bg-gray-50 border border-gray-200 rounded space-y-3">
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <p className="text-xs text-[var(--muted-foreground)]">L2 Address</p>
+                    <button
+                      onClick={handleCopyL2Address}
+                      className="p-1 hover:bg-gray-200 rounded transition-colors"
+                      title={copied ? 'Copied!' : 'Copy L2 address'}
+                    >
+                      {copied ? (
+                        <CheckCircle2 className="w-3.5 h-3.5 text-green-600" />
+                      ) : (
+                        <Copy className="w-3.5 h-3.5 text-gray-500" />
+                      )}
+                    </button>
+                  </div>
+                  <p className="font-mono text-xs break-all">{l2Address}</p>
                 </div>
-                <p className="font-mono text-xs break-all">{l2Address}</p>
+                
+                {l2MptKey && (
+                  <div className="pt-2 border-t border-gray-300">
+                    <div className="flex items-center justify-between mb-1">
+                      <p className="text-xs text-[var(--muted-foreground)]">MPT Key</p>
+                      <button
+                        onClick={handleCopyMptKey}
+                        className="p-1 hover:bg-gray-200 rounded transition-colors"
+                        title={copiedMptKey ? 'Copied!' : 'Copy MPT key'}
+                      >
+                        {copiedMptKey ? (
+                          <CheckCircle2 className="w-3.5 h-3.5 text-green-600" />
+                        ) : (
+                          <Copy className="w-3.5 h-3.5 text-gray-500" />
+                        )}
+                      </button>
+                    </div>
+                    <p className="font-mono text-xs break-all">{l2MptKey}</p>
+                  </div>
+                )}
               </div>
             )}
           </div>
