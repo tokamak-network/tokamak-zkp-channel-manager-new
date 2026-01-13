@@ -75,7 +75,10 @@ export function usePreviousStateSnapshot({
       }
 
       // Step 3: Fetch initial state from on-chain (first transfer simulation)
-      const channelIdNum = Number(channelId);
+      // channelId is now bytes32 (0x... string), not a number
+      const channelIdBytes32 = channelId.startsWith("0x")
+        ? (channelId as `0x${string}`)
+        : (`0x${channelId}` as `0x${string}`);
 
       // Get channel info and participants using readContract
       const [channelInfo, participants] = await Promise.all([
@@ -83,13 +86,13 @@ export function usePreviousStateSnapshot({
           address: bridgeCoreAddress,
           abi: bridgeCoreAbi,
           functionName: "getChannelInfo",
-          args: [BigInt(channelIdNum)],
+          args: [channelIdBytes32],
         }) as Promise<readonly [`0x${string}`, number, bigint, `0x${string}`]>,
         readContract(config, {
           address: bridgeCoreAddress,
           abi: bridgeCoreAbi,
           functionName: "getChannelParticipants",
-          args: [BigInt(channelIdNum)],
+          args: [channelIdBytes32],
         }) as Promise<readonly `0x${string}`[]>,
       ]);
 
@@ -160,13 +163,13 @@ export function usePreviousStateSnapshot({
               address: bridgeCoreAddress,
               abi: bridgeCoreAbi,
               functionName: "getL2MptKey",
-              args: [BigInt(channelIdNum), participant],
+              args: [channelIdBytes32, participant],
             }) as Promise<bigint>,
             readContract(config, {
               address: bridgeCoreAddress,
               abi: bridgeCoreAbi,
               functionName: "getParticipantDeposit",
-              args: [BigInt(channelIdNum), participant],
+              args: [channelIdBytes32, participant],
             }) as Promise<bigint>,
           ])
         );
@@ -185,8 +188,11 @@ export function usePreviousStateSnapshot({
         });
       }
 
+      // StateSnapshot expects channelId as number, but we're using bytes32 now
+      // For compatibility, we'll use 0 as a placeholder since channelId is bytes32
+      // The actual channelId is tracked separately in the application
       const snapshot: StateSnapshot = {
-        channelId: channelIdNum,
+        channelId: 0, // Placeholder - channelId is now bytes32, not a number
         stateRoot: initialRoot,
         registeredKeys,
         storageEntries,
