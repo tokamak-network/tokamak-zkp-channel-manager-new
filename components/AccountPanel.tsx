@@ -1,27 +1,37 @@
 /**
  * Account Panel Component
- * 
+ *
  * Displays wallet connection status and account information
  */
 
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useAccount, useConnect, useDisconnect, useBalance, useChainId, useSignMessage } from 'wagmi';
-import { sepolia, mainnet } from 'wagmi/chains';
-import { Button, Input, Label } from '@tokamak/ui';
-import { Card, CardContent, CardHeader } from '@tokamak/ui';
-import { formatAddress, formatBalance } from '@/lib/utils/format';
-import { deriveL2KeysAndAddressFromSignature } from '@/lib/tokamakl2js';
-import { L2_PRV_KEY_MESSAGE } from '@/lib/l2KeyMessage';
-import { isValidBytes32 } from '@/lib/channelId';
-import { LoadingSpinner } from '@/components/LoadingSpinner';
-import { Copy, CheckCircle2, AlertCircle } from 'lucide-react';
+import { useState } from "react";
+import {
+  useAccount,
+  useConnect,
+  useDisconnect,
+  useBalance,
+  useChainId,
+  useSignMessage,
+} from "wagmi";
+import { sepolia, mainnet } from "wagmi/chains";
+import { Button, Input, Label } from "@tokamak/ui";
+import { Card, CardContent, CardHeader } from "@tokamak/ui";
+import { formatAddress, formatBalance } from "@/lib/utils/format";
+import { isValidBytes32 } from "@/lib/channelId";
+import { useGenerateMptKey } from "@/hooks/useGenerateMptKey";
+import { LoadingSpinner } from "@/components/LoadingSpinner";
+import { Copy, CheckCircle2, AlertCircle } from "lucide-react";
 
 /**
  * Copy Address Button Component
  */
-function CopyAddressButton({ address }: { address: `0x${string}` | undefined }) {
+function CopyAddressButton({
+  address,
+}: {
+  address: `0x${string}` | undefined;
+}) {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
@@ -32,7 +42,7 @@ function CopyAddressButton({ address }: { address: `0x${string}` | undefined }) 
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
-      console.error('Failed to copy address:', err);
+      console.error("Failed to copy address:", err);
     }
   };
 
@@ -40,7 +50,7 @@ function CopyAddressButton({ address }: { address: `0x${string}` | undefined }) 
     <button
       onClick={handleCopy}
       className="p-1.5 hover:bg-gray-100 rounded transition-colors"
-      title={copied ? 'Copied!' : 'Copy address'}
+      title={copied ? "Copied!" : "Copy address"}
     >
       {copied ? (
         <svg
@@ -87,17 +97,27 @@ export function AccountPanel() {
   });
 
   // L2 Address calculation state
-  const [channelId, setChannelId] = useState('');
-  const [l2Address, setL2Address] = useState<`0x${string}` | null>(null);
-  const [l2MptKey, setL2MptKey] = useState<`0x${string}` | null>(null);
-  const [isComputing, setIsComputing] = useState(false);
-  const [l2Error, setL2Error] = useState<string | null>(null);
+  const [channelId, setChannelId] = useState("");
   const [copied, setCopied] = useState(false);
   const [copiedMptKey, setCopiedMptKey] = useState(false);
 
+  // Use common hook for L2 address and MPT key generation
+  const {
+    generate,
+    isGenerating: isComputing,
+    error: l2Error,
+    accountInfo,
+  } = useGenerateMptKey({
+    channelId: channelId || null,
+    slotIndex: 0,
+  });
+
+  const l2Address = accountInfo?.l2Address || null;
+  const l2MptKey = accountInfo?.mptKey || null;
+
   const handleConnect = () => {
     // Try to connect with injected connector first
-    const injected = connectors.find(c => c.id === 'injected');
+    const injected = connectors.find((c) => c.id === "injected");
     if (injected) {
       connect({ connector: injected });
     } else if (connectors[0]) {
@@ -110,60 +130,15 @@ export function AccountPanel() {
   };
 
   const computeL2Address = async () => {
-    if (!isConnected || !address) {
-      setL2Error("Please connect your wallet first");
-      return;
-    }
-
-    if (!signMessageAsync) {
-      setL2Error("Wallet signing not available. Please reconnect your wallet.");
-      return;
-    }
-
     if (!channelId || channelId.trim() === "") {
-      setL2Error("Please enter a channel ID");
       return;
     }
 
     if (!isValidBytes32(channelId)) {
-      setL2Error("Invalid channel ID format. Must be bytes32 (0x + 64 hex characters)");
       return;
     }
 
-    setIsComputing(true);
-    setL2Error(null);
-    setL2Address(null);
-    setL2MptKey(null);
-
-    try {
-      const message = L2_PRV_KEY_MESSAGE + channelId;
-      const signature = await signMessageAsync({ message });
-      const accountL2 = deriveL2KeysAndAddressFromSignature(signature, 0); // slotIndex fixed to 0
-      setL2Address(accountL2.l2Address);
-      setL2MptKey(accountL2.mptKey);
-      setL2Error(null);
-    } catch (err) {
-      if (err instanceof Error) {
-        if (err.message.includes("User rejected") || err.message.includes("rejected")) {
-          setL2Error("Signature cancelled by user");
-        } else if (
-          err.message.includes("ConnectorNotFoundError") ||
-          err.message.includes("Connector not found")
-        ) {
-          setL2Error("Wallet connection lost. Please disconnect and reconnect your wallet.");
-        } else if (err.message.includes("ChainMismatchError")) {
-          setL2Error("Wrong network. Please switch to the correct network.");
-        } else {
-          setL2Error(`Error: ${err.message}`);
-        }
-      } else {
-        setL2Error("Failed to compute L2 address. Please try again.");
-      }
-      setL2Address(null);
-      setL2MptKey(null);
-    } finally {
-      setIsComputing(false);
-    }
+    await generate();
   };
 
   const handleCopyL2Address = async () => {
@@ -174,7 +149,7 @@ export function AccountPanel() {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
-      console.error('Failed to copy L2 address:', err);
+      console.error("Failed to copy L2 address:", err);
     }
   };
 
@@ -186,7 +161,7 @@ export function AccountPanel() {
       setCopiedMptKey(true);
       setTimeout(() => setCopiedMptKey(false), 2000);
     } catch (err) {
-      console.error('Failed to copy MPT key:', err);
+      console.error("Failed to copy MPT key:", err);
     }
   };
 
@@ -205,7 +180,7 @@ export function AccountPanel() {
             disabled={isPending}
             className="w-full"
           >
-            {isPending ? 'Connecting...' : 'Connect Wallet'}
+            {isPending ? "Connecting..." : "Connect Wallet"}
           </Button>
           <div className="text-xs text-[var(--muted-foreground)] space-y-1">
             <p>Available connectors:</p>
@@ -225,11 +200,7 @@ export function AccountPanel() {
       <CardHeader>
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-semibold">Account</h3>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleDisconnect}
-          >
+          <Button variant="outline" size="sm" onClick={handleDisconnect}>
             Disconnect
           </Button>
         </div>
@@ -241,13 +212,17 @@ export function AccountPanel() {
             <p className="text-xs text-[var(--muted-foreground)]">Address</p>
             <CopyAddressButton address={address} />
           </div>
-          <p className="font-mono text-sm break-all">{formatAddress(address)}</p>
+          <p className="font-mono text-sm break-all">
+            {formatAddress(address)}
+          </p>
         </div>
 
         {/* Balance */}
         {balance && (
           <div>
-            <p className="text-xs text-[var(--muted-foreground)] mb-1">Balance</p>
+            <p className="text-xs text-[var(--muted-foreground)] mb-1">
+              Balance
+            </p>
             <p className="text-sm font-semibold">
               {formatBalance(balance.value, balance.decimals)} {balance.symbol}
             </p>
@@ -259,7 +234,7 @@ export function AccountPanel() {
           <p className="text-xs text-[var(--muted-foreground)] mb-1">Network</p>
           <div className="flex items-center gap-2">
             <p className="text-sm font-semibold">
-              {chains.find(c => c.id === chainId)?.name || `Chain ${chainId}`}
+              {chains.find((c) => c.id === chainId)?.name || `Chain ${chainId}`}
             </p>
           </div>
         </div>
@@ -283,15 +258,14 @@ export function AccountPanel() {
                 value={channelId}
                 onChange={(e) => {
                   setChannelId(e.target.value);
-                  setL2Error(null);
-                  setL2Address(null);
-                  setL2MptKey(null);
                 }}
                 className="font-mono text-sm"
               />
               <Button
                 onClick={computeL2Address}
-                disabled={isComputing || !channelId || !isValidBytes32(channelId)}
+                disabled={
+                  isComputing || !channelId || !isValidBytes32(channelId)
+                }
                 variant="outline"
                 size="sm"
                 className="w-full"
@@ -320,11 +294,13 @@ export function AccountPanel() {
               <div className="p-3 bg-gray-50 border border-gray-200 rounded space-y-3">
                 <div>
                   <div className="flex items-center justify-between mb-1">
-                    <p className="text-xs text-[var(--muted-foreground)]">L2 Address</p>
+                    <p className="text-xs text-[var(--muted-foreground)]">
+                      L2 Address
+                    </p>
                     <button
                       onClick={handleCopyL2Address}
                       className="p-1 hover:bg-gray-200 rounded transition-colors"
-                      title={copied ? 'Copied!' : 'Copy L2 address'}
+                      title={copied ? "Copied!" : "Copy L2 address"}
                     >
                       {copied ? (
                         <CheckCircle2 className="w-3.5 h-3.5 text-green-600" />
@@ -335,15 +311,17 @@ export function AccountPanel() {
                   </div>
                   <p className="font-mono text-xs break-all">{l2Address}</p>
                 </div>
-                
+
                 {l2MptKey && (
                   <div className="pt-2 border-t border-gray-300">
                     <div className="flex items-center justify-between mb-1">
-                      <p className="text-xs text-[var(--muted-foreground)]">MPT Key</p>
+                      <p className="text-xs text-[var(--muted-foreground)]">
+                        MPT Key
+                      </p>
                       <button
                         onClick={handleCopyMptKey}
                         className="p-1 hover:bg-gray-200 rounded transition-colors"
-                        title={copiedMptKey ? 'Copied!' : 'Copy MPT key'}
+                        title={copiedMptKey ? "Copied!" : "Copy MPT key"}
                       >
                         {copiedMptKey ? (
                           <CheckCircle2 className="w-3.5 h-3.5 text-green-600" />
@@ -363,4 +341,3 @@ export function AccountPanel() {
     </Card>
   );
 }
-

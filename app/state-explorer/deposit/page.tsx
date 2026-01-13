@@ -11,7 +11,8 @@ import { useState, useEffect, useMemo } from "react";
 import { Button, Input, Label, Card, CardContent } from "@tokamak/ui";
 import { useChannelFlowStore } from "@/stores/useChannelFlowStore";
 import { useDepositStore } from "@/stores/useDepositStore";
-import { useApprove, useDeposit, useGenerateMptKey } from "./_hooks";
+import { useApprove, useDeposit } from "./_hooks";
+import { useGenerateMptKey } from "@/hooks/useGenerateMptKey";
 import { useChannelInfo } from "@/hooks/useChannelInfo";
 import { useTokenBalance } from "@/hooks/useTokenBalance";
 import { FIXED_TARGET_CONTRACT } from "@tokamak/config";
@@ -37,7 +38,7 @@ export function DepositPage() {
   }, [currentChannelId, setCurrentUserMPTKey]);
 
   // Get channel info to get target token address and decimals
-  const { data: channelInfo } = useChannelInfo(
+  const channelInfo = useChannelInfo(
     currentChannelId ? (currentChannelId as `0x${string}`) : null
   );
   const tokenAddress = channelInfo?.targetContract || FIXED_TARGET_CONTRACT;
@@ -50,7 +51,11 @@ export function DepositPage() {
   });
   
   // Use the MPT key generation hook
-  const { generateMPTKey, isGenerating, error: mptKeyError } = useGenerateMptKey();
+  const { generate, isGenerating, error: mptKeyError } = useGenerateMptKey({
+    channelId: currentChannelId,
+    slotIndex: 0,
+    onMptKeyGenerated: setCurrentUserMPTKey,
+  });
 
   // Determine if deposit amount exceeds user's balance
   const isInsufficientBalance = useMemo(() => {
@@ -94,9 +99,9 @@ export function DepositPage() {
 
 
   const handleGenerateKey = async () => {
-    const mptKey = await generateMPTKey();
-    if (mptKey) {
-      console.log("✅ MPT Key generated successfully:", mptKey);
+    const accountInfo = await generate();
+    if (accountInfo) {
+      console.log("✅ MPT Key generated successfully:", accountInfo.mptKey);
     }
   };
 

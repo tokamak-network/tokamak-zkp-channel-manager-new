@@ -7,11 +7,10 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Button, Input, Label, Card, CardContent } from "@tokamak/ui";
-import { useChannelFlowStore } from "@/stores/useChannelFlowStore";
 import { useDepositStore } from "@/stores/useDepositStore";
-import { useGenerateMptKey } from "@/app/state-explorer/deposit/_hooks/useGenerateMptKey";
+import { useGenerateMptKey } from "@/hooks/useGenerateMptKey";
 
 interface DepositSectionProps {
   channelId: string;
@@ -21,24 +20,20 @@ export function DepositSection({ channelId }: DepositSectionProps) {
   const [depositAmount, setDepositAmount] = useState("");
   const [isDepositing, setIsDepositing] = useState(false);
   
-  // Set channelId in store for useGenerateMptKey hook
-  const { setChannelId } = useChannelFlowStore();
   const currentUserMPTKey = useDepositStore((state) => state.currentUserMPTKey);
+  const setCurrentUserMPTKey = useDepositStore((state) => state.setCurrentUserMPTKey);
   
   // Use the MPT key generation hook
-  const { generateMPTKey, isGenerating, error: mptKeyError } = useGenerateMptKey();
-
-  // Set channel ID in store when component mounts
-  useEffect(() => {
-    if (channelId) {
-      setChannelId(BigInt(channelId));
-    }
-  }, [channelId, setChannelId]);
+  const { generate, isGenerating, error: mptKeyError } = useGenerateMptKey({
+    channelId: channelId || null,
+    slotIndex: 0,
+    onMptKeyGenerated: setCurrentUserMPTKey,
+  });
 
   const handleGenerateKey = async () => {
-    const mptKey = await generateMPTKey();
-    if (mptKey) {
-      console.log("✅ MPT Key generated successfully:", mptKey);
+    const accountInfo = await generate();
+    if (accountInfo) {
+      console.log("✅ MPT Key generated successfully:", accountInfo.mptKey);
     }
   };
 

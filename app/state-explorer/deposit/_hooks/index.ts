@@ -4,4 +4,4 @@
 
 export { useApprove } from "./useApprove";
 export { useDeposit } from "./useDeposit";
-export { useGenerateMptKey } from "./useGenerateMptKey";
+// useGenerateMptKey is now in hooks/useGenerateMptKey.ts (common hook)

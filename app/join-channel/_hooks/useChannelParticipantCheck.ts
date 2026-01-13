@@ -133,7 +133,7 @@ export function useChannelParticipantCheck(
   const isParticipantFromArray = useMemo(() => {
     if (!address || !participantsArray) return undefined;
     if (!Array.isArray(participantsArray)) return false;
-    
+
     // Check if address (case-insensitive) is in participants array
     return participantsArray.some(
       (participant) =>

@@ -24,7 +24,7 @@ import {
 } from "@tokamak/ui";
 import { ChannelSelector } from "./ChannelSelector";
 import type { Channel } from "@/lib/db";
-import { useGenerateMptKey } from "@/app/state-explorer/deposit/_hooks/useGenerateMptKey";
+import { useGenerateMptKey } from "@/hooks/useGenerateMptKey";
 import { useDeposit } from "../_hooks/useDeposit";
 import { FIXED_TARGET_CONTRACT } from "@tokamak/config";
 import { useBridgeDepositManagerAddress } from "@/hooks/contract";
@@ -56,12 +56,27 @@ function DepositFormContent() {
   const [mptKey, setMptKey] = useState("");
   const [depositAmount, setDepositAmount] = useState("");
 
+  // Convert bigint channelId to bytes32 string for the hook
+  const channelIdBytes32 = useMemo(() => {
+    if (!channelId) return null;
+    // Convert bigint to hex string and pad to 64 characters (32 bytes)
+    const hex = channelId.toString(16);
+    return `0x${hex.padStart(64, "0")}` as `0x${string}`;
+  }, [channelId]);
+
   // MPT Key generation hook
   const {
-    generateMPTKey: generateMPTKeyHook,
+    generate: generateMPTKeyHook,
     isGenerating: isGeneratingMPTKey,
     error: mptKeyError,
-  } = useGenerateMptKey();
+  } = useGenerateMptKey({
+    channelId: channelIdBytes32,
+    slotIndex: 0,
+    onMptKeyGenerated: (mptKey) => {
+      setMptKey(mptKey);
+      setCurrentUserMPTKey(mptKey);
+    },
+  });
 
   // Get token address (from blockchain channel info or fallback to FIXED_TARGET_CONTRACT)
   const tokenAddress = useMemo(() => {
@@ -162,9 +177,10 @@ function DepositFormContent() {
 
   // Generate MPT Key handler
   const handleGenerateMPTKey = useCallback(async () => {
-    const generatedKey = await generateMPTKeyHook();
-    if (generatedKey) {
-      setMptKey(generatedKey);
+    const accountInfo = await generateMPTKeyHook();
+    if (accountInfo) {
+      setMptKey(accountInfo.mptKey);
+      setCurrentUserMPTKey(accountInfo.mptKey);
     }
   }, [generateMPTKeyHook]);
 
