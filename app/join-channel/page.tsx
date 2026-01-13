@@ -11,6 +11,8 @@ import { useRouter } from "next/navigation";
 import { useAccount } from "wagmi";
 import { Button, Input, Label, Card, CardContent, CardHeader } from "@tokamak/ui";
 import { useChannelFlowStore } from "@/stores/useChannelFlowStore";
+import { recoverChannelId } from "@/lib/channelId";
+import { type Address } from "viem";
 
 export default function JoinChannelPage() {
   const router = useRouter();
@@ -19,6 +21,13 @@ export default function JoinChannelPage() {
   const [channelId, setChannelId] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isChecking, setIsChecking] = useState(false);
+  
+  // Channel ID recovery state
+  const [showRecovery, setShowRecovery] = useState(false);
+  const [leaderAddress, setLeaderAddress] = useState("");
+  const [salt, setSalt] = useState("");
+  const [recoveredChannelId, setRecoveredChannelId] = useState<`0x${string}` | null>(null);
+  const [recoveryError, setRecoveryError] = useState<string | null>(null);
 
   // Pre-fill with stored channel ID if available
   useEffect(() => {

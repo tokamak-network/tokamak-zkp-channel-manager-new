@@ -18,6 +18,7 @@ import {
 } from "@tokamak/ui";
 import { TransactionConfirmModal } from "./TransactionConfirmModal";
 import { useCreateChannel } from "../_hooks/useCreateChannel";
+import { useChannelId } from "../_hooks/useChannelId";
 
 export function CreateChannelForm() {
   const { isConnected } = useAccount();
@@ -35,6 +36,18 @@ export function CreateChannelForm() {
   // Initialize participant count from store
   const MAX_PARTICIPANTS = 128;
 
+  // Use channel ID generation hook
+  const {
+    salt,
+    setSalt,
+    generatedChannelId,
+    leaderAddress,
+    generateChannelId,
+    resetChannelId,
+  } = useChannelId({ participants });
+
+  const [channelIdError, setChannelIdError] = useState<string | null>(null);
+
   // Use create channel hook
   const {
     createChannel,
@@ -48,6 +61,7 @@ export function CreateChannelForm() {
     participants,
     isValid,
     isConnected,
+    channelId: generatedChannelId,
   });
 
   // Initialize participants on mount - always start with one empty field
@@ -64,6 +78,17 @@ export function CreateChannelForm() {
       setShowConfirmModal(true);
     }
   }, [createdChannelId]);
+
+  const handleGenerateChannelId = () => {
+    try {
+      setChannelIdError(null);
+      generateChannelId();
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Failed to generate channel ID";
+      setChannelIdError(errorMessage);
+    }
+  };
 
   const handleCreateChannel = async () => {
     await createChannel();
@@ -162,6 +187,53 @@ export function CreateChannelForm() {
           </p>
         </div>
 
+        {/* Channel ID */}
+        <div>
+          <Label className="mb-3 block">Channel ID</Label>
+          <div className="flex gap-2">
+            <Input
+              value={generatedChannelId || ""}
+              placeholder="Generate your Channel ID"
+              readOnly
+              className="flex-1 font-mono text-sm"
+            />
+            <Button
+              onClick={handleGenerateChannelId}
+              disabled={!leaderAddress || !!generatedChannelId}
+              variant="outline"
+            >
+              Generate
+            </Button>
+          </div>
+          {channelIdError && (
+            <p className="text-sm text-red-500 mt-1">{channelIdError}</p>
+          )}
+          {!channelIdError && (
+            <div className="mt-2 space-y-2">
+              <div>
+                <Label className="text-xs text-gray-500">Salt (Optional)</Label>
+                <Input
+                  value={salt}
+                  onChange={(e) => setSalt(e.target.value)}
+                  placeholder="Enter custom salt or leave empty for auto-generation"
+                  className="mt-1 text-sm"
+                  disabled={!!generatedChannelId}
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  {generatedChannelId
+                    ? "Channel ID generated. Remember the salt to recover your channel ID later."
+                    : "Custom salt helps you recover your channel ID. Leave empty to auto-generate."}
+                </p>
+              </div>
+              {leaderAddress && (
+                <p className="text-xs text-gray-500">
+                  Leader: {leaderAddress.slice(0, 6)}...{leaderAddress.slice(-4)}
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+
         {/* Number of Participants - Auto-counted */}
         <div>
           <Label className="mb-2 block">Number of Participants</Label>
@@ -249,6 +321,7 @@ export function CreateChannelForm() {
         <Button
           onClick={handleCreateChannel}
           disabled={
+            !generatedChannelId ||
             validAddressCount < 2 ||
             validAddressCount > MAX_PARTICIPANTS ||
             isCreating ||

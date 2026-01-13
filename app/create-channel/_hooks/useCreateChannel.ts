@@ -18,12 +18,14 @@ interface UseCreateChannelParams {
   participants: Array<{ address: `0x${string}` }>;
   isValid: () => boolean;
   isConnected: boolean;
+  channelId: `0x${string}` | null;
 }
 
 export function useCreateChannel({
   participants,
   isValid,
   isConnected,
+  channelId,
 }: UseCreateChannelParams) {
   const [isCreating, setIsCreating] = useState(false);
   const [isConfirming, setIsConfirming] = useState(false);
@@ -186,12 +188,18 @@ export function useCreateChannel({
       return;
     }
 
+    if (!channelId) {
+      setError("Please generate a channel ID first");
+      return;
+    }
+
     try {
       setError(null);
       setIsCreating(true);
       setCreatedChannelId(null);
 
       const channelParams = {
+        channelId: channelId,
         targetContract: FIXED_TARGET_CONTRACT,
         whitelisted: validParticipants.map((p) => p.address),
         enableFrostSignature: false,
@@ -207,7 +215,7 @@ export function useCreateChannel({
       setError(errorMessage);
       setIsCreating(false);
     }
-  }, [isConnected, participants, writeContract]);
+  }, [isConnected, participants, channelId, writeContract]);
 
   // Reset function
   const reset = useCallback(() => {

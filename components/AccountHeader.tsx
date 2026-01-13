@@ -8,21 +8,27 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useAccount, useChainId } from "wagmi";
 import { sepolia, mainnet } from "wagmi/chains";
 import { formatAddress } from "@/lib/utils/format";
 import { AccountPanel } from "./AccountPanel";
 
 export function AccountHeader() {
+  const router = useRouter();
   const { address, isConnected } = useAccount();
   const chainId = useChainId();
   const chains = [sepolia, mainnet];
   const [isPanelOpen, setIsPanelOpen] = useState(false);
 
+  const handleGoHome = () => {
+    router.push("/");
+  };
+
   return (
     <>
       {/* Header with Account Info - Clickable */}
-      <div className="absolute top-8 right-8 z-30">
+      <div className="absolute top-8 right-8 z-30 flex flex-col gap-2">
         <button
           onClick={() => setIsPanelOpen(!isPanelOpen)}
           className="flex items-center gap-4 px-4 py-2 bg-white/80 backdrop-blur-sm rounded-lg border border-gray-200 hover:bg-white hover:shadow-md transition-all cursor-pointer"
@@ -44,6 +50,27 @@ export function AccountHeader() {
           ) : (
             <p className="text-sm text-gray-500">Not connected</p>
           )}
+        </button>
+
+        {/* Home Button */}
+        <button
+          onClick={handleGoHome}
+          className="flex items-center justify-center gap-2 px-4 py-2 bg-white/80 backdrop-blur-sm rounded-lg border border-gray-200 hover:bg-white hover:shadow-md transition-all cursor-pointer"
+        >
+          <svg
+            className="w-4 h-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
+            />
+          </svg>
+          <span className="text-sm font-medium">Home</span>
         </button>
       </div>
 

@@ -1,3898 +1,3902 @@
 /**
  * Contract ABIs
- * 
+ *
  * Auto-generated from Tokamak-zk-EVM-contracts repository
  * DO NOT EDIT MANUALLY - This file is auto-generated
  */
 
-import type { Abi } from 'viem';
+import type { Abi } from "viem";
 
 export const BRIDGEADMINMANAGER_ABI = [
   {
-    "type": "constructor",
-    "inputs": [],
-    "stateMutability": "nonpayable"
+    type: "constructor",
+    inputs: [],
+    stateMutability: "nonpayable",
   },
   {
-    "type": "function",
-    "name": "bridge",
-    "inputs": [],
-    "outputs": [
+    type: "function",
+    name: "bridge",
+    inputs: [],
+    outputs: [
       {
-        "name": "",
-        "type": "address",
-        "internalType": "contract IBridgeCore"
-      }
+        name: "",
+        type: "address",
+        internalType: "contract IBridgeCore",
+      },
     ],
-    "stateMutability": "view"
+    stateMutability: "view",
   },
   {
-    "type": "function",
-    "name": "getImplementation",
-    "inputs": [],
-    "outputs": [
+    type: "function",
+    name: "getImplementation",
+    inputs: [],
+    outputs: [
       {
-        "name": "implementation",
-        "type": "address",
-        "internalType": "address"
-      }
+        name: "implementation",
+        type: "address",
+        internalType: "address",
+      },
     ],
-    "stateMutability": "view"
+    stateMutability: "view",
   },
   {
-    "type": "function",
-    "name": "getPreAllocatedLeaf",
-    "inputs": [
+    type: "function",
+    name: "getPreAllocatedLeaf",
+    inputs: [
       {
-        "name": "targetContract",
-        "type": "address",
-        "internalType": "address"
+        name: "targetContract",
+        type: "address",
+        internalType: "address",
       },
       {
-        "name": "key",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      }
+        name: "key",
+        type: "bytes32",
+        internalType: "bytes32",
+      },
     ],
-    "outputs": [
+    outputs: [
       {
-        "name": "value",
-        "type": "uint256",
-        "internalType": "uint256"
+        name: "value",
+        type: "uint256",
+        internalType: "uint256",
       },
       {
-        "name": "exists",
-        "type": "bool",
-        "internalType": "bool"
-      }
+        name: "exists",
+        type: "bool",
+        internalType: "bool",
+      },
     ],
-    "stateMutability": "view"
+    stateMutability: "view",
   },
   {
-    "type": "function",
-    "name": "getRegisteredFunction",
-    "inputs": [
+    type: "function",
+    name: "getRegisteredFunction",
+    inputs: [
       {
-        "name": "targetContract",
-        "type": "address",
-        "internalType": "address"
+        name: "targetContract",
+        type: "address",
+        internalType: "address",
       },
       {
-        "name": "functionSignature",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      }
+        name: "functionSignature",
+        type: "bytes32",
+        internalType: "bytes32",
+      },
     ],
-    "outputs": [
+    outputs: [
       {
-        "name": "",
-        "type": "tuple",
-        "internalType": "struct IBridgeCore.RegisteredFunction",
-        "components": [
+        name: "",
+        type: "tuple",
+        internalType: "struct IBridgeCore.RegisteredFunction",
+        components: [
           {
-            "name": "functionSignature",
-            "type": "bytes32",
-            "internalType": "bytes32"
+            name: "functionSignature",
+            type: "bytes32",
+            internalType: "bytes32",
           },
           {
-            "name": "instancesHash",
-            "type": "bytes32",
-            "internalType": "bytes32"
+            name: "instancesHash",
+            type: "bytes32",
+            internalType: "bytes32",
           },
           {
-            "name": "preprocessedPart1",
-            "type": "uint128[]",
-            "internalType": "uint128[]"
+            name: "preprocessedPart1",
+            type: "uint128[]",
+            internalType: "uint128[]",
           },
           {
-            "name": "preprocessedPart2",
-            "type": "uint256[]",
-            "internalType": "uint256[]"
-          }
-        ]
-      }
+            name: "preprocessedPart2",
+            type: "uint256[]",
+            internalType: "uint256[]",
+          },
+        ],
+      },
     ],
-    "stateMutability": "view"
+    stateMutability: "view",
   },
   {
-    "type": "function",
-    "name": "getTargetContractData",
-    "inputs": [
+    type: "function",
+    name: "getTargetContractData",
+    inputs: [
       {
-        "name": "targetContract",
-        "type": "address",
-        "internalType": "address"
-      }
+        name: "targetContract",
+        type: "address",
+        internalType: "address",
+      },
     ],
-    "outputs": [
+    outputs: [
       {
-        "name": "",
-        "type": "tuple",
-        "internalType": "struct IBridgeCore.TargetContract",
-        "components": [
+        name: "",
+        type: "tuple",
+        internalType: "struct IBridgeCore.TargetContract",
+        components: [
           {
-            "name": "storageSlot",
-            "type": "tuple[]",
-            "internalType": "struct IBridgeCore.PreAllocatedLeaf[]",
-            "components": [
+            name: "storageSlot",
+            type: "tuple[]",
+            internalType: "struct IBridgeCore.PreAllocatedLeaf[]",
+            components: [
               {
-                "name": "value",
-                "type": "uint256",
-                "internalType": "uint256"
+                name: "value",
+                type: "uint256",
+                internalType: "uint256",
               },
               {
-                "name": "key",
-                "type": "bytes32",
-                "internalType": "bytes32"
+                name: "key",
+                type: "bytes32",
+                internalType: "bytes32",
               },
               {
-                "name": "isActive",
-                "type": "bool",
-                "internalType": "bool"
-              }
-            ]
+                name: "isActive",
+                type: "bool",
+                internalType: "bool",
+              },
+            ],
           },
           {
-            "name": "registeredFunctions",
-            "type": "tuple[]",
-            "internalType": "struct IBridgeCore.RegisteredFunction[]",
-            "components": [
+            name: "registeredFunctions",
+            type: "tuple[]",
+            internalType: "struct IBridgeCore.RegisteredFunction[]",
+            components: [
               {
-                "name": "functionSignature",
-                "type": "bytes32",
-                "internalType": "bytes32"
+                name: "functionSignature",
+                type: "bytes32",
+                internalType: "bytes32",
               },
               {
-                "name": "instancesHash",
-                "type": "bytes32",
-                "internalType": "bytes32"
+                name: "instancesHash",
+                type: "bytes32",
+                internalType: "bytes32",
               },
               {
-                "name": "preprocessedPart1",
-                "type": "uint128[]",
-                "internalType": "uint128[]"
+                name: "preprocessedPart1",
+                type: "uint128[]",
+                internalType: "uint128[]",
               },
               {
-                "name": "preprocessedPart2",
-                "type": "uint256[]",
-                "internalType": "uint256[]"
-              }
-            ]
-          }
-        ]
-      }
+                name: "preprocessedPart2",
+                type: "uint256[]",
+                internalType: "uint256[]",
+              },
+            ],
+          },
+        ],
+      },
     ],
-    "stateMutability": "view"
+    stateMutability: "view",
   },
   {
-    "type": "function",
-    "name": "initialize",
-    "inputs": [
+    type: "function",
+    name: "initialize",
+    inputs: [
       {
-        "name": "_bridgeCore",
-        "type": "address",
-        "internalType": "address"
+        name: "_bridgeCore",
+        type: "address",
+        internalType: "address",
       },
       {
-        "name": "_owner",
-        "type": "address",
-        "internalType": "address"
-      }
+        name: "_owner",
+        type: "address",
+        internalType: "address",
+      },
     ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
+    outputs: [],
+    stateMutability: "nonpayable",
   },
   {
-    "type": "function",
-    "name": "owner",
-    "inputs": [],
-    "outputs": [
+    type: "function",
+    name: "owner",
+    inputs: [],
+    outputs: [
       {
-        "name": "",
-        "type": "address",
-        "internalType": "address"
-      }
+        name: "",
+        type: "address",
+        internalType: "address",
+      },
     ],
-    "stateMutability": "view"
+    stateMutability: "view",
   },
   {
-    "type": "function",
-    "name": "proxiableUUID",
-    "inputs": [],
-    "outputs": [
+    type: "function",
+    name: "proxiableUUID",
+    inputs: [],
+    outputs: [
       {
-        "name": "",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      }
+        name: "",
+        type: "bytes32",
+        internalType: "bytes32",
+      },
     ],
-    "stateMutability": "view"
+    stateMutability: "view",
   },
   {
-    "type": "function",
-    "name": "registerFunction",
-    "inputs": [
+    type: "function",
+    name: "registerFunction",
+    inputs: [
       {
-        "name": "targetContract",
-        "type": "address",
-        "internalType": "address"
+        name: "targetContract",
+        type: "address",
+        internalType: "address",
       },
       {
-        "name": "functionSignature",
-        "type": "bytes32",
-        "internalType": "bytes32"
+        name: "functionSignature",
+        type: "bytes32",
+        internalType: "bytes32",
       },
       {
-        "name": "preprocessedPart1",
-        "type": "uint128[]",
-        "internalType": "uint128[]"
+        name: "preprocessedPart1",
+        type: "uint128[]",
+        internalType: "uint128[]",
       },
       {
-        "name": "preprocessedPart2",
-        "type": "uint256[]",
-        "internalType": "uint256[]"
+        name: "preprocessedPart2",
+        type: "uint256[]",
+        internalType: "uint256[]",
       },
       {
-        "name": "instancesHash",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      }
+        name: "instancesHash",
+        type: "bytes32",
+        internalType: "bytes32",
+      },
     ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
+    outputs: [],
+    stateMutability: "nonpayable",
   },
   {
-    "type": "function",
-    "name": "removePreAllocatedLeaf",
-    "inputs": [
+    type: "function",
+    name: "removePreAllocatedLeaf",
+    inputs: [
       {
-        "name": "targetContract",
-        "type": "address",
-        "internalType": "address"
+        name: "targetContract",
+        type: "address",
+        internalType: "address",
       },
       {
-        "name": "key",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      }
+        name: "key",
+        type: "bytes32",
+        internalType: "bytes32",
+      },
     ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
+    outputs: [],
+    stateMutability: "nonpayable",
   },
   {
-    "type": "function",
-    "name": "renounceOwnership",
-    "inputs": [],
-    "outputs": [],
-    "stateMutability": "nonpayable"
+    type: "function",
+    name: "renounceOwnership",
+    inputs: [],
+    outputs: [],
+    stateMutability: "nonpayable",
   },
   {
-    "type": "function",
-    "name": "setAllowedTargetContract",
-    "inputs": [
+    type: "function",
+    name: "setAllowedTargetContract",
+    inputs: [
       {
-        "name": "targetContract",
-        "type": "address",
-        "internalType": "address"
+        name: "targetContract",
+        type: "address",
+        internalType: "address",
       },
       {
-        "name": "storageSlots",
-        "type": "tuple[]",
-        "internalType": "struct IBridgeCore.PreAllocatedLeaf[]",
-        "components": [
+        name: "storageSlots",
+        type: "tuple[]",
+        internalType: "struct IBridgeCore.PreAllocatedLeaf[]",
+        components: [
           {
-            "name": "value",
-            "type": "uint256",
-            "internalType": "uint256"
+            name: "value",
+            type: "uint256",
+            internalType: "uint256",
           },
           {
-            "name": "key",
-            "type": "bytes32",
-            "internalType": "bytes32"
+            name: "key",
+            type: "bytes32",
+            internalType: "bytes32",
           },
           {
-            "name": "isActive",
-            "type": "bool",
-            "internalType": "bool"
-          }
-        ]
+            name: "isActive",
+            type: "bool",
+            internalType: "bool",
+          },
+        ],
       },
       {
-        "name": "allowed",
-        "type": "bool",
-        "internalType": "bool"
-      }
+        name: "allowed",
+        type: "bool",
+        internalType: "bool",
+      },
     ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
+    outputs: [],
+    stateMutability: "nonpayable",
   },
   {
-    "type": "function",
-    "name": "setPreAllocatedLeaf",
-    "inputs": [
+    type: "function",
+    name: "setPreAllocatedLeaf",
+    inputs: [
       {
-        "name": "targetContract",
-        "type": "address",
-        "internalType": "address"
+        name: "targetContract",
+        type: "address",
+        internalType: "address",
       },
       {
-        "name": "key",
-        "type": "bytes32",
-        "internalType": "bytes32"
+        name: "key",
+        type: "bytes32",
+        internalType: "bytes32",
       },
       {
-        "name": "value",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
+        name: "value",
+        type: "uint256",
+        internalType: "uint256",
+      },
     ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
+    outputs: [],
+    stateMutability: "nonpayable",
   },
   {
-    "type": "function",
-    "name": "setupTonTransferPreAllocatedLeaf",
-    "inputs": [
+    type: "function",
+    name: "setupTonTransferPreAllocatedLeaf",
+    inputs: [
       {
-        "name": "tonContractAddress",
-        "type": "address",
-        "internalType": "address"
-      }
+        name: "tonContractAddress",
+        type: "address",
+        internalType: "address",
+      },
     ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
+    outputs: [],
+    stateMutability: "nonpayable",
   },
   {
-    "type": "function",
-    "name": "transferOwnership",
-    "inputs": [
+    type: "function",
+    name: "transferOwnership",
+    inputs: [
       {
-        "name": "newOwner",
-        "type": "address",
-        "internalType": "address"
-      }
+        name: "newOwner",
+        type: "address",
+        internalType: "address",
+      },
     ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
+    outputs: [],
+    stateMutability: "nonpayable",
   },
   {
-    "type": "function",
-    "name": "unregisterFunction",
-    "inputs": [
+    type: "function",
+    name: "unregisterFunction",
+    inputs: [
       {
-        "name": "targetContract",
-        "type": "address",
-        "internalType": "address"
+        name: "targetContract",
+        type: "address",
+        internalType: "address",
       },
       {
-        "name": "functionSignature",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      }
+        name: "functionSignature",
+        type: "bytes32",
+        internalType: "bytes32",
+      },
     ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
+    outputs: [],
+    stateMutability: "nonpayable",
   },
   {
-    "type": "function",
-    "name": "updateBridge",
-    "inputs": [
+    type: "function",
+    name: "updateBridge",
+    inputs: [
       {
-        "name": "_newBridge",
-        "type": "address",
-        "internalType": "address"
-      }
+        name: "_newBridge",
+        type: "address",
+        internalType: "address",
+      },
     ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
+    outputs: [],
+    stateMutability: "nonpayable",
   },
   {
-    "type": "function",
-    "name": "upgradeTo",
-    "inputs": [
+    type: "function",
+    name: "upgradeTo",
+    inputs: [
       {
-        "name": "newImplementation",
-        "type": "address",
-        "internalType": "address"
-      }
+        name: "newImplementation",
+        type: "address",
+        internalType: "address",
+      },
     ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
+    outputs: [],
+    stateMutability: "nonpayable",
   },
   {
-    "type": "function",
-    "name": "upgradeToAndCall",
-    "inputs": [
+    type: "function",
+    name: "upgradeToAndCall",
+    inputs: [
       {
-        "name": "newImplementation",
-        "type": "address",
-        "internalType": "address"
+        name: "newImplementation",
+        type: "address",
+        internalType: "address",
       },
       {
-        "name": "data",
-        "type": "bytes",
-        "internalType": "bytes"
-      }
+        name: "data",
+        type: "bytes",
+        internalType: "bytes",
+      },
     ],
-    "outputs": [],
-    "stateMutability": "payable"
+    outputs: [],
+    stateMutability: "payable",
   },
   {
-    "type": "event",
-    "name": "AdminChanged",
-    "inputs": [
+    type: "event",
+    name: "AdminChanged",
+    inputs: [
       {
-        "name": "previousAdmin",
-        "type": "address",
-        "indexed": false,
-        "internalType": "address"
+        name: "previousAdmin",
+        type: "address",
+        indexed: false,
+        internalType: "address",
       },
       {
-        "name": "newAdmin",
-        "type": "address",
-        "indexed": false,
-        "internalType": "address"
-      }
+        name: "newAdmin",
+        type: "address",
+        indexed: false,
+        internalType: "address",
+      },
     ],
-    "anonymous": false
+    anonymous: false,
   },
   {
-    "type": "event",
-    "name": "BeaconUpgraded",
-    "inputs": [
+    type: "event",
+    name: "BeaconUpgraded",
+    inputs: [
       {
-        "name": "beacon",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      }
+        name: "beacon",
+        type: "address",
+        indexed: true,
+        internalType: "address",
+      },
     ],
-    "anonymous": false
+    anonymous: false,
   },
   {
-    "type": "event",
-    "name": "FunctionRegistered",
-    "inputs": [
+    type: "event",
+    name: "FunctionRegistered",
+    inputs: [
       {
-        "name": "functionSignature",
-        "type": "bytes32",
-        "indexed": true,
-        "internalType": "bytes32"
+        name: "functionSignature",
+        type: "bytes32",
+        indexed: true,
+        internalType: "bytes32",
       },
       {
-        "name": "preprocessedPart1Length",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
+        name: "preprocessedPart1Length",
+        type: "uint256",
+        indexed: false,
+        internalType: "uint256",
       },
       {
-        "name": "preprocessedPart2Length",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
+        name: "preprocessedPart2Length",
+        type: "uint256",
+        indexed: false,
+        internalType: "uint256",
       },
       {
-        "name": "instancesHash",
-        "type": "bytes32",
-        "indexed": false,
-        "internalType": "bytes32"
-      }
+        name: "instancesHash",
+        type: "bytes32",
+        indexed: false,
+        internalType: "bytes32",
+      },
     ],
-    "anonymous": false
+    anonymous: false,
   },
   {
-    "type": "event",
-    "name": "FunctionUnregistered",
-    "inputs": [
+    type: "event",
+    name: "FunctionUnregistered",
+    inputs: [
       {
-        "name": "functionSignature",
-        "type": "bytes32",
-        "indexed": true,
-        "internalType": "bytes32"
-      }
+        name: "functionSignature",
+        type: "bytes32",
+        indexed: true,
+        internalType: "bytes32",
+      },
     ],
-    "anonymous": false
+    anonymous: false,
   },
   {
-    "type": "event",
-    "name": "Initialized",
-    "inputs": [
+    type: "event",
+    name: "Initialized",
+    inputs: [
       {
-        "name": "version",
-        "type": "uint8",
-        "indexed": false,
-        "internalType": "uint8"
-      }
+        name: "version",
+        type: "uint8",
+        indexed: false,
+        internalType: "uint8",
+      },
     ],
-    "anonymous": false
+    anonymous: false,
   },
   {
-    "type": "event",
-    "name": "OwnershipTransferred",
-    "inputs": [
+    type: "event",
+    name: "OwnershipTransferred",
+    inputs: [
       {
-        "name": "previousOwner",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
+        name: "previousOwner",
+        type: "address",
+        indexed: true,
+        internalType: "address",
       },
       {
-        "name": "newOwner",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      }
+        name: "newOwner",
+        type: "address",
+        indexed: true,
+        internalType: "address",
+      },
     ],
-    "anonymous": false
+    anonymous: false,
   },
   {
-    "type": "event",
-    "name": "TargetContractAllowed",
-    "inputs": [
+    type: "event",
+    name: "TargetContractAllowed",
+    inputs: [
       {
-        "name": "targetContract",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
+        name: "targetContract",
+        type: "address",
+        indexed: true,
+        internalType: "address",
       },
       {
-        "name": "allowed",
-        "type": "bool",
-        "indexed": false,
-        "internalType": "bool"
-      }
+        name: "allowed",
+        type: "bool",
+        indexed: false,
+        internalType: "bool",
+      },
     ],
-    "anonymous": false
+    anonymous: false,
   },
   {
-    "type": "event",
-    "name": "TreasuryAddressUpdated",
-    "inputs": [
+    type: "event",
+    name: "TreasuryAddressUpdated",
+    inputs: [
       {
-        "name": "oldTreasury",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
+        name: "oldTreasury",
+        type: "address",
+        indexed: true,
+        internalType: "address",
       },
       {
-        "name": "newTreasury",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      }
+        name: "newTreasury",
+        type: "address",
+        indexed: true,
+        internalType: "address",
+      },
     ],
-    "anonymous": false
+    anonymous: false,
   },
   {
-    "type": "event",
-    "name": "Upgraded",
-    "inputs": [
+    type: "event",
+    name: "Upgraded",
+    inputs: [
       {
-        "name": "implementation",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      }
+        name: "implementation",
+        type: "address",
+        indexed: true,
+        internalType: "address",
+      },
     ],
-    "anonymous": false
+    anonymous: false,
   },
   {
-    "type": "event",
-    "name": "VerifierUpdated",
-    "inputs": [
+    type: "event",
+    name: "VerifierUpdated",
+    inputs: [
       {
-        "name": "oldVerifier",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
+        name: "oldVerifier",
+        type: "address",
+        indexed: true,
+        internalType: "address",
       },
       {
-        "name": "newVerifier",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      }
+        name: "newVerifier",
+        type: "address",
+        indexed: true,
+        internalType: "address",
+      },
     ],
-    "anonymous": false
-  }
+    anonymous: false,
+  },
 ] as const satisfies Abi;
 
 export const BRIDGECORE_ABI = [
   {
-    "type": "constructor",
-    "inputs": [],
-    "stateMutability": "nonpayable"
+    type: "constructor",
+    inputs: [],
+    stateMutability: "nonpayable",
   },
   {
-    "type": "function",
-    "name": "MAX_PARTICIPANTS",
-    "inputs": [],
-    "outputs": [
+    type: "function",
+    name: "MAX_PARTICIPANTS",
+    inputs: [],
+    outputs: [
       {
-        "name": "",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
+        name: "",
+        type: "uint256",
+        internalType: "uint256",
+      },
     ],
-    "stateMutability": "view"
+    stateMutability: "view",
   },
   {
-    "type": "function",
-    "name": "MIN_PARTICIPANTS",
-    "inputs": [],
-    "outputs": [
+    type: "function",
+    name: "MIN_PARTICIPANTS",
+    inputs: [],
+    outputs: [
       {
-        "name": "",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
+        name: "",
+        type: "uint256",
+        internalType: "uint256",
+      },
     ],
-    "stateMutability": "view"
+    stateMutability: "view",
   },
   {
-    "type": "function",
-    "name": "addParticipantOnDeposit",
-    "inputs": [
+    type: "function",
+    name: "addParticipantOnDeposit",
+    inputs: [
       {
-        "name": "channelId",
-        "type": "uint256",
-        "internalType": "uint256"
+        name: "channelId",
+        type: "uint256",
+        internalType: "uint256",
       },
       {
-        "name": "user",
-        "type": "address",
-        "internalType": "address"
-      }
+        name: "user",
+        type: "address",
+        internalType: "address",
+      },
     ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
+    outputs: [],
+    stateMutability: "nonpayable",
   },
   {
-    "type": "function",
-    "name": "batchCleanupClosedChannels",
-    "inputs": [
+    type: "function",
+    name: "batchCleanupClosedChannels",
+    inputs: [
       {
-        "name": "channelIds",
-        "type": "uint256[]",
-        "internalType": "uint256[]"
-      }
+        name: "channelIds",
+        type: "uint256[]",
+        internalType: "uint256[]",
+      },
     ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
+    outputs: [],
+    stateMutability: "nonpayable",
   },
   {
-    "type": "function",
-    "name": "cleanupClosedChannel",
-    "inputs": [
+    type: "function",
+    name: "cleanupClosedChannel",
+    inputs: [
       {
-        "name": "channelId",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
+        name: "channelId",
+        type: "uint256",
+        internalType: "uint256",
+      },
     ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
+    outputs: [],
+    stateMutability: "nonpayable",
   },
   {
-    "type": "function",
-    "name": "clearWithdrawableAmount",
-    "inputs": [
+    type: "function",
+    name: "clearWithdrawableAmount",
+    inputs: [
       {
-        "name": "channelId",
-        "type": "uint256",
-        "internalType": "uint256"
+        name: "channelId",
+        type: "uint256",
+        internalType: "uint256",
       },
       {
-        "name": "participant",
-        "type": "address",
-        "internalType": "address"
-      }
+        name: "participant",
+        type: "address",
+        internalType: "address",
+      },
     ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
+    outputs: [],
+    stateMutability: "nonpayable",
   },
   {
-    "type": "function",
-    "name": "depositManager",
-    "inputs": [],
-    "outputs": [
+    type: "function",
+    name: "depositManager",
+    inputs: [],
+    outputs: [
       {
-        "name": "",
-        "type": "address",
-        "internalType": "address"
-      }
+        name: "",
+        type: "address",
+        internalType: "address",
+      },
     ],
-    "stateMutability": "view"
+    stateMutability: "view",
   },
   {
-    "type": "function",
-    "name": "getChannelBlockInfosHash",
-    "inputs": [
+    type: "function",
+    name: "getChannelBlockInfosHash",
+    inputs: [
       {
-        "name": "channelId",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
+        name: "channelId",
+        type: "uint256",
+        internalType: "uint256",
+      },
     ],
-    "outputs": [
+    outputs: [
       {
-        "name": "",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      }
+        name: "",
+        type: "bytes32",
+        internalType: "bytes32",
+      },
     ],
-    "stateMutability": "view"
+    stateMutability: "view",
   },
   {
-    "type": "function",
-    "name": "getChannelFinalStateRoot",
-    "inputs": [
+    type: "function",
+    name: "getChannelFinalStateRoot",
+    inputs: [
       {
-        "name": "channelId",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
+        name: "channelId",
+        type: "uint256",
+        internalType: "uint256",
+      },
     ],
-    "outputs": [
+    outputs: [
       {
-        "name": "",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      }
+        name: "",
+        type: "bytes32",
+        internalType: "bytes32",
+      },
     ],
-    "stateMutability": "view"
+    stateMutability: "view",
   },
   {
-    "type": "function",
-    "name": "getChannelInfo",
-    "inputs": [
+    type: "function",
+    name: "getChannelInfo",
+    inputs: [
       {
-        "name": "channelId",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
+        name: "channelId",
+        type: "uint256",
+        internalType: "uint256",
+      },
     ],
-    "outputs": [
+    outputs: [
       {
-        "name": "targetContract",
-        "type": "address",
-        "internalType": "address"
+        name: "targetContract",
+        type: "address",
+        internalType: "address",
       },
       {
-        "name": "state",
-        "type": "uint8",
-        "internalType": "enum BridgeCore.ChannelState"
+        name: "state",
+        type: "uint8",
+        internalType: "enum BridgeCore.ChannelState",
       },
       {
-        "name": "participantCount",
-        "type": "uint256",
-        "internalType": "uint256"
+        name: "participantCount",
+        type: "uint256",
+        internalType: "uint256",
       },
       {
-        "name": "initialRoot",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      }
+        name: "initialRoot",
+        type: "bytes32",
+        internalType: "bytes32",
+      },
     ],
-    "stateMutability": "view"
+    stateMutability: "view",
   },
   {
-    "type": "function",
-    "name": "getChannelInitialStateRoot",
-    "inputs": [
+    type: "function",
+    name: "getChannelInitialStateRoot",
+    inputs: [
       {
-        "name": "channelId",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
+        name: "channelId",
+        type: "uint256",
+        internalType: "uint256",
+      },
     ],
-    "outputs": [
+    outputs: [
       {
-        "name": "",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      }
+        name: "",
+        type: "bytes32",
+        internalType: "bytes32",
+      },
     ],
-    "stateMutability": "view"
+    stateMutability: "view",
   },
   {
-    "type": "function",
-    "name": "getChannelLeader",
-    "inputs": [
+    type: "function",
+    name: "getChannelLeader",
+    inputs: [
       {
-        "name": "channelId",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
+        name: "channelId",
+        type: "uint256",
+        internalType: "uint256",
+      },
     ],
-    "outputs": [
+    outputs: [
       {
-        "name": "",
-        "type": "address",
-        "internalType": "address"
-      }
+        name: "",
+        type: "address",
+        internalType: "address",
+      },
     ],
-    "stateMutability": "view"
+    stateMutability: "view",
   },
   {
-    "type": "function",
-    "name": "getChannelParticipants",
-    "inputs": [
+    type: "function",
+    name: "getChannelParticipants",
+    inputs: [
       {
-        "name": "channelId",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
+        name: "channelId",
+        type: "uint256",
+        internalType: "uint256",
+      },
     ],
-    "outputs": [
+    outputs: [
       {
-        "name": "",
-        "type": "address[]",
-        "internalType": "address[]"
-      }
+        name: "",
+        type: "address[]",
+        internalType: "address[]",
+      },
     ],
-    "stateMutability": "view"
+    stateMutability: "view",
   },
   {
-    "type": "function",
-    "name": "getChannelPreAllocatedLeavesCount",
-    "inputs": [
+    type: "function",
+    name: "getChannelPreAllocatedLeavesCount",
+    inputs: [
       {
-        "name": "channelId",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
+        name: "channelId",
+        type: "uint256",
+        internalType: "uint256",
+      },
     ],
-    "outputs": [
+    outputs: [
       {
-        "name": "count",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
+        name: "count",
+        type: "uint256",
+        internalType: "uint256",
+      },
     ],
-    "stateMutability": "view"
+    stateMutability: "view",
   },
   {
-    "type": "function",
-    "name": "getChannelPublicKey",
-    "inputs": [
+    type: "function",
+    name: "getChannelPublicKey",
+    inputs: [
       {
-        "name": "channelId",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
+        name: "channelId",
+        type: "uint256",
+        internalType: "uint256",
+      },
     ],
-    "outputs": [
+    outputs: [
       {
-        "name": "pkx",
-        "type": "uint256",
-        "internalType": "uint256"
+        name: "pkx",
+        type: "uint256",
+        internalType: "uint256",
       },
       {
-        "name": "pky",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
+        name: "pky",
+        type: "uint256",
+        internalType: "uint256",
+      },
     ],
-    "stateMutability": "view"
+    stateMutability: "view",
   },
   {
-    "type": "function",
-    "name": "getChannelSignerAddr",
-    "inputs": [
+    type: "function",
+    name: "getChannelSignerAddr",
+    inputs: [
       {
-        "name": "channelId",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
+        name: "channelId",
+        type: "uint256",
+        internalType: "uint256",
+      },
     ],
-    "outputs": [
+    outputs: [
       {
-        "name": "",
-        "type": "address",
-        "internalType": "address"
-      }
+        name: "",
+        type: "address",
+        internalType: "address",
+      },
     ],
-    "stateMutability": "view"
+    stateMutability: "view",
   },
   {
-    "type": "function",
-    "name": "getChannelState",
-    "inputs": [
+    type: "function",
+    name: "getChannelState",
+    inputs: [
       {
-        "name": "channelId",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
+        name: "channelId",
+        type: "uint256",
+        internalType: "uint256",
+      },
     ],
-    "outputs": [
+    outputs: [
       {
-        "name": "",
-        "type": "uint8",
-        "internalType": "enum BridgeCore.ChannelState"
-      }
+        name: "",
+        type: "uint8",
+        internalType: "enum BridgeCore.ChannelState",
+      },
     ],
-    "stateMutability": "view"
+    stateMutability: "view",
   },
   {
-    "type": "function",
-    "name": "getChannelTargetContract",
-    "inputs": [
+    type: "function",
+    name: "getChannelTargetContract",
+    inputs: [
       {
-        "name": "channelId",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
+        name: "channelId",
+        type: "uint256",
+        internalType: "uint256",
+      },
     ],
-    "outputs": [
+    outputs: [
       {
-        "name": "",
-        "type": "address",
-        "internalType": "address"
-      }
+        name: "",
+        type: "address",
+        internalType: "address",
+      },
     ],
-    "stateMutability": "view"
+    stateMutability: "view",
   },
   {
-    "type": "function",
-    "name": "getChannelTotalDeposits",
-    "inputs": [
+    type: "function",
+    name: "getChannelTotalDeposits",
+    inputs: [
       {
-        "name": "channelId",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
+        name: "channelId",
+        type: "uint256",
+        internalType: "uint256",
+      },
     ],
-    "outputs": [
+    outputs: [
       {
-        "name": "",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
+        name: "",
+        type: "uint256",
+        internalType: "uint256",
+      },
     ],
-    "stateMutability": "view"
+    stateMutability: "view",
   },
   {
-    "type": "function",
-    "name": "getChannelTreeSize",
-    "inputs": [
+    type: "function",
+    name: "getChannelTreeSize",
+    inputs: [
       {
-        "name": "channelId",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
+        name: "channelId",
+        type: "uint256",
+        internalType: "uint256",
+      },
     ],
-    "outputs": [
+    outputs: [
       {
-        "name": "",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
+        name: "",
+        type: "uint256",
+        internalType: "uint256",
+      },
     ],
-    "stateMutability": "view"
+    stateMutability: "view",
   },
   {
-    "type": "function",
-    "name": "getEligibleChannelsForCleanup",
-    "inputs": [
+    type: "function",
+    name: "getEligibleChannelsForCleanup",
+    inputs: [
       {
-        "name": "limit",
-        "type": "uint256",
-        "internalType": "uint256"
+        name: "limit",
+        type: "uint256",
+        internalType: "uint256",
       },
       {
-        "name": "offset",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
+        name: "offset",
+        type: "uint256",
+        internalType: "uint256",
+      },
     ],
-    "outputs": [
+    outputs: [
       {
-        "name": "channelIds",
-        "type": "uint256[]",
-        "internalType": "uint256[]"
+        name: "channelIds",
+        type: "uint256[]",
+        internalType: "uint256[]",
       },
       {
-        "name": "totalEligible",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
+        name: "totalEligible",
+        type: "uint256",
+        internalType: "uint256",
+      },
     ],
-    "stateMutability": "view"
+    stateMutability: "view",
   },
   {
-    "type": "function",
-    "name": "getImplementation",
-    "inputs": [],
-    "outputs": [
+    type: "function",
+    name: "getImplementation",
+    inputs: [],
+    outputs: [
       {
-        "name": "implementation",
-        "type": "address",
-        "internalType": "address"
-      }
+        name: "implementation",
+        type: "address",
+        internalType: "address",
+      },
     ],
-    "stateMutability": "view"
+    stateMutability: "view",
   },
   {
-    "type": "function",
-    "name": "getL2MptKey",
-    "inputs": [
+    type: "function",
+    name: "getL2MptKey",
+    inputs: [
       {
-        "name": "channelId",
-        "type": "uint256",
-        "internalType": "uint256"
+        name: "channelId",
+        type: "uint256",
+        internalType: "uint256",
       },
       {
-        "name": "participant",
-        "type": "address",
-        "internalType": "address"
-      }
+        name: "participant",
+        type: "address",
+        internalType: "address",
+      },
     ],
-    "outputs": [
+    outputs: [
       {
-        "name": "",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
+        name: "",
+        type: "uint256",
+        internalType: "uint256",
+      },
     ],
-    "stateMutability": "view"
+    stateMutability: "view",
   },
   {
-    "type": "function",
-    "name": "getMaxAllowedParticipants",
-    "inputs": [
+    type: "function",
+    name: "getMaxAllowedParticipants",
+    inputs: [
       {
-        "name": "targetContract",
-        "type": "address",
-        "internalType": "address"
-      }
+        name: "targetContract",
+        type: "address",
+        internalType: "address",
+      },
     ],
-    "outputs": [
+    outputs: [
       {
-        "name": "maxParticipants",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
+        name: "maxParticipants",
+        type: "uint256",
+        internalType: "uint256",
+      },
     ],
-    "stateMutability": "view"
+    stateMutability: "view",
   },
   {
-    "type": "function",
-    "name": "getParticipantDeposit",
-    "inputs": [
+    type: "function",
+    name: "getParticipantDeposit",
+    inputs: [
       {
-        "name": "channelId",
-        "type": "uint256",
-        "internalType": "uint256"
+        name: "channelId",
+        type: "uint256",
+        internalType: "uint256",
       },
       {
-        "name": "participant",
-        "type": "address",
-        "internalType": "address"
-      }
+        name: "participant",
+        type: "address",
+        internalType: "address",
+      },
     ],
-    "outputs": [
+    outputs: [
       {
-        "name": "",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
+        name: "",
+        type: "uint256",
+        internalType: "uint256",
+      },
     ],
-    "stateMutability": "view"
+    stateMutability: "view",
   },
   {
-    "type": "function",
-    "name": "getPreAllocatedKeys",
-    "inputs": [
+    type: "function",
+    name: "getPreAllocatedKeys",
+    inputs: [
       {
-        "name": "targetContract",
-        "type": "address",
-        "internalType": "address"
-      }
+        name: "targetContract",
+        type: "address",
+        internalType: "address",
+      },
     ],
-    "outputs": [
+    outputs: [
       {
-        "name": "keys",
-        "type": "bytes32[]",
-        "internalType": "bytes32[]"
-      }
+        name: "keys",
+        type: "bytes32[]",
+        internalType: "bytes32[]",
+      },
     ],
-    "stateMutability": "view"
+    stateMutability: "view",
   },
   {
-    "type": "function",
-    "name": "getPreAllocatedLeaf",
-    "inputs": [
+    type: "function",
+    name: "getPreAllocatedLeaf",
+    inputs: [
       {
-        "name": "targetContract",
-        "type": "address",
-        "internalType": "address"
+        name: "targetContract",
+        type: "address",
+        internalType: "address",
       },
       {
-        "name": "key",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      }
+        name: "key",
+        type: "bytes32",
+        internalType: "bytes32",
+      },
     ],
-    "outputs": [
+    outputs: [
       {
-        "name": "value",
-        "type": "uint256",
-        "internalType": "uint256"
+        name: "value",
+        type: "uint256",
+        internalType: "uint256",
       },
       {
-        "name": "exists",
-        "type": "bool",
-        "internalType": "bool"
-      }
+        name: "exists",
+        type: "bool",
+        internalType: "bool",
+      },
     ],
-    "stateMutability": "view"
+    stateMutability: "view",
   },
   {
-    "type": "function",
-    "name": "getPreAllocatedLeavesCount",
-    "inputs": [
+    type: "function",
+    name: "getPreAllocatedLeavesCount",
+    inputs: [
       {
-        "name": "targetContract",
-        "type": "address",
-        "internalType": "address"
-      }
+        name: "targetContract",
+        type: "address",
+        internalType: "address",
+      },
     ],
-    "outputs": [
+    outputs: [
       {
-        "name": "count",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
+        name: "count",
+        type: "uint256",
+        internalType: "uint256",
+      },
     ],
-    "stateMutability": "view"
+    stateMutability: "view",
   },
   {
-    "type": "function",
-    "name": "getTargetContractData",
-    "inputs": [
+    type: "function",
+    name: "getTargetContractData",
+    inputs: [
       {
-        "name": "targetContract",
-        "type": "address",
-        "internalType": "address"
-      }
+        name: "targetContract",
+        type: "address",
+        internalType: "address",
+      },
     ],
-    "outputs": [
+    outputs: [
       {
-        "name": "",
-        "type": "tuple",
-        "internalType": "struct BridgeCore.TargetContract",
-        "components": [
+        name: "",
+        type: "tuple",
+        internalType: "struct BridgeCore.TargetContract",
+        components: [
           {
-            "name": "storageSlot",
-            "type": "tuple[]",
-            "internalType": "struct BridgeCore.PreAllocatedLeaf[]",
-            "components": [
+            name: "storageSlot",
+            type: "tuple[]",
+            internalType: "struct BridgeCore.PreAllocatedLeaf[]",
+            components: [
               {
-                "name": "value",
-                "type": "uint256",
-                "internalType": "uint256"
+                name: "value",
+                type: "uint256",
+                internalType: "uint256",
               },
               {
-                "name": "key",
-                "type": "bytes32",
-                "internalType": "bytes32"
+                name: "key",
+                type: "bytes32",
+                internalType: "bytes32",
               },
               {
-                "name": "isActive",
-                "type": "bool",
-                "internalType": "bool"
-              }
-            ]
+                name: "isActive",
+                type: "bool",
+                internalType: "bool",
+              },
+            ],
           },
           {
-            "name": "registeredFunctions",
-            "type": "tuple[]",
-            "internalType": "struct BridgeCore.RegisteredFunction[]",
-            "components": [
+            name: "registeredFunctions",
+            type: "tuple[]",
+            internalType: "struct BridgeCore.RegisteredFunction[]",
+            components: [
               {
-                "name": "functionSignature",
-                "type": "bytes32",
-                "internalType": "bytes32"
+                name: "functionSignature",
+                type: "bytes32",
+                internalType: "bytes32",
               },
               {
-                "name": "instancesHash",
-                "type": "bytes32",
-                "internalType": "bytes32"
+                name: "instancesHash",
+                type: "bytes32",
+                internalType: "bytes32",
               },
               {
-                "name": "preprocessedPart1",
-                "type": "uint128[]",
-                "internalType": "uint128[]"
+                name: "preprocessedPart1",
+                type: "uint128[]",
+                internalType: "uint128[]",
               },
               {
-                "name": "preprocessedPart2",
-                "type": "uint256[]",
-                "internalType": "uint256[]"
-              }
-            ]
-          }
-        ]
-      }
+                name: "preprocessedPart2",
+                type: "uint256[]",
+                internalType: "uint256[]",
+              },
+            ],
+          },
+        ],
+      },
     ],
-    "stateMutability": "view"
+    stateMutability: "view",
   },
   {
-    "type": "function",
-    "name": "getTotalChannels",
-    "inputs": [],
-    "outputs": [
+    type: "function",
+    name: "getTotalChannels",
+    inputs: [],
+    outputs: [
       {
-        "name": "",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
+        name: "",
+        type: "uint256",
+        internalType: "uint256",
+      },
     ],
-    "stateMutability": "view"
+    stateMutability: "view",
   },
   {
-    "type": "function",
-    "name": "getUserChannels",
-    "inputs": [
+    type: "function",
+    name: "getUserChannels",
+    inputs: [
       {
-        "name": "user",
-        "type": "address",
-        "internalType": "address"
+        name: "user",
+        type: "address",
+        internalType: "address",
       },
       {
-        "name": "limit",
-        "type": "uint256",
-        "internalType": "uint256"
+        name: "limit",
+        type: "uint256",
+        internalType: "uint256",
       },
       {
-        "name": "offset",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
+        name: "offset",
+        type: "uint256",
+        internalType: "uint256",
+      },
     ],
-    "outputs": [
+    outputs: [
       {
-        "name": "channelIds",
-        "type": "uint256[]",
-        "internalType": "uint256[]"
+        name: "channelIds",
+        type: "uint256[]",
+        internalType: "uint256[]",
       },
       {
-        "name": "totalCount",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
+        name: "totalCount",
+        type: "uint256",
+        internalType: "uint256",
+      },
     ],
-    "stateMutability": "view"
+    stateMutability: "view",
   },
   {
-    "type": "function",
-    "name": "getWithdrawableAmount",
-    "inputs": [
+    type: "function",
+    name: "getWithdrawableAmount",
+    inputs: [
       {
-        "name": "channelId",
-        "type": "uint256",
-        "internalType": "uint256"
+        name: "channelId",
+        type: "uint256",
+        internalType: "uint256",
       },
       {
-        "name": "participant",
-        "type": "address",
-        "internalType": "address"
-      }
+        name: "participant",
+        type: "address",
+        internalType: "address",
+      },
     ],
-    "outputs": [
+    outputs: [
       {
-        "name": "",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
+        name: "",
+        type: "uint256",
+        internalType: "uint256",
+      },
     ],
-    "stateMutability": "view"
+    stateMutability: "view",
   },
   {
-    "type": "function",
-    "name": "hasUserWithdrawn",
-    "inputs": [
+    type: "function",
+    name: "hasUserWithdrawn",
+    inputs: [
       {
-        "name": "channelId",
-        "type": "uint256",
-        "internalType": "uint256"
+        name: "channelId",
+        type: "uint256",
+        internalType: "uint256",
       },
       {
-        "name": "participant",
-        "type": "address",
-        "internalType": "address"
-      }
+        name: "participant",
+        type: "address",
+        internalType: "address",
+      },
     ],
-    "outputs": [
+    outputs: [
       {
-        "name": "",
-        "type": "bool",
-        "internalType": "bool"
-      }
+        name: "",
+        type: "bool",
+        internalType: "bool",
+      },
     ],
-    "stateMutability": "view"
+    stateMutability: "view",
   },
   {
-    "type": "function",
-    "name": "initialize",
-    "inputs": [
+    type: "function",
+    name: "initialize",
+    inputs: [
       {
-        "name": "_depositManager",
-        "type": "address",
-        "internalType": "address"
+        name: "_depositManager",
+        type: "address",
+        internalType: "address",
       },
       {
-        "name": "_proofManager",
-        "type": "address",
-        "internalType": "address"
+        name: "_proofManager",
+        type: "address",
+        internalType: "address",
       },
       {
-        "name": "_withdrawManager",
-        "type": "address",
-        "internalType": "address"
+        name: "_withdrawManager",
+        type: "address",
+        internalType: "address",
       },
       {
-        "name": "_adminManager",
-        "type": "address",
-        "internalType": "address"
+        name: "_adminManager",
+        type: "address",
+        internalType: "address",
       },
       {
-        "name": "_owner",
-        "type": "address",
-        "internalType": "address"
-      }
+        name: "_owner",
+        type: "address",
+        internalType: "address",
+      },
     ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
+    outputs: [],
+    stateMutability: "nonpayable",
   },
   {
-    "type": "function",
-    "name": "isAllowedTargetContract",
-    "inputs": [
+    type: "function",
+    name: "isAllowedTargetContract",
+    inputs: [
       {
-        "name": "targetContract",
-        "type": "address",
-        "internalType": "address"
-      }
+        name: "targetContract",
+        type: "address",
+        internalType: "address",
+      },
     ],
-    "outputs": [
+    outputs: [
       {
-        "name": "",
-        "type": "bool",
-        "internalType": "bool"
-      }
+        name: "",
+        type: "bool",
+        internalType: "bool",
+      },
     ],
-    "stateMutability": "view"
+    stateMutability: "view",
   },
   {
-    "type": "function",
-    "name": "isChannelEligibleForCleanup",
-    "inputs": [
+    type: "function",
+    name: "isChannelEligibleForCleanup",
+    inputs: [
       {
-        "name": "channelId",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
+        name: "channelId",
+        type: "uint256",
+        internalType: "uint256",
+      },
     ],
-    "outputs": [
+    outputs: [
       {
-        "name": "",
-        "type": "bool",
-        "internalType": "bool"
-      }
+        name: "",
+        type: "bool",
+        internalType: "bool",
+      },
     ],
-    "stateMutability": "view"
+    stateMutability: "view",
   },
   {
-    "type": "function",
-    "name": "isChannelParticipant",
-    "inputs": [
+    type: "function",
+    name: "isChannelParticipant",
+    inputs: [
       {
-        "name": "channelId",
-        "type": "uint256",
-        "internalType": "uint256"
+        name: "channelId",
+        type: "uint256",
+        internalType: "uint256",
       },
       {
-        "name": "participant",
-        "type": "address",
-        "internalType": "address"
-      }
+        name: "participant",
+        type: "address",
+        internalType: "address",
+      },
     ],
-    "outputs": [
+    outputs: [
       {
-        "name": "",
-        "type": "bool",
-        "internalType": "bool"
-      }
+        name: "",
+        type: "bool",
+        internalType: "bool",
+      },
     ],
-    "stateMutability": "view"
+    stateMutability: "view",
   },
   {
-    "type": "function",
-    "name": "isChannelPublicKeySet",
-    "inputs": [
+    type: "function",
+    name: "isChannelPublicKeySet",
+    inputs: [
       {
-        "name": "channelId",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
+        name: "channelId",
+        type: "uint256",
+        internalType: "uint256",
+      },
     ],
-    "outputs": [
+    outputs: [
       {
-        "name": "",
-        "type": "bool",
-        "internalType": "bool"
-      }
+        name: "",
+        type: "bool",
+        internalType: "bool",
+      },
     ],
-    "stateMutability": "view"
+    stateMutability: "view",
   },
   {
-    "type": "function",
-    "name": "isChannelWhitelisted",
-    "inputs": [
+    type: "function",
+    name: "isChannelWhitelisted",
+    inputs: [
       {
-        "name": "channelId",
-        "type": "uint256",
-        "internalType": "uint256"
+        name: "channelId",
+        type: "uint256",
+        internalType: "uint256",
       },
       {
-        "name": "addr",
-        "type": "address",
-        "internalType": "address"
-      }
+        name: "addr",
+        type: "address",
+        internalType: "address",
+      },
     ],
-    "outputs": [
+    outputs: [
       {
-        "name": "",
-        "type": "bool",
-        "internalType": "bool"
-      }
+        name: "",
+        type: "bool",
+        internalType: "bool",
+      },
     ],
-    "stateMutability": "view"
+    stateMutability: "view",
   },
   {
-    "type": "function",
-    "name": "isFrostSignatureEnabled",
-    "inputs": [
+    type: "function",
+    name: "isFrostSignatureEnabled",
+    inputs: [
       {
-        "name": "channelId",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
+        name: "channelId",
+        type: "uint256",
+        internalType: "uint256",
+      },
     ],
-    "outputs": [
+    outputs: [
       {
-        "name": "",
-        "type": "bool",
-        "internalType": "bool"
-      }
+        name: "",
+        type: "bool",
+        internalType: "bool",
+      },
     ],
-    "stateMutability": "view"
+    stateMutability: "view",
   },
   {
-    "type": "function",
-    "name": "isMarkedChannelLeader",
-    "inputs": [
+    type: "function",
+    name: "isMarkedChannelLeader",
+    inputs: [
       {
-        "name": "addr",
-        "type": "address",
-        "internalType": "address"
-      }
+        name: "addr",
+        type: "address",
+        internalType: "address",
+      },
     ],
-    "outputs": [
+    outputs: [
       {
-        "name": "",
-        "type": "bool",
-        "internalType": "bool"
-      }
+        name: "",
+        type: "bool",
+        internalType: "bool",
+      },
     ],
-    "stateMutability": "view"
+    stateMutability: "view",
   },
   {
-    "type": "function",
-    "name": "isSignatureVerified",
-    "inputs": [
+    type: "function",
+    name: "isSignatureVerified",
+    inputs: [
       {
-        "name": "channelId",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
+        name: "channelId",
+        type: "uint256",
+        internalType: "uint256",
+      },
     ],
-    "outputs": [
+    outputs: [
       {
-        "name": "",
-        "type": "bool",
-        "internalType": "bool"
-      }
+        name: "",
+        type: "bool",
+        internalType: "bool",
+      },
     ],
-    "stateMutability": "view"
+    stateMutability: "view",
   },
   {
-    "type": "function",
-    "name": "openChannel",
-    "inputs": [
+    type: "function",
+    name: "openChannel",
+    inputs: [
       {
-        "name": "params",
-        "type": "tuple",
-        "internalType": "struct BridgeCore.ChannelParams",
-        "components": [
+        name: "params",
+        type: "tuple",
+        internalType: "struct BridgeCore.ChannelParams",
+        components: [
           {
-            "name": "targetContract",
-            "type": "address",
-            "internalType": "address"
+            name: "channelId",
+            type: "bytes32",
+            internalType: "bytes32",
           },
           {
-            "name": "whitelisted",
-            "type": "address[]",
-            "internalType": "address[]"
+            name: "targetContract",
+            type: "address",
+            internalType: "address",
           },
           {
-            "name": "enableFrostSignature",
-            "type": "bool",
-            "internalType": "bool"
-          }
-        ]
-      }
-    ],
-    "outputs": [
-      {
-        "name": "channelId",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
-    "name": "owner",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "proxiableUUID",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "registerFunction",
-    "inputs": [
-      {
-        "name": "targetContract",
-        "type": "address",
-        "internalType": "address"
-      },
-      {
-        "name": "functionSignature",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      },
-      {
-        "name": "preprocessedPart1",
-        "type": "uint128[]",
-        "internalType": "uint128[]"
-      },
-      {
-        "name": "preprocessedPart2",
-        "type": "uint256[]",
-        "internalType": "uint256[]"
-      },
-      {
-        "name": "instancesHash",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      }
-    ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
-    "name": "removePreAllocatedLeaf",
-    "inputs": [
-      {
-        "name": "targetContract",
-        "type": "address",
-        "internalType": "address"
-      },
-      {
-        "name": "key",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      }
-    ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
-    "name": "renounceOwnership",
-    "inputs": [],
-    "outputs": [],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
-    "name": "setAllowedTargetContract",
-    "inputs": [
-      {
-        "name": "targetContract",
-        "type": "address",
-        "internalType": "address"
-      },
-      {
-        "name": "storageSlots",
-        "type": "tuple[]",
-        "internalType": "struct BridgeCore.PreAllocatedLeaf[]",
-        "components": [
-          {
-            "name": "value",
-            "type": "uint256",
-            "internalType": "uint256"
+            name: "whitelisted",
+            type: "address[]",
+            internalType: "address[]",
           },
           {
-            "name": "key",
-            "type": "bytes32",
-            "internalType": "bytes32"
+            name: "enableFrostSignature",
+            type: "bool",
+            internalType: "bool",
+          },
+        ],
+      },
+    ],
+    outputs: [
+      {
+        name: "channelId",
+        type: "uint256",
+        internalType: "uint256",
+      },
+    ],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
+    name: "owner",
+    inputs: [],
+    outputs: [
+      {
+        name: "",
+        type: "address",
+        internalType: "address",
+      },
+    ],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "proxiableUUID",
+    inputs: [],
+    outputs: [
+      {
+        name: "",
+        type: "bytes32",
+        internalType: "bytes32",
+      },
+    ],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "registerFunction",
+    inputs: [
+      {
+        name: "targetContract",
+        type: "address",
+        internalType: "address",
+      },
+      {
+        name: "functionSignature",
+        type: "bytes32",
+        internalType: "bytes32",
+      },
+      {
+        name: "preprocessedPart1",
+        type: "uint128[]",
+        internalType: "uint128[]",
+      },
+      {
+        name: "preprocessedPart2",
+        type: "uint256[]",
+        internalType: "uint256[]",
+      },
+      {
+        name: "instancesHash",
+        type: "bytes32",
+        internalType: "bytes32",
+      },
+    ],
+    outputs: [],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
+    name: "removePreAllocatedLeaf",
+    inputs: [
+      {
+        name: "targetContract",
+        type: "address",
+        internalType: "address",
+      },
+      {
+        name: "key",
+        type: "bytes32",
+        internalType: "bytes32",
+      },
+    ],
+    outputs: [],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
+    name: "renounceOwnership",
+    inputs: [],
+    outputs: [],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
+    name: "setAllowedTargetContract",
+    inputs: [
+      {
+        name: "targetContract",
+        type: "address",
+        internalType: "address",
+      },
+      {
+        name: "storageSlots",
+        type: "tuple[]",
+        internalType: "struct BridgeCore.PreAllocatedLeaf[]",
+        components: [
+          {
+            name: "value",
+            type: "uint256",
+            internalType: "uint256",
           },
           {
-            "name": "isActive",
-            "type": "bool",
-            "internalType": "bool"
-          }
-        ]
+            name: "key",
+            type: "bytes32",
+            internalType: "bytes32",
+          },
+          {
+            name: "isActive",
+            type: "bool",
+            internalType: "bool",
+          },
+        ],
       },
       {
-        "name": "allowed",
-        "type": "bool",
-        "internalType": "bool"
-      }
+        name: "allowed",
+        type: "bool",
+        internalType: "bool",
+      },
     ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
+    outputs: [],
+    stateMutability: "nonpayable",
   },
   {
-    "type": "function",
-    "name": "setChannelBlockInfosHash",
-    "inputs": [
+    type: "function",
+    name: "setChannelBlockInfosHash",
+    inputs: [
       {
-        "name": "channelId",
-        "type": "uint256",
-        "internalType": "uint256"
+        name: "channelId",
+        type: "uint256",
+        internalType: "uint256",
       },
       {
-        "name": "blockInfosHash",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      }
+        name: "blockInfosHash",
+        type: "bytes32",
+        internalType: "bytes32",
+      },
     ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
+    outputs: [],
+    stateMutability: "nonpayable",
   },
   {
-    "type": "function",
-    "name": "setChannelCloseTimestamp",
-    "inputs": [
+    type: "function",
+    name: "setChannelCloseTimestamp",
+    inputs: [
       {
-        "name": "channelId",
-        "type": "uint256",
-        "internalType": "uint256"
+        name: "channelId",
+        type: "uint256",
+        internalType: "uint256",
       },
       {
-        "name": "timestamp",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
+        name: "timestamp",
+        type: "uint256",
+        internalType: "uint256",
+      },
     ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
+    outputs: [],
+    stateMutability: "nonpayable",
   },
   {
-    "type": "function",
-    "name": "setChannelFinalStateRoot",
-    "inputs": [
+    type: "function",
+    name: "setChannelFinalStateRoot",
+    inputs: [
       {
-        "name": "channelId",
-        "type": "uint256",
-        "internalType": "uint256"
+        name: "channelId",
+        type: "uint256",
+        internalType: "uint256",
       },
       {
-        "name": "stateRoot",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      }
+        name: "stateRoot",
+        type: "bytes32",
+        internalType: "bytes32",
+      },
     ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
+    outputs: [],
+    stateMutability: "nonpayable",
   },
   {
-    "type": "function",
-    "name": "setChannelInitialStateRoot",
-    "inputs": [
+    type: "function",
+    name: "setChannelInitialStateRoot",
+    inputs: [
       {
-        "name": "channelId",
-        "type": "uint256",
-        "internalType": "uint256"
+        name: "channelId",
+        type: "uint256",
+        internalType: "uint256",
       },
       {
-        "name": "stateRoot",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      }
+        name: "stateRoot",
+        type: "bytes32",
+        internalType: "bytes32",
+      },
     ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
+    outputs: [],
+    stateMutability: "nonpayable",
   },
   {
-    "type": "function",
-    "name": "setChannelL2MptKey",
-    "inputs": [
+    type: "function",
+    name: "setChannelL2MptKey",
+    inputs: [
       {
-        "name": "channelId",
-        "type": "uint256",
-        "internalType": "uint256"
+        name: "channelId",
+        type: "uint256",
+        internalType: "uint256",
       },
       {
-        "name": "participant",
-        "type": "address",
-        "internalType": "address"
+        name: "participant",
+        type: "address",
+        internalType: "address",
       },
       {
-        "name": "mptKey",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
+        name: "mptKey",
+        type: "uint256",
+        internalType: "uint256",
+      },
     ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
+    outputs: [],
+    stateMutability: "nonpayable",
   },
   {
-    "type": "function",
-    "name": "setChannelPublicKey",
-    "inputs": [
+    type: "function",
+    name: "setChannelPublicKey",
+    inputs: [
       {
-        "name": "channelId",
-        "type": "uint256",
-        "internalType": "uint256"
+        name: "channelId",
+        type: "uint256",
+        internalType: "uint256",
       },
       {
-        "name": "pkx",
-        "type": "uint256",
-        "internalType": "uint256"
+        name: "pkx",
+        type: "uint256",
+        internalType: "uint256",
       },
       {
-        "name": "pky",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
+        name: "pky",
+        type: "uint256",
+        internalType: "uint256",
+      },
     ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
+    outputs: [],
+    stateMutability: "nonpayable",
   },
   {
-    "type": "function",
-    "name": "setChannelSignatureVerified",
-    "inputs": [
+    type: "function",
+    name: "setChannelSignatureVerified",
+    inputs: [
       {
-        "name": "channelId",
-        "type": "uint256",
-        "internalType": "uint256"
+        name: "channelId",
+        type: "uint256",
+        internalType: "uint256",
       },
       {
-        "name": "verified",
-        "type": "bool",
-        "internalType": "bool"
-      }
+        name: "verified",
+        type: "bool",
+        internalType: "bool",
+      },
     ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
+    outputs: [],
+    stateMutability: "nonpayable",
   },
   {
-    "type": "function",
-    "name": "setChannelState",
-    "inputs": [
+    type: "function",
+    name: "setChannelState",
+    inputs: [
       {
-        "name": "channelId",
-        "type": "uint256",
-        "internalType": "uint256"
+        name: "channelId",
+        type: "uint256",
+        internalType: "uint256",
       },
       {
-        "name": "state",
-        "type": "uint8",
-        "internalType": "enum BridgeCore.ChannelState"
-      }
+        name: "state",
+        type: "uint8",
+        internalType: "enum BridgeCore.ChannelState",
+      },
     ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
+    outputs: [],
+    stateMutability: "nonpayable",
   },
   {
-    "type": "function",
-    "name": "setChannelWithdrawAmounts",
-    "inputs": [
+    type: "function",
+    name: "setChannelWithdrawAmounts",
+    inputs: [
       {
-        "name": "channelId",
-        "type": "uint256",
-        "internalType": "uint256"
+        name: "channelId",
+        type: "uint256",
+        internalType: "uint256",
       },
       {
-        "name": "participants",
-        "type": "address[]",
-        "internalType": "address[]"
+        name: "participants",
+        type: "address[]",
+        internalType: "address[]",
       },
       {
-        "name": "amounts",
-        "type": "uint256[]",
-        "internalType": "uint256[]"
-      }
+        name: "amounts",
+        type: "uint256[]",
+        internalType: "uint256[]",
+      },
     ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
+    outputs: [],
+    stateMutability: "nonpayable",
   },
   {
-    "type": "function",
-    "name": "setPreAllocatedLeaf",
-    "inputs": [
+    type: "function",
+    name: "setPreAllocatedLeaf",
+    inputs: [
       {
-        "name": "targetContract",
-        "type": "address",
-        "internalType": "address"
+        name: "targetContract",
+        type: "address",
+        internalType: "address",
       },
       {
-        "name": "key",
-        "type": "bytes32",
-        "internalType": "bytes32"
+        name: "key",
+        type: "bytes32",
+        internalType: "bytes32",
       },
       {
-        "name": "value",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
+        name: "value",
+        type: "uint256",
+        internalType: "uint256",
+      },
     ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
+    outputs: [],
+    stateMutability: "nonpayable",
   },
   {
-    "type": "function",
-    "name": "transferOwnership",
-    "inputs": [
+    type: "function",
+    name: "transferOwnership",
+    inputs: [
       {
-        "name": "newOwner",
-        "type": "address",
-        "internalType": "address"
-      }
+        name: "newOwner",
+        type: "address",
+        internalType: "address",
+      },
     ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
+    outputs: [],
+    stateMutability: "nonpayable",
   },
   {
-    "type": "function",
-    "name": "unregisterFunction",
-    "inputs": [
+    type: "function",
+    name: "unregisterFunction",
+    inputs: [
       {
-        "name": "targetContract",
-        "type": "address",
-        "internalType": "address"
+        name: "targetContract",
+        type: "address",
+        internalType: "address",
       },
       {
-        "name": "functionSignature",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      }
+        name: "functionSignature",
+        type: "bytes32",
+        internalType: "bytes32",
+      },
     ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
+    outputs: [],
+    stateMutability: "nonpayable",
   },
   {
-    "type": "function",
-    "name": "updateChannelTotalDeposits",
-    "inputs": [
+    type: "function",
+    name: "updateChannelTotalDeposits",
+    inputs: [
       {
-        "name": "channelId",
-        "type": "uint256",
-        "internalType": "uint256"
+        name: "channelId",
+        type: "uint256",
+        internalType: "uint256",
       },
       {
-        "name": "amount",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
+        name: "amount",
+        type: "uint256",
+        internalType: "uint256",
+      },
     ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
+    outputs: [],
+    stateMutability: "nonpayable",
   },
   {
-    "type": "function",
-    "name": "updateChannelUserDeposits",
-    "inputs": [
+    type: "function",
+    name: "updateChannelUserDeposits",
+    inputs: [
       {
-        "name": "channelId",
-        "type": "uint256",
-        "internalType": "uint256"
+        name: "channelId",
+        type: "uint256",
+        internalType: "uint256",
       },
       {
-        "name": "participant",
-        "type": "address",
-        "internalType": "address"
+        name: "participant",
+        type: "address",
+        internalType: "address",
       },
       {
-        "name": "amount",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
+        name: "amount",
+        type: "uint256",
+        internalType: "uint256",
+      },
     ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
+    outputs: [],
+    stateMutability: "nonpayable",
   },
   {
-    "type": "function",
-    "name": "updateManagerAddresses",
-    "inputs": [
+    type: "function",
+    name: "updateManagerAddresses",
+    inputs: [
       {
-        "name": "_depositManager",
-        "type": "address",
-        "internalType": "address"
+        name: "_depositManager",
+        type: "address",
+        internalType: "address",
       },
       {
-        "name": "_proofManager",
-        "type": "address",
-        "internalType": "address"
+        name: "_proofManager",
+        type: "address",
+        internalType: "address",
       },
       {
-        "name": "_withdrawManager",
-        "type": "address",
-        "internalType": "address"
+        name: "_withdrawManager",
+        type: "address",
+        internalType: "address",
       },
       {
-        "name": "_adminManager",
-        "type": "address",
-        "internalType": "address"
-      }
+        name: "_adminManager",
+        type: "address",
+        internalType: "address",
+      },
     ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
+    outputs: [],
+    stateMutability: "nonpayable",
   },
   {
-    "type": "function",
-    "name": "upgradeTo",
-    "inputs": [
+    type: "function",
+    name: "upgradeTo",
+    inputs: [
       {
-        "name": "newImplementation",
-        "type": "address",
-        "internalType": "address"
-      }
+        name: "newImplementation",
+        type: "address",
+        internalType: "address",
+      },
     ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
+    outputs: [],
+    stateMutability: "nonpayable",
   },
   {
-    "type": "function",
-    "name": "upgradeToAndCall",
-    "inputs": [
+    type: "function",
+    name: "upgradeToAndCall",
+    inputs: [
       {
-        "name": "newImplementation",
-        "type": "address",
-        "internalType": "address"
+        name: "newImplementation",
+        type: "address",
+        internalType: "address",
       },
       {
-        "name": "data",
-        "type": "bytes",
-        "internalType": "bytes"
-      }
+        name: "data",
+        type: "bytes",
+        internalType: "bytes",
+      },
     ],
-    "outputs": [],
-    "stateMutability": "payable"
+    outputs: [],
+    stateMutability: "payable",
   },
   {
-    "type": "function",
-    "name": "withdrawManager",
-    "inputs": [],
-    "outputs": [
+    type: "function",
+    name: "withdrawManager",
+    inputs: [],
+    outputs: [
       {
-        "name": "",
-        "type": "address",
-        "internalType": "address"
-      }
+        name: "",
+        type: "address",
+        internalType: "address",
+      },
     ],
-    "stateMutability": "view"
+    stateMutability: "view",
   },
   {
-    "type": "event",
-    "name": "AdminChanged",
-    "inputs": [
+    type: "event",
+    name: "AdminChanged",
+    inputs: [
       {
-        "name": "previousAdmin",
-        "type": "address",
-        "indexed": false,
-        "internalType": "address"
+        name: "previousAdmin",
+        type: "address",
+        indexed: false,
+        internalType: "address",
       },
       {
-        "name": "newAdmin",
-        "type": "address",
-        "indexed": false,
-        "internalType": "address"
-      }
+        name: "newAdmin",
+        type: "address",
+        indexed: false,
+        internalType: "address",
+      },
     ],
-    "anonymous": false
+    anonymous: false,
   },
   {
-    "type": "event",
-    "name": "BeaconUpgraded",
-    "inputs": [
+    type: "event",
+    name: "BeaconUpgraded",
+    inputs: [
       {
-        "name": "beacon",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      }
+        name: "beacon",
+        type: "address",
+        indexed: true,
+        internalType: "address",
+      },
     ],
-    "anonymous": false
+    anonymous: false,
   },
   {
-    "type": "event",
-    "name": "ChannelDeleted",
-    "inputs": [
+    type: "event",
+    name: "ChannelDeleted",
+    inputs: [
       {
-        "name": "channelId",
-        "type": "uint256",
-        "indexed": true,
-        "internalType": "uint256"
+        name: "channelId",
+        type: "uint256",
+        indexed: true,
+        internalType: "uint256",
       },
       {
-        "name": "cleanupTime",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      }
+        name: "cleanupTime",
+        type: "uint256",
+        indexed: false,
+        internalType: "uint256",
+      },
     ],
-    "anonymous": false
+    anonymous: false,
   },
   {
-    "type": "event",
-    "name": "ChannelOpened",
-    "inputs": [
+    type: "event",
+    name: "ChannelOpened",
+    inputs: [
       {
-        "name": "channelId",
-        "type": "uint256",
-        "indexed": true,
-        "internalType": "uint256"
+        name: "channelId",
+        type: "uint256",
+        indexed: true,
+        internalType: "uint256",
       },
       {
-        "name": "targetContract",
-        "type": "address",
-        "indexed": false,
-        "internalType": "address"
-      }
+        name: "targetContract",
+        type: "address",
+        indexed: false,
+        internalType: "address",
+      },
     ],
-    "anonymous": false
+    anonymous: false,
   },
   {
-    "type": "event",
-    "name": "ChannelPublicKeySet",
-    "inputs": [
+    type: "event",
+    name: "ChannelPublicKeySet",
+    inputs: [
       {
-        "name": "channelId",
-        "type": "uint256",
-        "indexed": true,
-        "internalType": "uint256"
+        name: "channelId",
+        type: "uint256",
+        indexed: true,
+        internalType: "uint256",
       },
       {
-        "name": "pkx",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
+        name: "pkx",
+        type: "uint256",
+        indexed: false,
+        internalType: "uint256",
       },
       {
-        "name": "pky",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
+        name: "pky",
+        type: "uint256",
+        indexed: false,
+        internalType: "uint256",
       },
       {
-        "name": "signerAddr",
-        "type": "address",
-        "indexed": false,
-        "internalType": "address"
-      }
+        name: "signerAddr",
+        type: "address",
+        indexed: false,
+        internalType: "address",
+      },
     ],
-    "anonymous": false
+    anonymous: false,
   },
   {
-    "type": "event",
-    "name": "Initialized",
-    "inputs": [
+    type: "event",
+    name: "Initialized",
+    inputs: [
       {
-        "name": "version",
-        "type": "uint8",
-        "indexed": false,
-        "internalType": "uint8"
-      }
+        name: "version",
+        type: "uint8",
+        indexed: false,
+        internalType: "uint8",
+      },
     ],
-    "anonymous": false
+    anonymous: false,
   },
   {
-    "type": "event",
-    "name": "OwnershipTransferred",
-    "inputs": [
+    type: "event",
+    name: "OwnershipTransferred",
+    inputs: [
       {
-        "name": "previousOwner",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
+        name: "previousOwner",
+        type: "address",
+        indexed: true,
+        internalType: "address",
       },
       {
-        "name": "newOwner",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      }
+        name: "newOwner",
+        type: "address",
+        indexed: true,
+        internalType: "address",
+      },
     ],
-    "anonymous": false
+    anonymous: false,
   },
   {
-    "type": "event",
-    "name": "PreAllocatedLeafRemoved",
-    "inputs": [
+    type: "event",
+    name: "PreAllocatedLeafRemoved",
+    inputs: [
       {
-        "name": "targetContract",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
+        name: "targetContract",
+        type: "address",
+        indexed: true,
+        internalType: "address",
       },
       {
-        "name": "mptKey",
-        "type": "bytes32",
-        "indexed": true,
-        "internalType": "bytes32"
-      }
+        name: "mptKey",
+        type: "bytes32",
+        indexed: true,
+        internalType: "bytes32",
+      },
     ],
-    "anonymous": false
+    anonymous: false,
   },
   {
-    "type": "event",
-    "name": "PreAllocatedLeafSet",
-    "inputs": [
+    type: "event",
+    name: "PreAllocatedLeafSet",
+    inputs: [
       {
-        "name": "targetContract",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
+        name: "targetContract",
+        type: "address",
+        indexed: true,
+        internalType: "address",
       },
       {
-        "name": "mptKey",
-        "type": "bytes32",
-        "indexed": true,
-        "internalType": "bytes32"
+        name: "mptKey",
+        type: "bytes32",
+        indexed: true,
+        internalType: "bytes32",
       },
       {
-        "name": "value",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      }
+        name: "value",
+        type: "uint256",
+        indexed: false,
+        internalType: "uint256",
+      },
     ],
-    "anonymous": false
+    anonymous: false,
   },
   {
-    "type": "event",
-    "name": "Upgraded",
-    "inputs": [
+    type: "event",
+    name: "Upgraded",
+    inputs: [
       {
-        "name": "implementation",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      }
+        name: "implementation",
+        type: "address",
+        indexed: true,
+        internalType: "address",
+      },
     ],
-    "anonymous": false
-  }
+    anonymous: false,
+  },
 ] as const satisfies Abi;
 
 export const BRIDGEDEPOSITMANAGER_ABI = [
   {
-    "type": "constructor",
-    "inputs": [],
-    "stateMutability": "nonpayable"
+    type: "constructor",
+    inputs: [],
+    stateMutability: "nonpayable",
   },
   {
-    "type": "function",
-    "name": "bridge",
-    "inputs": [],
-    "outputs": [
+    type: "function",
+    name: "bridge",
+    inputs: [],
+    outputs: [
       {
-        "name": "",
-        "type": "address",
-        "internalType": "contract IBridgeCore"
-      }
+        name: "",
+        type: "address",
+        internalType: "contract IBridgeCore",
+      },
     ],
-    "stateMutability": "view"
+    stateMutability: "view",
   },
   {
-    "type": "function",
-    "name": "depositToken",
-    "inputs": [
+    type: "function",
+    name: "depositToken",
+    inputs: [
       {
-        "name": "_channelId",
-        "type": "uint256",
-        "internalType": "uint256"
+        name: "_channelId",
+        type: "uint256",
+        internalType: "uint256",
       },
       {
-        "name": "_amount",
-        "type": "uint256",
-        "internalType": "uint256"
+        name: "_amount",
+        type: "uint256",
+        internalType: "uint256",
       },
       {
-        "name": "_mptKey",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      }
+        name: "_mptKey",
+        type: "bytes32",
+        internalType: "bytes32",
+      },
     ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
+    outputs: [],
+    stateMutability: "nonpayable",
   },
   {
-    "type": "function",
-    "name": "getImplementation",
-    "inputs": [],
-    "outputs": [
+    type: "function",
+    name: "getImplementation",
+    inputs: [],
+    outputs: [
       {
-        "name": "implementation",
-        "type": "address",
-        "internalType": "address"
-      }
+        name: "implementation",
+        type: "address",
+        internalType: "address",
+      },
     ],
-    "stateMutability": "view"
+    stateMutability: "view",
   },
   {
-    "type": "function",
-    "name": "initialize",
-    "inputs": [
+    type: "function",
+    name: "initialize",
+    inputs: [
       {
-        "name": "_bridgeCore",
-        "type": "address",
-        "internalType": "address"
+        name: "_bridgeCore",
+        type: "address",
+        internalType: "address",
       },
       {
-        "name": "_owner",
-        "type": "address",
-        "internalType": "address"
-      }
+        name: "_owner",
+        type: "address",
+        internalType: "address",
+      },
     ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
+    outputs: [],
+    stateMutability: "nonpayable",
   },
   {
-    "type": "function",
-    "name": "owner",
-    "inputs": [],
-    "outputs": [
+    type: "function",
+    name: "owner",
+    inputs: [],
+    outputs: [
       {
-        "name": "",
-        "type": "address",
-        "internalType": "address"
-      }
+        name: "",
+        type: "address",
+        internalType: "address",
+      },
     ],
-    "stateMutability": "view"
+    stateMutability: "view",
   },
   {
-    "type": "function",
-    "name": "proxiableUUID",
-    "inputs": [],
-    "outputs": [
+    type: "function",
+    name: "proxiableUUID",
+    inputs: [],
+    outputs: [
       {
-        "name": "",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      }
+        name: "",
+        type: "bytes32",
+        internalType: "bytes32",
+      },
     ],
-    "stateMutability": "view"
+    stateMutability: "view",
   },
   {
-    "type": "function",
-    "name": "renounceOwnership",
-    "inputs": [],
-    "outputs": [],
-    "stateMutability": "nonpayable"
+    type: "function",
+    name: "renounceOwnership",
+    inputs: [],
+    outputs: [],
+    stateMutability: "nonpayable",
   },
   {
-    "type": "function",
-    "name": "transferForWithdrawal",
-    "inputs": [
+    type: "function",
+    name: "transferForWithdrawal",
+    inputs: [
       {
-        "name": "targetContract",
-        "type": "address",
-        "internalType": "address"
+        name: "targetContract",
+        type: "address",
+        internalType: "address",
       },
       {
-        "name": "to",
-        "type": "address",
-        "internalType": "address"
+        name: "to",
+        type: "address",
+        internalType: "address",
       },
       {
-        "name": "amount",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
+        name: "amount",
+        type: "uint256",
+        internalType: "uint256",
+      },
     ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
+    outputs: [],
+    stateMutability: "nonpayable",
   },
   {
-    "type": "function",
-    "name": "transferOwnership",
-    "inputs": [
+    type: "function",
+    name: "transferOwnership",
+    inputs: [
       {
-        "name": "newOwner",
-        "type": "address",
-        "internalType": "address"
-      }
+        name: "newOwner",
+        type: "address",
+        internalType: "address",
+      },
     ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
+    outputs: [],
+    stateMutability: "nonpayable",
   },
   {
-    "type": "function",
-    "name": "updateBridge",
-    "inputs": [
+    type: "function",
+    name: "updateBridge",
+    inputs: [
       {
-        "name": "_newBridge",
-        "type": "address",
-        "internalType": "address"
-      }
+        name: "_newBridge",
+        type: "address",
+        internalType: "address",
+      },
     ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
+    outputs: [],
+    stateMutability: "nonpayable",
   },
   {
-    "type": "function",
-    "name": "upgradeTo",
-    "inputs": [
+    type: "function",
+    name: "upgradeTo",
+    inputs: [
       {
-        "name": "newImplementation",
-        "type": "address",
-        "internalType": "address"
-      }
+        name: "newImplementation",
+        type: "address",
+        internalType: "address",
+      },
     ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
+    outputs: [],
+    stateMutability: "nonpayable",
   },
   {
-    "type": "function",
-    "name": "upgradeToAndCall",
-    "inputs": [
+    type: "function",
+    name: "upgradeToAndCall",
+    inputs: [
       {
-        "name": "newImplementation",
-        "type": "address",
-        "internalType": "address"
+        name: "newImplementation",
+        type: "address",
+        internalType: "address",
       },
       {
-        "name": "data",
-        "type": "bytes",
-        "internalType": "bytes"
-      }
+        name: "data",
+        type: "bytes",
+        internalType: "bytes",
+      },
     ],
-    "outputs": [],
-    "stateMutability": "payable"
+    outputs: [],
+    stateMutability: "payable",
   },
   {
-    "type": "event",
-    "name": "AdminChanged",
-    "inputs": [
+    type: "event",
+    name: "AdminChanged",
+    inputs: [
       {
-        "name": "previousAdmin",
-        "type": "address",
-        "indexed": false,
-        "internalType": "address"
+        name: "previousAdmin",
+        type: "address",
+        indexed: false,
+        internalType: "address",
       },
       {
-        "name": "newAdmin",
-        "type": "address",
-        "indexed": false,
-        "internalType": "address"
-      }
+        name: "newAdmin",
+        type: "address",
+        indexed: false,
+        internalType: "address",
+      },
     ],
-    "anonymous": false
+    anonymous: false,
   },
   {
-    "type": "event",
-    "name": "BeaconUpgraded",
-    "inputs": [
+    type: "event",
+    name: "BeaconUpgraded",
+    inputs: [
       {
-        "name": "beacon",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      }
+        name: "beacon",
+        type: "address",
+        indexed: true,
+        internalType: "address",
+      },
     ],
-    "anonymous": false
+    anonymous: false,
   },
   {
-    "type": "event",
-    "name": "Deposited",
-    "inputs": [
+    type: "event",
+    name: "Deposited",
+    inputs: [
       {
-        "name": "channelId",
-        "type": "uint256",
-        "indexed": true,
-        "internalType": "uint256"
+        name: "channelId",
+        type: "uint256",
+        indexed: true,
+        internalType: "uint256",
       },
       {
-        "name": "user",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
+        name: "user",
+        type: "address",
+        indexed: true,
+        internalType: "address",
       },
       {
-        "name": "token",
-        "type": "address",
-        "indexed": false,
-        "internalType": "address"
+        name: "token",
+        type: "address",
+        indexed: false,
+        internalType: "address",
       },
       {
-        "name": "amount",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      }
+        name: "amount",
+        type: "uint256",
+        indexed: false,
+        internalType: "uint256",
+      },
     ],
-    "anonymous": false
+    anonymous: false,
   },
   {
-    "type": "event",
-    "name": "Initialized",
-    "inputs": [
+    type: "event",
+    name: "Initialized",
+    inputs: [
       {
-        "name": "version",
-        "type": "uint8",
-        "indexed": false,
-        "internalType": "uint8"
-      }
+        name: "version",
+        type: "uint8",
+        indexed: false,
+        internalType: "uint8",
+      },
     ],
-    "anonymous": false
+    anonymous: false,
   },
   {
-    "type": "event",
-    "name": "OwnershipTransferred",
-    "inputs": [
+    type: "event",
+    name: "OwnershipTransferred",
+    inputs: [
       {
-        "name": "previousOwner",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
+        name: "previousOwner",
+        type: "address",
+        indexed: true,
+        internalType: "address",
       },
       {
-        "name": "newOwner",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      }
+        name: "newOwner",
+        type: "address",
+        indexed: true,
+        internalType: "address",
+      },
     ],
-    "anonymous": false
+    anonymous: false,
   },
   {
-    "type": "event",
-    "name": "Upgraded",
-    "inputs": [
+    type: "event",
+    name: "Upgraded",
+    inputs: [
       {
-        "name": "implementation",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      }
+        name: "implementation",
+        type: "address",
+        indexed: true,
+        internalType: "address",
+      },
     ],
-    "anonymous": false
-  }
+    anonymous: false,
+  },
 ] as const satisfies Abi;
 
 export const BRIDGEPROOFMANAGER_ABI = [
   {
-    "type": "constructor",
-    "inputs": [],
-    "stateMutability": "nonpayable"
+    type: "constructor",
+    inputs: [],
+    stateMutability: "nonpayable",
   },
   {
-    "type": "function",
-    "name": "bridge",
-    "inputs": [],
-    "outputs": [
+    type: "function",
+    name: "bridge",
+    inputs: [],
+    outputs: [
       {
-        "name": "",
-        "type": "address",
-        "internalType": "contract IBridgeCore"
-      }
+        name: "",
+        type: "address",
+        internalType: "contract IBridgeCore",
+      },
     ],
-    "stateMutability": "view"
+    stateMutability: "view",
   },
   {
-    "type": "function",
-    "name": "getImplementation",
-    "inputs": [],
-    "outputs": [
+    type: "function",
+    name: "getImplementation",
+    inputs: [],
+    outputs: [
       {
-        "name": "implementation",
-        "type": "address",
-        "internalType": "address"
-      }
+        name: "implementation",
+        type: "address",
+        internalType: "address",
+      },
     ],
-    "stateMutability": "view"
+    stateMutability: "view",
   },
   {
-    "type": "function",
-    "name": "groth16Verifier128",
-    "inputs": [],
-    "outputs": [
+    type: "function",
+    name: "groth16Verifier128",
+    inputs: [],
+    outputs: [
       {
-        "name": "",
-        "type": "address",
-        "internalType": "contract IGroth16Verifier128Leaves"
-      }
+        name: "",
+        type: "address",
+        internalType: "contract IGroth16Verifier128Leaves",
+      },
     ],
-    "stateMutability": "view"
+    stateMutability: "view",
   },
   {
-    "type": "function",
-    "name": "groth16Verifier16",
-    "inputs": [],
-    "outputs": [
+    type: "function",
+    name: "groth16Verifier16",
+    inputs: [],
+    outputs: [
       {
-        "name": "",
-        "type": "address",
-        "internalType": "contract IGroth16Verifier16Leaves"
-      }
+        name: "",
+        type: "address",
+        internalType: "contract IGroth16Verifier16Leaves",
+      },
     ],
-    "stateMutability": "view"
+    stateMutability: "view",
   },
   {
-    "type": "function",
-    "name": "groth16Verifier32",
-    "inputs": [],
-    "outputs": [
+    type: "function",
+    name: "groth16Verifier32",
+    inputs: [],
+    outputs: [
       {
-        "name": "",
-        "type": "address",
-        "internalType": "contract IGroth16Verifier32Leaves"
-      }
+        name: "",
+        type: "address",
+        internalType: "contract IGroth16Verifier32Leaves",
+      },
     ],
-    "stateMutability": "view"
+    stateMutability: "view",
   },
   {
-    "type": "function",
-    "name": "groth16Verifier64",
-    "inputs": [],
-    "outputs": [
+    type: "function",
+    name: "groth16Verifier64",
+    inputs: [],
+    outputs: [
       {
-        "name": "",
-        "type": "address",
-        "internalType": "contract IGroth16Verifier64Leaves"
-      }
+        name: "",
+        type: "address",
+        internalType: "contract IGroth16Verifier64Leaves",
+      },
     ],
-    "stateMutability": "view"
+    stateMutability: "view",
   },
   {
-    "type": "function",
-    "name": "initialize",
-    "inputs": [
+    type: "function",
+    name: "initialize",
+    inputs: [
       {
-        "name": "_bridgeCore",
-        "type": "address",
-        "internalType": "address"
+        name: "_bridgeCore",
+        type: "address",
+        internalType: "address",
       },
       {
-        "name": "_zkVerifier",
-        "type": "address",
-        "internalType": "address"
+        name: "_zkVerifier",
+        type: "address",
+        internalType: "address",
       },
       {
-        "name": "_zecFrost",
-        "type": "address",
-        "internalType": "address"
+        name: "_zecFrost",
+        type: "address",
+        internalType: "address",
       },
       {
-        "name": "_groth16Verifiers",
-        "type": "address[4]",
-        "internalType": "address[4]"
+        name: "_groth16Verifiers",
+        type: "address[4]",
+        internalType: "address[4]",
       },
       {
-        "name": "_owner",
-        "type": "address",
-        "internalType": "address"
-      }
+        name: "_owner",
+        type: "address",
+        internalType: "address",
+      },
     ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
+    outputs: [],
+    stateMutability: "nonpayable",
   },
   {
-    "type": "function",
-    "name": "initializeChannelState",
-    "inputs": [
+    type: "function",
+    name: "initializeChannelState",
+    inputs: [
       {
-        "name": "channelId",
-        "type": "uint256",
-        "internalType": "uint256"
+        name: "channelId",
+        type: "uint256",
+        internalType: "uint256",
       },
       {
-        "name": "proof",
-        "type": "tuple",
-        "internalType": "struct BridgeProofManager.ChannelInitializationProof",
-        "components": [
+        name: "proof",
+        type: "tuple",
+        internalType: "struct BridgeProofManager.ChannelInitializationProof",
+        components: [
           {
-            "name": "pA",
-            "type": "uint256[4]",
-            "internalType": "uint256[4]"
+            name: "pA",
+            type: "uint256[4]",
+            internalType: "uint256[4]",
           },
           {
-            "name": "pB",
-            "type": "uint256[8]",
-            "internalType": "uint256[8]"
+            name: "pB",
+            type: "uint256[8]",
+            internalType: "uint256[8]",
           },
           {
-            "name": "pC",
-            "type": "uint256[4]",
-            "internalType": "uint256[4]"
+            name: "pC",
+            type: "uint256[4]",
+            internalType: "uint256[4]",
           },
           {
-            "name": "merkleRoot",
-            "type": "bytes32",
-            "internalType": "bytes32"
-          }
-        ]
-      }
+            name: "merkleRoot",
+            type: "bytes32",
+            internalType: "bytes32",
+          },
+        ],
+      },
     ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
+    outputs: [],
+    stateMutability: "nonpayable",
   },
   {
-    "type": "function",
-    "name": "owner",
-    "inputs": [],
-    "outputs": [
+    type: "function",
+    name: "owner",
+    inputs: [],
+    outputs: [
       {
-        "name": "",
-        "type": "address",
-        "internalType": "address"
-      }
+        name: "",
+        type: "address",
+        internalType: "address",
+      },
     ],
-    "stateMutability": "view"
+    stateMutability: "view",
   },
   {
-    "type": "function",
-    "name": "proxiableUUID",
-    "inputs": [],
-    "outputs": [
+    type: "function",
+    name: "proxiableUUID",
+    inputs: [],
+    outputs: [
       {
-        "name": "",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      }
+        name: "",
+        type: "bytes32",
+        internalType: "bytes32",
+      },
     ],
-    "stateMutability": "view"
+    stateMutability: "view",
   },
   {
-    "type": "function",
-    "name": "renounceOwnership",
-    "inputs": [],
-    "outputs": [],
-    "stateMutability": "nonpayable"
+    type: "function",
+    name: "renounceOwnership",
+    inputs: [],
+    outputs: [],
+    stateMutability: "nonpayable",
   },
   {
-    "type": "function",
-    "name": "submitProofAndSignature",
-    "inputs": [
+    type: "function",
+    name: "submitProofAndSignature",
+    inputs: [
       {
-        "name": "channelId",
-        "type": "uint256",
-        "internalType": "uint256"
+        name: "channelId",
+        type: "uint256",
+        internalType: "uint256",
       },
       {
-        "name": "proofs",
-        "type": "tuple[]",
-        "internalType": "struct BridgeProofManager.ProofData[]",
-        "components": [
+        name: "proofs",
+        type: "tuple[]",
+        internalType: "struct BridgeProofManager.ProofData[]",
+        components: [
           {
-            "name": "proofPart1",
-            "type": "uint128[]",
-            "internalType": "uint128[]"
+            name: "proofPart1",
+            type: "uint128[]",
+            internalType: "uint128[]",
           },
           {
-            "name": "proofPart2",
-            "type": "uint256[]",
-            "internalType": "uint256[]"
+            name: "proofPart2",
+            type: "uint256[]",
+            internalType: "uint256[]",
           },
           {
-            "name": "publicInputs",
-            "type": "uint256[]",
-            "internalType": "uint256[]"
+            name: "publicInputs",
+            type: "uint256[]",
+            internalType: "uint256[]",
           },
           {
-            "name": "smax",
-            "type": "uint256",
-            "internalType": "uint256"
-          }
-        ]
+            name: "smax",
+            type: "uint256",
+            internalType: "uint256",
+          },
+        ],
       },
       {
-        "name": "signature",
-        "type": "tuple",
-        "internalType": "struct BridgeProofManager.Signature",
-        "components": [
+        name: "signature",
+        type: "tuple",
+        internalType: "struct BridgeProofManager.Signature",
+        components: [
           {
-            "name": "message",
-            "type": "bytes32",
-            "internalType": "bytes32"
+            name: "message",
+            type: "bytes32",
+            internalType: "bytes32",
           },
           {
-            "name": "rx",
-            "type": "uint256",
-            "internalType": "uint256"
+            name: "rx",
+            type: "uint256",
+            internalType: "uint256",
           },
           {
-            "name": "ry",
-            "type": "uint256",
-            "internalType": "uint256"
+            name: "ry",
+            type: "uint256",
+            internalType: "uint256",
           },
           {
-            "name": "z",
-            "type": "uint256",
-            "internalType": "uint256"
-          }
-        ]
-      }
+            name: "z",
+            type: "uint256",
+            internalType: "uint256",
+          },
+        ],
+      },
     ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
+    outputs: [],
+    stateMutability: "nonpayable",
   },
   {
-    "type": "function",
-    "name": "transferOwnership",
-    "inputs": [
+    type: "function",
+    name: "transferOwnership",
+    inputs: [
       {
-        "name": "newOwner",
-        "type": "address",
-        "internalType": "address"
-      }
+        name: "newOwner",
+        type: "address",
+        internalType: "address",
+      },
     ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
+    outputs: [],
+    stateMutability: "nonpayable",
   },
   {
-    "type": "function",
-    "name": "updateBridge",
-    "inputs": [
+    type: "function",
+    name: "updateBridge",
+    inputs: [
       {
-        "name": "_newBridge",
-        "type": "address",
-        "internalType": "address"
-      }
+        name: "_newBridge",
+        type: "address",
+        internalType: "address",
+      },
     ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
+    outputs: [],
+    stateMutability: "nonpayable",
   },
   {
-    "type": "function",
-    "name": "updateGroth16Verifiers",
-    "inputs": [
+    type: "function",
+    name: "updateGroth16Verifiers",
+    inputs: [
       {
-        "name": "_newVerifiers",
-        "type": "address[4]",
-        "internalType": "address[4]"
-      }
+        name: "_newVerifiers",
+        type: "address[4]",
+        internalType: "address[4]",
+      },
     ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
+    outputs: [],
+    stateMutability: "nonpayable",
   },
   {
-    "type": "function",
-    "name": "updateVerifier",
-    "inputs": [
+    type: "function",
+    name: "updateVerifier",
+    inputs: [
       {
-        "name": "_newVerifier",
-        "type": "address",
-        "internalType": "address"
-      }
+        name: "_newVerifier",
+        type: "address",
+        internalType: "address",
+      },
     ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
+    outputs: [],
+    stateMutability: "nonpayable",
   },
   {
-    "type": "function",
-    "name": "updateZecFrost",
-    "inputs": [
+    type: "function",
+    name: "updateZecFrost",
+    inputs: [
       {
-        "name": "_newZecFrost",
-        "type": "address",
-        "internalType": "address"
-      }
+        name: "_newZecFrost",
+        type: "address",
+        internalType: "address",
+      },
     ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
+    outputs: [],
+    stateMutability: "nonpayable",
   },
   {
-    "type": "function",
-    "name": "upgradeTo",
-    "inputs": [
+    type: "function",
+    name: "upgradeTo",
+    inputs: [
       {
-        "name": "newImplementation",
-        "type": "address",
-        "internalType": "address"
-      }
+        name: "newImplementation",
+        type: "address",
+        internalType: "address",
+      },
     ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
+    outputs: [],
+    stateMutability: "nonpayable",
   },
   {
-    "type": "function",
-    "name": "upgradeToAndCall",
-    "inputs": [
+    type: "function",
+    name: "upgradeToAndCall",
+    inputs: [
       {
-        "name": "newImplementation",
-        "type": "address",
-        "internalType": "address"
+        name: "newImplementation",
+        type: "address",
+        internalType: "address",
       },
       {
-        "name": "data",
-        "type": "bytes",
-        "internalType": "bytes"
-      }
+        name: "data",
+        type: "bytes",
+        internalType: "bytes",
+      },
     ],
-    "outputs": [],
-    "stateMutability": "payable"
+    outputs: [],
+    stateMutability: "payable",
   },
   {
-    "type": "function",
-    "name": "verifyFinalBalancesGroth16",
-    "inputs": [
+    type: "function",
+    name: "verifyFinalBalancesGroth16",
+    inputs: [
       {
-        "name": "channelId",
-        "type": "uint256",
-        "internalType": "uint256"
+        name: "channelId",
+        type: "uint256",
+        internalType: "uint256",
       },
       {
-        "name": "finalBalances",
-        "type": "uint256[]",
-        "internalType": "uint256[]"
+        name: "finalBalances",
+        type: "uint256[]",
+        internalType: "uint256[]",
       },
       {
-        "name": "permutation",
-        "type": "uint256[]",
-        "internalType": "uint256[]"
+        name: "permutation",
+        type: "uint256[]",
+        internalType: "uint256[]",
       },
       {
-        "name": "groth16Proof",
-        "type": "tuple",
-        "internalType": "struct BridgeProofManager.ChannelFinalizationProof",
-        "components": [
+        name: "groth16Proof",
+        type: "tuple",
+        internalType: "struct BridgeProofManager.ChannelFinalizationProof",
+        components: [
           {
-            "name": "pA",
-            "type": "uint256[4]",
-            "internalType": "uint256[4]"
+            name: "pA",
+            type: "uint256[4]",
+            internalType: "uint256[4]",
           },
           {
-            "name": "pB",
-            "type": "uint256[8]",
-            "internalType": "uint256[8]"
+            name: "pB",
+            type: "uint256[8]",
+            internalType: "uint256[8]",
           },
           {
-            "name": "pC",
-            "type": "uint256[4]",
-            "internalType": "uint256[4]"
-          }
-        ]
-      }
+            name: "pC",
+            type: "uint256[4]",
+            internalType: "uint256[4]",
+          },
+        ],
+      },
     ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
+    outputs: [],
+    stateMutability: "nonpayable",
   },
   {
-    "type": "function",
-    "name": "zecFrost",
-    "inputs": [],
-    "outputs": [
+    type: "function",
+    name: "zecFrost",
+    inputs: [],
+    outputs: [
       {
-        "name": "",
-        "type": "address",
-        "internalType": "contract IZecFrost"
-      }
+        name: "",
+        type: "address",
+        internalType: "contract IZecFrost",
+      },
     ],
-    "stateMutability": "view"
+    stateMutability: "view",
   },
   {
-    "type": "function",
-    "name": "zkVerifier",
-    "inputs": [],
-    "outputs": [
+    type: "function",
+    name: "zkVerifier",
+    inputs: [],
+    outputs: [
       {
-        "name": "",
-        "type": "address",
-        "internalType": "contract ITokamakVerifier"
-      }
+        name: "",
+        type: "address",
+        internalType: "contract ITokamakVerifier",
+      },
     ],
-    "stateMutability": "view"
+    stateMutability: "view",
   },
   {
-    "type": "event",
-    "name": "AdminChanged",
-    "inputs": [
+    type: "event",
+    name: "AdminChanged",
+    inputs: [
       {
-        "name": "previousAdmin",
-        "type": "address",
-        "indexed": false,
-        "internalType": "address"
+        name: "previousAdmin",
+        type: "address",
+        indexed: false,
+        internalType: "address",
       },
       {
-        "name": "newAdmin",
-        "type": "address",
-        "indexed": false,
-        "internalType": "address"
-      }
+        name: "newAdmin",
+        type: "address",
+        indexed: false,
+        internalType: "address",
+      },
     ],
-    "anonymous": false
+    anonymous: false,
   },
   {
-    "type": "event",
-    "name": "BeaconUpgraded",
-    "inputs": [
+    type: "event",
+    name: "BeaconUpgraded",
+    inputs: [
       {
-        "name": "beacon",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      }
+        name: "beacon",
+        type: "address",
+        indexed: true,
+        internalType: "address",
+      },
     ],
-    "anonymous": false
+    anonymous: false,
   },
   {
-    "type": "event",
-    "name": "FinalBalancesGroth16Verified",
-    "inputs": [
+    type: "event",
+    name: "FinalBalancesGroth16Verified",
+    inputs: [
       {
-        "name": "channelId",
-        "type": "uint256",
-        "indexed": true,
-        "internalType": "uint256"
+        name: "channelId",
+        type: "uint256",
+        indexed: true,
+        internalType: "uint256",
       },
       {
-        "name": "finalStateRoot",
-        "type": "bytes32",
-        "indexed": false,
-        "internalType": "bytes32"
-      }
+        name: "finalStateRoot",
+        type: "bytes32",
+        indexed: false,
+        internalType: "bytes32",
+      },
     ],
-    "anonymous": false
+    anonymous: false,
   },
   {
-    "type": "event",
-    "name": "Initialized",
-    "inputs": [
+    type: "event",
+    name: "Initialized",
+    inputs: [
       {
-        "name": "version",
-        "type": "uint8",
-        "indexed": false,
-        "internalType": "uint8"
-      }
+        name: "version",
+        type: "uint8",
+        indexed: false,
+        internalType: "uint8",
+      },
     ],
-    "anonymous": false
+    anonymous: false,
   },
   {
-    "type": "event",
-    "name": "OwnershipTransferred",
-    "inputs": [
+    type: "event",
+    name: "OwnershipTransferred",
+    inputs: [
       {
-        "name": "previousOwner",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
+        name: "previousOwner",
+        type: "address",
+        indexed: true,
+        internalType: "address",
       },
       {
-        "name": "newOwner",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      }
+        name: "newOwner",
+        type: "address",
+        indexed: true,
+        internalType: "address",
+      },
     ],
-    "anonymous": false
+    anonymous: false,
   },
   {
-    "type": "event",
-    "name": "ProofSigned",
-    "inputs": [
+    type: "event",
+    name: "ProofSigned",
+    inputs: [
       {
-        "name": "channelId",
-        "type": "uint256",
-        "indexed": true,
-        "internalType": "uint256"
+        name: "channelId",
+        type: "uint256",
+        indexed: true,
+        internalType: "uint256",
       },
       {
-        "name": "signer",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
+        name: "signer",
+        type: "address",
+        indexed: true,
+        internalType: "address",
       },
       {
-        "name": "finalStateRoot",
-        "type": "bytes32",
-        "indexed": false,
-        "internalType": "bytes32"
-      }
+        name: "finalStateRoot",
+        type: "bytes32",
+        indexed: false,
+        internalType: "bytes32",
+      },
     ],
-    "anonymous": false
+    anonymous: false,
   },
   {
-    "type": "event",
-    "name": "StateInitialized",
-    "inputs": [
+    type: "event",
+    name: "StateInitialized",
+    inputs: [
       {
-        "name": "channelId",
-        "type": "uint256",
-        "indexed": true,
-        "internalType": "uint256"
+        name: "channelId",
+        type: "uint256",
+        indexed: true,
+        internalType: "uint256",
       },
       {
-        "name": "currentStateRoot",
-        "type": "bytes32",
-        "indexed": false,
-        "internalType": "bytes32"
+        name: "currentStateRoot",
+        type: "bytes32",
+        indexed: false,
+        internalType: "bytes32",
       },
       {
-        "name": "blockInfos",
-        "type": "tuple",
-        "indexed": false,
-        "internalType": "struct BridgeProofManager.BlockInfos",
-        "components": [
+        name: "blockInfos",
+        type: "tuple",
+        indexed: false,
+        internalType: "struct BridgeProofManager.BlockInfos",
+        components: [
           {
-            "name": "blockNumber",
-            "type": "uint256",
-            "internalType": "uint256"
+            name: "blockNumber",
+            type: "uint256",
+            internalType: "uint256",
           },
           {
-            "name": "timestamp",
-            "type": "uint256",
-            "internalType": "uint256"
+            name: "timestamp",
+            type: "uint256",
+            internalType: "uint256",
           },
           {
-            "name": "prevrandao",
-            "type": "uint256",
-            "internalType": "uint256"
+            name: "prevrandao",
+            type: "uint256",
+            internalType: "uint256",
           },
           {
-            "name": "gaslimit",
-            "type": "uint256",
-            "internalType": "uint256"
+            name: "gaslimit",
+            type: "uint256",
+            internalType: "uint256",
           },
           {
-            "name": "basefee",
-            "type": "uint256",
-            "internalType": "uint256"
+            name: "basefee",
+            type: "uint256",
+            internalType: "uint256",
           },
           {
-            "name": "coinbase",
-            "type": "address",
-            "internalType": "address"
+            name: "coinbase",
+            type: "address",
+            internalType: "address",
           },
           {
-            "name": "chainId",
-            "type": "uint256",
-            "internalType": "uint256"
+            name: "chainId",
+            type: "uint256",
+            internalType: "uint256",
           },
           {
-            "name": "selfbalance",
-            "type": "uint256",
-            "internalType": "uint256"
-          }
-        ]
-      }
+            name: "selfbalance",
+            type: "uint256",
+            internalType: "uint256",
+          },
+        ],
+      },
     ],
-    "anonymous": false
+    anonymous: false,
   },
   {
-    "type": "event",
-    "name": "TokamakZkSnarkProofsVerified",
-    "inputs": [
+    type: "event",
+    name: "TokamakZkSnarkProofsVerified",
+    inputs: [
       {
-        "name": "channelId",
-        "type": "uint256",
-        "indexed": true,
-        "internalType": "uint256"
+        name: "channelId",
+        type: "uint256",
+        indexed: true,
+        internalType: "uint256",
       },
       {
-        "name": "signer",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      }
+        name: "signer",
+        type: "address",
+        indexed: true,
+        internalType: "address",
+      },
     ],
-    "anonymous": false
+    anonymous: false,
   },
   {
-    "type": "event",
-    "name": "Upgraded",
-    "inputs": [
+    type: "event",
+    name: "Upgraded",
+    inputs: [
       {
-        "name": "implementation",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      }
+        name: "implementation",
+        type: "address",
+        indexed: true,
+        internalType: "address",
+      },
     ],
-    "anonymous": false
-  }
+    anonymous: false,
+  },
 ] as const satisfies Abi;
 
 export const BRIDGEWITHDRAWMANAGER_ABI = [
   {
-    "type": "constructor",
-    "inputs": [],
-    "stateMutability": "nonpayable"
+    type: "constructor",
+    inputs: [],
+    stateMutability: "nonpayable",
   },
   {
-    "type": "receive",
-    "stateMutability": "payable"
+    type: "receive",
+    stateMutability: "payable",
   },
   {
-    "type": "function",
-    "name": "NATIVE_TOKEN_TRANSFER_GAS_LIMIT",
-    "inputs": [],
-    "outputs": [
+    type: "function",
+    name: "NATIVE_TOKEN_TRANSFER_GAS_LIMIT",
+    inputs: [],
+    outputs: [
       {
-        "name": "",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
+        name: "",
+        type: "uint256",
+        internalType: "uint256",
+      },
     ],
-    "stateMutability": "view"
+    stateMutability: "view",
   },
   {
-    "type": "function",
-    "name": "PROOF_SUBMISSION_DEADLINE",
-    "inputs": [],
-    "outputs": [
+    type: "function",
+    name: "PROOF_SUBMISSION_DEADLINE",
+    inputs: [],
+    outputs: [
       {
-        "name": "",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
+        name: "",
+        type: "uint256",
+        internalType: "uint256",
+      },
     ],
-    "stateMutability": "view"
+    stateMutability: "view",
   },
   {
-    "type": "function",
-    "name": "bridge",
-    "inputs": [],
-    "outputs": [
+    type: "function",
+    name: "bridge",
+    inputs: [],
+    outputs: [
       {
-        "name": "",
-        "type": "address",
-        "internalType": "contract IBridgeCore"
-      }
+        name: "",
+        type: "address",
+        internalType: "contract IBridgeCore",
+      },
     ],
-    "stateMutability": "view"
+    stateMutability: "view",
   },
   {
-    "type": "function",
-    "name": "getImplementation",
-    "inputs": [],
-    "outputs": [
+    type: "function",
+    name: "getImplementation",
+    inputs: [],
+    outputs: [
       {
-        "name": "implementation",
-        "type": "address",
-        "internalType": "address"
-      }
+        name: "implementation",
+        type: "address",
+        internalType: "address",
+      },
     ],
-    "stateMutability": "view"
+    stateMutability: "view",
   },
   {
-    "type": "function",
-    "name": "initialize",
-    "inputs": [
+    type: "function",
+    name: "initialize",
+    inputs: [
       {
-        "name": "_bridgeCore",
-        "type": "address",
-        "internalType": "address"
+        name: "_bridgeCore",
+        type: "address",
+        internalType: "address",
       },
       {
-        "name": "_owner",
-        "type": "address",
-        "internalType": "address"
-      }
+        name: "_owner",
+        type: "address",
+        internalType: "address",
+      },
     ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
+    outputs: [],
+    stateMutability: "nonpayable",
   },
   {
-    "type": "function",
-    "name": "owner",
-    "inputs": [],
-    "outputs": [
+    type: "function",
+    name: "owner",
+    inputs: [],
+    outputs: [
       {
-        "name": "",
-        "type": "address",
-        "internalType": "address"
-      }
+        name: "",
+        type: "address",
+        internalType: "address",
+      },
     ],
-    "stateMutability": "view"
+    stateMutability: "view",
   },
   {
-    "type": "function",
-    "name": "proxiableUUID",
-    "inputs": [],
-    "outputs": [
+    type: "function",
+    name: "proxiableUUID",
+    inputs: [],
+    outputs: [
       {
-        "name": "",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      }
+        name: "",
+        type: "bytes32",
+        internalType: "bytes32",
+      },
     ],
-    "stateMutability": "view"
+    stateMutability: "view",
   },
   {
-    "type": "function",
-    "name": "renounceOwnership",
-    "inputs": [],
-    "outputs": [],
-    "stateMutability": "nonpayable"
+    type: "function",
+    name: "renounceOwnership",
+    inputs: [],
+    outputs: [],
+    stateMutability: "nonpayable",
   },
   {
-    "type": "function",
-    "name": "transferOwnership",
-    "inputs": [
+    type: "function",
+    name: "transferOwnership",
+    inputs: [
       {
-        "name": "newOwner",
-        "type": "address",
-        "internalType": "address"
-      }
+        name: "newOwner",
+        type: "address",
+        internalType: "address",
+      },
     ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
+    outputs: [],
+    stateMutability: "nonpayable",
   },
   {
-    "type": "function",
-    "name": "updateBridge",
-    "inputs": [
+    type: "function",
+    name: "updateBridge",
+    inputs: [
       {
-        "name": "_newBridge",
-        "type": "address",
-        "internalType": "address"
-      }
+        name: "_newBridge",
+        type: "address",
+        internalType: "address",
+      },
     ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
+    outputs: [],
+    stateMutability: "nonpayable",
   },
   {
-    "type": "function",
-    "name": "upgradeTo",
-    "inputs": [
+    type: "function",
+    name: "upgradeTo",
+    inputs: [
       {
-        "name": "newImplementation",
-        "type": "address",
-        "internalType": "address"
-      }
+        name: "newImplementation",
+        type: "address",
+        internalType: "address",
+      },
     ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
+    outputs: [],
+    stateMutability: "nonpayable",
   },
   {
-    "type": "function",
-    "name": "upgradeToAndCall",
-    "inputs": [
+    type: "function",
+    name: "upgradeToAndCall",
+    inputs: [
       {
-        "name": "newImplementation",
-        "type": "address",
-        "internalType": "address"
+        name: "newImplementation",
+        type: "address",
+        internalType: "address",
       },
       {
-        "name": "data",
-        "type": "bytes",
-        "internalType": "bytes"
-      }
+        name: "data",
+        type: "bytes",
+        internalType: "bytes",
+      },
     ],
-    "outputs": [],
-    "stateMutability": "payable"
+    outputs: [],
+    stateMutability: "payable",
   },
   {
-    "type": "function",
-    "name": "withdraw",
-    "inputs": [
+    type: "function",
+    name: "withdraw",
+    inputs: [
       {
-        "name": "channelId",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
+        name: "channelId",
+        type: "uint256",
+        internalType: "uint256",
+      },
     ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
+    outputs: [],
+    stateMutability: "nonpayable",
   },
   {
-    "type": "event",
-    "name": "AdminChanged",
-    "inputs": [
+    type: "event",
+    name: "AdminChanged",
+    inputs: [
       {
-        "name": "previousAdmin",
-        "type": "address",
-        "indexed": false,
-        "internalType": "address"
+        name: "previousAdmin",
+        type: "address",
+        indexed: false,
+        internalType: "address",
       },
       {
-        "name": "newAdmin",
-        "type": "address",
-        "indexed": false,
-        "internalType": "address"
-      }
+        name: "newAdmin",
+        type: "address",
+        indexed: false,
+        internalType: "address",
+      },
     ],
-    "anonymous": false
+    anonymous: false,
   },
   {
-    "type": "event",
-    "name": "BeaconUpgraded",
-    "inputs": [
+    type: "event",
+    name: "BeaconUpgraded",
+    inputs: [
       {
-        "name": "beacon",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      }
+        name: "beacon",
+        type: "address",
+        indexed: true,
+        internalType: "address",
+      },
     ],
-    "anonymous": false
+    anonymous: false,
   },
   {
-    "type": "event",
-    "name": "ChannelClosed",
-    "inputs": [
+    type: "event",
+    name: "ChannelClosed",
+    inputs: [
       {
-        "name": "channelId",
-        "type": "uint256",
-        "indexed": true,
-        "internalType": "uint256"
-      }
+        name: "channelId",
+        type: "uint256",
+        indexed: true,
+        internalType: "uint256",
+      },
     ],
-    "anonymous": false
+    anonymous: false,
   },
   {
-    "type": "event",
-    "name": "EmergencyWithdrawalsEnabled",
-    "inputs": [
+    type: "event",
+    name: "EmergencyWithdrawalsEnabled",
+    inputs: [
       {
-        "name": "channelId",
-        "type": "uint256",
-        "indexed": true,
-        "internalType": "uint256"
-      }
+        name: "channelId",
+        type: "uint256",
+        indexed: true,
+        internalType: "uint256",
+      },
     ],
-    "anonymous": false
+    anonymous: false,
   },
   {
-    "type": "event",
-    "name": "Initialized",
-    "inputs": [
+    type: "event",
+    name: "Initialized",
+    inputs: [
       {
-        "name": "version",
-        "type": "uint8",
-        "indexed": false,
-        "internalType": "uint8"
-      }
+        name: "version",
+        type: "uint8",
+        indexed: false,
+        internalType: "uint8",
+      },
     ],
-    "anonymous": false
+    anonymous: false,
   },
   {
-    "type": "event",
-    "name": "OwnershipTransferred",
-    "inputs": [
+    type: "event",
+    name: "OwnershipTransferred",
+    inputs: [
       {
-        "name": "previousOwner",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
+        name: "previousOwner",
+        type: "address",
+        indexed: true,
+        internalType: "address",
       },
       {
-        "name": "newOwner",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      }
+        name: "newOwner",
+        type: "address",
+        indexed: true,
+        internalType: "address",
+      },
     ],
-    "anonymous": false
+    anonymous: false,
   },
   {
-    "type": "event",
-    "name": "Upgraded",
-    "inputs": [
+    type: "event",
+    name: "Upgraded",
+    inputs: [
       {
-        "name": "implementation",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      }
+        name: "implementation",
+        type: "address",
+        indexed: true,
+        internalType: "address",
+      },
     ],
-    "anonymous": false
+    anonymous: false,
   },
   {
-    "type": "event",
-    "name": "Withdrawn",
-    "inputs": [
+    type: "event",
+    name: "Withdrawn",
+    inputs: [
       {
-        "name": "channelId",
-        "type": "uint256",
-        "indexed": true,
-        "internalType": "uint256"
+        name: "channelId",
+        type: "uint256",
+        indexed: true,
+        internalType: "uint256",
       },
       {
-        "name": "user",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
+        name: "user",
+        type: "address",
+        indexed: true,
+        internalType: "address",
       },
       {
-        "name": "token",
-        "type": "address",
-        "indexed": false,
-        "internalType": "address"
+        name: "token",
+        type: "address",
+        indexed: false,
+        internalType: "address",
       },
       {
-        "name": "amount",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      }
+        name: "amount",
+        type: "uint256",
+        indexed: false,
+        internalType: "uint256",
+      },
     ],
-    "anonymous": false
-  }
+    anonymous: false,
+  },
 ] as const satisfies Abi;
 
 export const GROTH16VERIFIER128LEAVES_ABI = [
   {
-    "type": "constructor",
-    "inputs": [
+    type: "constructor",
+    inputs: [
       {
-        "name": "_icContract1",
-        "type": "address",
-        "internalType": "address"
+        name: "_icContract1",
+        type: "address",
+        internalType: "address",
       },
       {
-        "name": "_icContract2",
-        "type": "address",
-        "internalType": "address"
-      }
+        name: "_icContract2",
+        type: "address",
+        internalType: "address",
+      },
     ],
-    "stateMutability": "nonpayable"
+    stateMutability: "nonpayable",
   },
   {
-    "type": "function",
-    "name": "icContract1",
-    "inputs": [],
-    "outputs": [
+    type: "function",
+    name: "icContract1",
+    inputs: [],
+    outputs: [
       {
-        "name": "",
-        "type": "address",
-        "internalType": "contract Groth16Verifier128LeavesIC1"
-      }
+        name: "",
+        type: "address",
+        internalType: "contract Groth16Verifier128LeavesIC1",
+      },
     ],
-    "stateMutability": "view"
+    stateMutability: "view",
   },
   {
-    "type": "function",
-    "name": "icContract2",
-    "inputs": [],
-    "outputs": [
+    type: "function",
+    name: "icContract2",
+    inputs: [],
+    outputs: [
       {
-        "name": "",
-        "type": "address",
-        "internalType": "contract Groth16Verifier128LeavesIC2"
-      }
+        name: "",
+        type: "address",
+        internalType: "contract Groth16Verifier128LeavesIC2",
+      },
     ],
-    "stateMutability": "view"
+    stateMutability: "view",
   },
   {
-    "type": "function",
-    "name": "verifyProof",
-    "inputs": [
+    type: "function",
+    name: "verifyProof",
+    inputs: [
       {
-        "name": "_pA",
-        "type": "uint256[4]",
-        "internalType": "uint256[4]"
+        name: "_pA",
+        type: "uint256[4]",
+        internalType: "uint256[4]",
       },
       {
-        "name": "_pB",
-        "type": "uint256[8]",
-        "internalType": "uint256[8]"
+        name: "_pB",
+        type: "uint256[8]",
+        internalType: "uint256[8]",
       },
       {
-        "name": "_pC",
-        "type": "uint256[4]",
-        "internalType": "uint256[4]"
+        name: "_pC",
+        type: "uint256[4]",
+        internalType: "uint256[4]",
       },
       {
-        "name": "_pubSignals",
-        "type": "uint256[257]",
-        "internalType": "uint256[257]"
-      }
+        name: "_pubSignals",
+        type: "uint256[257]",
+        internalType: "uint256[257]",
+      },
     ],
-    "outputs": [
+    outputs: [
       {
-        "name": "",
-        "type": "bool",
-        "internalType": "bool"
-      }
+        name: "",
+        type: "bool",
+        internalType: "bool",
+      },
     ],
-    "stateMutability": "view"
-  }
+    stateMutability: "view",
+  },
 ] as const satisfies Abi;
 
 export const GROTH16VERIFIER16LEAVES_ABI = [
   {
-    "type": "function",
-    "name": "verifyProof",
-    "inputs": [
+    type: "function",
+    name: "verifyProof",
+    inputs: [
       {
-        "name": "_pA",
-        "type": "uint256[4]",
-        "internalType": "uint256[4]"
+        name: "_pA",
+        type: "uint256[4]",
+        internalType: "uint256[4]",
       },
       {
-        "name": "_pB",
-        "type": "uint256[8]",
-        "internalType": "uint256[8]"
+        name: "_pB",
+        type: "uint256[8]",
+        internalType: "uint256[8]",
       },
       {
-        "name": "_pC",
-        "type": "uint256[4]",
-        "internalType": "uint256[4]"
+        name: "_pC",
+        type: "uint256[4]",
+        internalType: "uint256[4]",
       },
       {
-        "name": "_pubSignals",
-        "type": "uint256[33]",
-        "internalType": "uint256[33]"
-      }
+        name: "_pubSignals",
+        type: "uint256[33]",
+        internalType: "uint256[33]",
+      },
     ],
-    "outputs": [
+    outputs: [
       {
-        "name": "",
-        "type": "bool",
-        "internalType": "bool"
-      }
+        name: "",
+        type: "bool",
+        internalType: "bool",
+      },
     ],
-    "stateMutability": "view"
-  }
+    stateMutability: "view",
+  },
 ] as const satisfies Abi;
 
 export const GROTH16VERIFIER32LEAVES_ABI = [
   {
-    "type": "function",
-    "name": "verifyProof",
-    "inputs": [
+    type: "function",
+    name: "verifyProof",
+    inputs: [
       {
-        "name": "_pA",
-        "type": "uint256[4]",
-        "internalType": "uint256[4]"
+        name: "_pA",
+        type: "uint256[4]",
+        internalType: "uint256[4]",
       },
       {
-        "name": "_pB",
-        "type": "uint256[8]",
-        "internalType": "uint256[8]"
+        name: "_pB",
+        type: "uint256[8]",
+        internalType: "uint256[8]",
       },
       {
-        "name": "_pC",
-        "type": "uint256[4]",
-        "internalType": "uint256[4]"
+        name: "_pC",
+        type: "uint256[4]",
+        internalType: "uint256[4]",
       },
       {
-        "name": "_pubSignals",
-        "type": "uint256[65]",
-        "internalType": "uint256[65]"
-      }
+        name: "_pubSignals",
+        type: "uint256[65]",
+        internalType: "uint256[65]",
+      },
     ],
-    "outputs": [
+    outputs: [
       {
-        "name": "",
-        "type": "bool",
-        "internalType": "bool"
-      }
+        name: "",
+        type: "bool",
+        internalType: "bool",
+      },
     ],
-    "stateMutability": "view"
-  }
+    stateMutability: "view",
+  },
 ] as const satisfies Abi;
 
 export const GROTH16VERIFIER64LEAVES_ABI = [
   {
-    "type": "constructor",
-    "inputs": [
+    type: "constructor",
+    inputs: [
       {
-        "name": "_icContract",
-        "type": "address",
-        "internalType": "address"
-      }
+        name: "_icContract",
+        type: "address",
+        internalType: "address",
+      },
     ],
-    "stateMutability": "nonpayable"
+    stateMutability: "nonpayable",
   },
   {
-    "type": "function",
-    "name": "icContract",
-    "inputs": [],
-    "outputs": [
+    type: "function",
+    name: "icContract",
+    inputs: [],
+    outputs: [
       {
-        "name": "",
-        "type": "address",
-        "internalType": "contract Groth16Verifier64LeavesIC"
-      }
+        name: "",
+        type: "address",
+        internalType: "contract Groth16Verifier64LeavesIC",
+      },
     ],
-    "stateMutability": "view"
+    stateMutability: "view",
   },
   {
-    "type": "function",
-    "name": "verifyProof",
-    "inputs": [
+    type: "function",
+    name: "verifyProof",
+    inputs: [
       {
-        "name": "_pA",
-        "type": "uint256[4]",
-        "internalType": "uint256[4]"
+        name: "_pA",
+        type: "uint256[4]",
+        internalType: "uint256[4]",
       },
       {
-        "name": "_pB",
-        "type": "uint256[8]",
-        "internalType": "uint256[8]"
+        name: "_pB",
+        type: "uint256[8]",
+        internalType: "uint256[8]",
       },
       {
-        "name": "_pC",
-        "type": "uint256[4]",
-        "internalType": "uint256[4]"
+        name: "_pC",
+        type: "uint256[4]",
+        internalType: "uint256[4]",
       },
       {
-        "name": "_pubSignals",
-        "type": "uint256[129]",
-        "internalType": "uint256[129]"
-      }
+        name: "_pubSignals",
+        type: "uint256[129]",
+        internalType: "uint256[129]",
+      },
     ],
-    "outputs": [
+    outputs: [
       {
-        "name": "",
-        "type": "bool",
-        "internalType": "bool"
-      }
+        name: "",
+        type: "bool",
+        internalType: "bool",
+      },
     ],
-    "stateMutability": "view"
-  }
+    stateMutability: "view",
+  },
 ] as const satisfies Abi;
 
 export const TOKAMAKVERIFIER_ABI = [
   {
-    "type": "function",
-    "name": "verify",
-    "inputs": [
+    type: "function",
+    name: "verify",
+    inputs: [
       {
-        "name": "",
-        "type": "uint128[]",
-        "internalType": "uint128[]"
+        name: "",
+        type: "uint128[]",
+        internalType: "uint128[]",
       },
       {
-        "name": "",
-        "type": "uint256[]",
-        "internalType": "uint256[]"
+        name: "",
+        type: "uint256[]",
+        internalType: "uint256[]",
       },
       {
-        "name": "",
-        "type": "uint128[]",
-        "internalType": "uint128[]"
+        name: "",
+        type: "uint128[]",
+        internalType: "uint128[]",
       },
       {
-        "name": "",
-        "type": "uint256[]",
-        "internalType": "uint256[]"
+        name: "",
+        type: "uint256[]",
+        internalType: "uint256[]",
       },
       {
-        "name": "",
-        "type": "uint256[]",
-        "internalType": "uint256[]"
+        name: "",
+        type: "uint256[]",
+        internalType: "uint256[]",
       },
       {
-        "name": "",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
+        name: "",
+        type: "uint256",
+        internalType: "uint256",
+      },
     ],
-    "outputs": [
+    outputs: [
       {
-        "name": "final_result",
-        "type": "bool",
-        "internalType": "bool"
-      }
+        name: "final_result",
+        type: "bool",
+        internalType: "bool",
+      },
     ],
-    "stateMutability": "view"
-  }
+    stateMutability: "view",
+  },
 ] as const satisfies Abi;
 
 export const ZECFROST_ABI = [
   {
-    "type": "function",
-    "name": "isValidPublicKey",
-    "inputs": [
+    type: "function",
+    name: "isValidPublicKey",
+    inputs: [
       {
-        "name": "x",
-        "type": "uint256",
-        "internalType": "uint256"
+        name: "x",
+        type: "uint256",
+        internalType: "uint256",
       },
       {
-        "name": "y",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
+        name: "y",
+        type: "uint256",
+        internalType: "uint256",
+      },
     ],
-    "outputs": [
+    outputs: [
       {
-        "name": "result",
-        "type": "bool",
-        "internalType": "bool"
-      }
+        name: "result",
+        type: "bool",
+        internalType: "bool",
+      },
     ],
-    "stateMutability": "pure"
+    stateMutability: "pure",
   },
   {
-    "type": "function",
-    "name": "measureVerify",
-    "inputs": [
+    type: "function",
+    name: "measureVerify",
+    inputs: [
       {
-        "name": "message",
-        "type": "bytes32",
-        "internalType": "bytes32"
+        name: "message",
+        type: "bytes32",
+        internalType: "bytes32",
       },
       {
-        "name": "px",
-        "type": "uint256",
-        "internalType": "uint256"
+        name: "px",
+        type: "uint256",
+        internalType: "uint256",
       },
       {
-        "name": "py",
-        "type": "uint256",
-        "internalType": "uint256"
+        name: "py",
+        type: "uint256",
+        internalType: "uint256",
       },
       {
-        "name": "rx",
-        "type": "uint256",
-        "internalType": "uint256"
+        name: "rx",
+        type: "uint256",
+        internalType: "uint256",
       },
       {
-        "name": "ry",
-        "type": "uint256",
-        "internalType": "uint256"
+        name: "ry",
+        type: "uint256",
+        internalType: "uint256",
       },
       {
-        "name": "z",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
+        name: "z",
+        type: "uint256",
+        internalType: "uint256",
+      },
     ],
-    "outputs": [
+    outputs: [
       {
-        "name": "cold",
-        "type": "uint256",
-        "internalType": "uint256"
+        name: "cold",
+        type: "uint256",
+        internalType: "uint256",
       },
       {
-        "name": "warm",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
+        name: "warm",
+        type: "uint256",
+        internalType: "uint256",
+      },
     ],
-    "stateMutability": "view"
+    stateMutability: "view",
   },
   {
-    "type": "function",
-    "name": "verify",
-    "inputs": [
+    type: "function",
+    name: "verify",
+    inputs: [
       {
-        "name": "message",
-        "type": "bytes32",
-        "internalType": "bytes32"
+        name: "message",
+        type: "bytes32",
+        internalType: "bytes32",
       },
       {
-        "name": "px",
-        "type": "uint256",
-        "internalType": "uint256"
+        name: "px",
+        type: "uint256",
+        internalType: "uint256",
       },
       {
-        "name": "py",
-        "type": "uint256",
-        "internalType": "uint256"
+        name: "py",
+        type: "uint256",
+        internalType: "uint256",
       },
       {
-        "name": "rx",
-        "type": "uint256",
-        "internalType": "uint256"
+        name: "rx",
+        type: "uint256",
+        internalType: "uint256",
       },
       {
-        "name": "ry",
-        "type": "uint256",
-        "internalType": "uint256"
+        name: "ry",
+        type: "uint256",
+        internalType: "uint256",
       },
       {
-        "name": "z",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
+        name: "z",
+        type: "uint256",
+        internalType: "uint256",
+      },
     ],
-    "outputs": [
+    outputs: [
       {
-        "name": "signer",
-        "type": "address",
-        "internalType": "address"
-      }
+        name: "signer",
+        type: "address",
+        internalType: "address",
+      },
     ],
-    "stateMutability": "view"
+    stateMutability: "view",
   },
   {
-    "type": "function",
-    "name": "verifyBytes",
-    "inputs": [
+    type: "function",
+    name: "verifyBytes",
+    inputs: [
       {
-        "name": "message",
-        "type": "bytes",
-        "internalType": "bytes"
+        name: "message",
+        type: "bytes",
+        internalType: "bytes",
       },
       {
-        "name": "px",
-        "type": "uint256",
-        "internalType": "uint256"
+        name: "px",
+        type: "uint256",
+        internalType: "uint256",
       },
       {
-        "name": "py",
-        "type": "uint256",
-        "internalType": "uint256"
+        name: "py",
+        type: "uint256",
+        internalType: "uint256",
       },
       {
-        "name": "rx",
-        "type": "uint256",
-        "internalType": "uint256"
+        name: "rx",
+        type: "uint256",
+        internalType: "uint256",
       },
       {
-        "name": "ry",
-        "type": "uint256",
-        "internalType": "uint256"
+        name: "ry",
+        type: "uint256",
+        internalType: "uint256",
       },
       {
-        "name": "z",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
+        name: "z",
+        type: "uint256",
+        internalType: "uint256",
+      },
     ],
-    "outputs": [
+    outputs: [
       {
-        "name": "signer",
-        "type": "address",
-        "internalType": "address"
-      }
+        name: "signer",
+        type: "address",
+        internalType: "address",
+      },
     ],
-    "stateMutability": "view"
-  }
+    stateMutability: "view",
+  },
 ] as const satisfies Abi;
-

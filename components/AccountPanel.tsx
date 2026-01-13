@@ -6,11 +6,69 @@
 
 'use client';
 
+import { useState } from 'react';
 import { useAccount, useConnect, useDisconnect, useBalance, useChainId } from 'wagmi';
 import { sepolia, mainnet } from 'wagmi/chains';
 import { Button } from '@tokamak/ui';
 import { Card, CardContent, CardHeader } from '@tokamak/ui';
 import { formatAddress, formatBalance } from '@/lib/utils/format';
+
+/**
+ * Copy Address Button Component
+ */
+function CopyAddressButton({ address }: { address: `0x${string}` | undefined }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    if (!address) return;
+
+    try {
+      await navigator.clipboard.writeText(address);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy address:', err);
+    }
+  };
+
+  return (
+    <button
+      onClick={handleCopy}
+      className="p-1.5 hover:bg-gray-100 rounded transition-colors"
+      title={copied ? 'Copied!' : 'Copy address'}
+    >
+      {copied ? (
+        <svg
+          className="w-4 h-4 text-green-600"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M5 13l4 4L19 7"
+          />
+        </svg>
+      ) : (
+        <svg
+          className="w-4 h-4 text-gray-500"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+          />
+        </svg>
+      )}
+    </button>
+  );
+}
 
 export function AccountPanel() {
   const { address, isConnected } = useAccount();
@@ -83,7 +141,10 @@ export function AccountPanel() {
       <CardContent className="space-y-4">
         {/* Address */}
         <div>
-          <p className="text-xs text-[var(--muted-foreground)] mb-1">Address</p>
+          <div className="flex items-center justify-between mb-1">
+            <p className="text-xs text-[var(--muted-foreground)]">Address</p>
+            <CopyAddressButton address={address} />
+          </div>
           <p className="font-mono text-sm break-all">{formatAddress(address)}</p>
         </div>
 

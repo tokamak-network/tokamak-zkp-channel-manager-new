@@ -59,3 +59,19 @@
 - **"Join" 버튼 클릭** → 해당 채널에 지금 지갑 연결된 주소가 참여자로 등록돼있는 경우, `/state-explorer` 페이지로 이동, 등록이돼있지않다면 참여자가 아니라는 에러 메세지 노출
 
 ---
+
+### 4. state explorer 페이지 (`/state-explorer`)
+
+**화면 구성:**
+
+- 상단: 'Channel #<Channel Id>'
+- 중앙과 상단 사이 : 채널 리더 주소로 접속 시 Initialize State, Close 버튼 노출, 리더가 아니면 아무 것도 표시 X
+- 중앙 : 케이스에 따라 아래 3가지 컴포넌트 중 하나 표시
+  - Initialize State 호출이 안 된 상태 : Deposit 컴포넌트
+  - Initialize State 호출이 돼 active인 상태일 때 Transaction 컴포넌트
+  - Close를 해서 채널이 닫힌 상태일 때 : Withdraw 컴포넌트
+- Deposit : L2 MPT KEY 생성, Deposit amouunt를 입력하고 하단에 위치한 Deposit 버튼을 눌러 Depoosit 트랜잭션 실행, 이미 채널 아이디를 눌러서 왔으므로 그 채널 아이디를 그대로 활용
+- Transaction : Transaction modal에 있던 인터페이스와 디자인을 그대로 가져와서 구현
+- Withdraw : Withdraw 인출 가능한 금액과 토큰 심볼을 보여주고, Withdraw 가능한 상황이면 활성화 아니면 이미 withdraw 했으면 비활성화
+
+---

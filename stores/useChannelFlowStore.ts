@@ -52,36 +52,36 @@ const initialState = {
 export const useChannelFlowStore = create<ChannelFlowState>()(
   persist(
     (set) => ({
-      ...initialState,
+  ...initialState,
       
       setCurrentChannelId: (id) => set({ currentChannelId: id }),
       
       clearCurrentChannelId: () => set({ currentChannelId: null }),
-      
-      setStep: (step) => set({ step }),
-      
-      setChannelId: (id) => set({ channelId: id }),
-      
-      setCreatingChannel: (isCreating) => set({ isCreatingChannel: isCreating }),
-      
-      setCreateChannelTxHash: (hash) => set({ createChannelTxHash: hash }),
-      
-      setConfirmingCreate: (isConfirming) => set({ isConfirmingCreate: isConfirming }),
-      
-      setCreateChannelError: (error) => set({ createChannelError: error }),
-      
-      reset: () => set(initialState),
-      
-      onChannelCreated: (id) => {
-        set({
-          channelId: id,
-          step: 2, // Auto-advance to deposit step
-          isCreatingChannel: false,
-          createChannelTxHash: null,
-          isConfirmingCreate: false,
-          createChannelError: null,
-        });
-      },
+  
+  setStep: (step) => set({ step }),
+  
+  setChannelId: (id) => set({ channelId: id }),
+  
+  setCreatingChannel: (isCreating) => set({ isCreatingChannel: isCreating }),
+  
+  setCreateChannelTxHash: (hash) => set({ createChannelTxHash: hash }),
+  
+  setConfirmingCreate: (isConfirming) => set({ isConfirmingCreate: isConfirming }),
+  
+  setCreateChannelError: (error) => set({ createChannelError: error }),
+  
+  reset: () => set(initialState),
+  
+  onChannelCreated: (id) => {
+    set({
+      channelId: id,
+      step: 2, // Auto-advance to deposit step
+      isCreatingChannel: false,
+      createChannelTxHash: null,
+      isConfirmingCreate: false,
+      createChannelError: null,
+    });
+  },
     }),
     {
       name: 'channel-flow-storage', // localStorage key
