@@ -418,45 +418,106 @@ export async function POST(req: Request) {
       const { env, ...rest } = options;
       const commandDisplay = [tokamakCliPath, ...args].join(" ");
       console.log(`Executing tokamak-cli ${label} command:`, commandDisplay);
-      const { stdout, stderr } = await execFileAsync(tokamakCliPath, args, {
-        cwd: distRoot,
-        env: { ...baseEnv, ...env },
-        ...rest,
-      });
-      if (stdout) {
-        console.log(`${label} stdout:`, stdout);
-      }
-      if (stderr) {
-        console.warn(`${label} stderr:`, stderr);
+      
+      try {
+        const { stdout, stderr } = await execFileAsync(tokamakCliPath, args, {
+          cwd: distRoot,
+          env: { ...baseEnv, ...env },
+          ...rest,
+        });
+        
+        if (stdout) {
+          console.log(`--${label} stdout:`, stdout);
+        }
+        
+        if (stderr) {
+          console.warn(`--${label} stderr:`, stderr);
+          
+          // Check for synthesizer errors in stderr
+          const stderrStr = String(stderr);
+          const hasSynthesizerError = 
+            stderrStr.includes("Synthesizer: step error:") ||
+            stderrStr.includes("Synthesizer: Handler:") ||
+            stderrStr.includes("Synthesizer:") && stderrStr.includes("Output data mismatch") ||
+            stderrStr.includes("Synthesizer:") && stderrStr.includes("error:") ||
+            stderrStr.includes("Undefined synthesizer handler");
+          
+          if (hasSynthesizerError) {
+            // Extract the first error message
+            const errorMatch = stderrStr.match(/error: (.+?)(?:\n|$)/);
+            const errorMessage = errorMatch 
+              ? errorMatch[1] 
+              : "Synthesizer execution failed";
+            
+            throw new Error(`Synthesizer error: ${errorMessage}`);
+          }
+        }
+      } catch (execError: any) {
+        // If execFileAsync throws, check stderr for synthesizer errors
+        if (execError.stderr) {
+          const stderrStr = String(execError.stderr);
+          const hasSynthesizerError = 
+            stderrStr.includes("Synthesizer: step error:") ||
+            stderrStr.includes("Synthesizer: Handler:") ||
+            stderrStr.includes("Synthesizer:") && stderrStr.includes("Output data mismatch") ||
+            stderrStr.includes("Synthesizer:") && stderrStr.includes("error:") ||
+            stderrStr.includes("Undefined synthesizer handler");
+          
+          if (hasSynthesizerError) {
+            const errorMatch = stderrStr.match(/error: (.+?)(?:\n|$)/);
+            const errorMessage = errorMatch 
+              ? errorMatch[1] 
+              : "Synthesizer execution failed";
+            
+            throw new Error(`Synthesizer error: ${errorMessage}`);
+          }
+        }
+        
+        // Re-throw the original error
+        throw execError;
       }
     };
 
     // STEP 1: Execute L2 transaction synthesis using tokamak-cli
     console.log("Running tokamak-cli synthesize...");
-    await runTokamakCli([
-      "--synthesize",
-      "--tokamak-ch-tx",
-      "--previous-state",
-      previousStateSnapshotPath,
-      "--transaction",
-      signedTxRlpStr,
-      "--block-info",
-      blockInfoPath,
-      "--contract-code",
-      contractCodePath,
-    ]);
+    try {
+      await runTokamakCli([
+        "--synthesize",
+        "--tokamak-ch-tx",
+        "--previous-state",
+        previousStateSnapshotPath,
+        "--transaction",
+        signedTxRlpStr,
+        "--block-info",
+        blockInfoPath,
+        "--contract-code",
+        contractCodePath,
+      ]);
+    } catch (synthesizeError: any) {
+      console.error("Synthesize failed:", synthesizeError);
+      throw new Error(
+        `Synthesis failed: ${synthesizeError.message || "Unknown error"}`
+      );
+    }
 
     await assertPathExists(synthOutputPath, "dir");
 
     // STEP 2: If includeProof is true, run prove and extract proof bundle
     if (includeProof) {
       console.log("Running tokamak-cli prove...");
-      await runTokamakCli(
-        ["--prove"],
-        {
-          timeout: 600000, // 10 minutes timeout
-        }
-      );
+      try {
+        await runTokamakCli(
+          ["--prove"],
+          {
+            timeout: 600000, // 10 minutes timeout
+          }
+        );
+      } catch (proveError: any) {
+        console.error("Prove failed:", proveError);
+        throw new Error(
+          `Proof generation failed: ${proveError.message || "Unknown error"}`
+        );
+      }
 
       console.log("Extracting proof bundle...");
       await runTokamakCli(["--extract-proof", outputZipPath]);
