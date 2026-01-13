@@ -360,12 +360,12 @@ export function TransactionPage() {
                 {isDownloading ? (
                   <>
                     <LoadingSpinner size="sm" className="mr-2" />
-                    Synthesizing & Proving...
+                    Generating ZK Proof...
                   </>
                 ) : (
                   <>
                     <Download className="w-4 h-4 mr-2" />
-                    Synthesize, Prove & Download
+                    Generate ZK Proof & Download
                   </>
                 )}
               </Button>
