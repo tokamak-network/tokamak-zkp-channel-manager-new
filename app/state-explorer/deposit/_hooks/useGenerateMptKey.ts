@@ -14,7 +14,8 @@ import { deriveL2KeysAndAddressFromSignature } from "@/lib/tokamakl2js";
 export function useGenerateMptKey() {
   const { address, isConnected } = useAccount();
   const { signMessageAsync } = useSignMessage();
-  const channelId = useChannelFlowStore((state) => state.channelId);
+  // Use currentChannelId (bytes32 string) instead of channelId (bigint)
+  const channelId = useChannelFlowStore((state) => state.currentChannelId);
   const setCurrentUserMPTKey = useDepositStore(
     (state) => state.setCurrentUserMPTKey
   );
