@@ -11,8 +11,20 @@ interface RouteParams {
 export async function GET(request: Request, { params }: RouteParams) {
   try {
     const { id } = await params;
+    // Decode URL-encoded channel ID if needed
+    const channelId = decodeURIComponent(id);
+    console.log('[API] GET /api/channels/:id - Raw ID:', id);
+    console.log('[API] GET /api/channels/:id - Decoded Channel ID:', channelId);
 
-    const channel = await getChannel(id);
+    const channel = await getChannel(channelId);
+    console.log('[API] Channel found:', channel ? 'Yes' : 'No');
+    if (channel) {
+      console.log('[API] Channel data:', {
+        channelId: channel.channelId,
+        initializationTxHash: channel.initializationTxHash,
+        status: channel.status,
+      });
+    }
 
     if (!channel) {
       return NextResponse.json(
@@ -47,10 +59,12 @@ export async function GET(request: Request, { params }: RouteParams) {
 export async function PATCH(request: Request, { params }: RouteParams) {
   try {
     const { id } = await params;
+    // Decode URL-encoded channel ID if needed
+    const channelId = decodeURIComponent(id);
     const body = await request.json();
 
     // Check if channel exists
-    const existingChannel = await getChannel(id);
+    const existingChannel = await getChannel(channelId);
     if (!existingChannel) {
       return NextResponse.json(
         {
@@ -62,10 +76,10 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     }
 
     // Update channel
-    await updateChannel(id, body);
+    await updateChannel(channelId, body);
 
     // Return updated channel
-    const updatedChannel = await getChannel(id);
+    const updatedChannel = await getChannel(channelId);
 
     return NextResponse.json({
       success: true,

@@ -124,12 +124,16 @@ export function TransactionPage() {
 
     try {
       // Get initialization transaction hash
-      const initTxHash = await fetch(`/api/channels/${currentChannelId}`)
-        .then((res) => res.json())
-        .then((data) => data.data?.initializationTxHash)
-        .catch(() => null);
+      console.log("[TransactionPage] Fetching channel data for:", currentChannelId);
+      const response = await fetch(`/api/channels/${currentChannelId}`);
+      const responseData = await response.json();
+      console.log("[TransactionPage] API response:", responseData);
+      
+      const initTxHash = responseData.data?.initializationTxHash;
+      console.log("[TransactionPage] Extracted initTxHash:", initTxHash);
 
       if (!initTxHash) {
+        console.error("[TransactionPage] Channel data:", responseData.data);
         throw new Error(
           "Could not find initialization transaction hash for this channel"
         );
