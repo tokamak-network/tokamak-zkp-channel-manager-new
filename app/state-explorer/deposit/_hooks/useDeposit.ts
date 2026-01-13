@@ -146,7 +146,7 @@ export function useDeposit({
         mptKey: mptKeyBytes32,
       });
 
-      await writeDeposit({
+      writeDeposit({
         functionName: "depositToken",
         args: [channelIdBytes32, amount, mptKeyBytes32],
       });

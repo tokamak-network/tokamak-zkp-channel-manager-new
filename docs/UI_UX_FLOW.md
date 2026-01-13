@@ -65,13 +65,81 @@
 **화면 구성:**
 
 - 상단: 'Channel #<Channel Id>'
-- 중앙과 상단 사이 : 채널 리더 주소로 접속 시 Initialize State, Close 버튼 노출, 리더가 아니면 아무 것도 표시 X
-- 중앙 : 케이스에 따라 아래 3가지 컴포넌트 중 하나 표시
+- 중앙과 상단 사이 : 채널 리더 주소로 접속 시 Initialize State, Submit Proof, Close Channel 버튼 노출, 리더가 아니면 아무 것도 표시 X
+  - **Submit Proof 버튼**: DB에 저장되고 리더가 승인한 proof들을 자동으로 submit proof 형식에 맞춰 제출
+  - **Close Channel 버튼**: 채널 종료 프로세스 시작 (2단계 플로우)
+- 중앙 : 케이스에 따라 아래 4가지 컴포넌트 중 하나 표시
   - Initialize State 호출이 안 된 상태 : Deposit 컴포넌트
   - Initialize State 호출이 돼 active인 상태일 때 Transaction 컴포넌트
+  - Close Channel 버튼 클릭 시 : Close Channel 컴포넌트 (Transaction 컴포넌트 대신 표시)
   - Close를 해서 채널이 닫힌 상태일 때 : Withdraw 컴포넌트
-- Deposit : L2 MPT KEY 생성, Deposit amouunt를 입력하고 하단에 위치한 Deposit 버튼을 눌러 Depoosit 트랜잭션 실행, 이미 채널 아이디를 눌러서 왔으므로 그 채널 아이디를 그대로 활용
-- Transaction : Transaction modal에 있던 인터페이스와 디자인을 그대로 가져와서 구현
-- Withdraw : Withdraw 인출 가능한 금액과 토큰 심볼을 보여주고, Withdraw 가능한 상황이면 활성화 아니면 이미 withdraw 했으면 비활성화
+
+**컴포넌트 상세:**
+
+- **Deposit**: L2 MPT KEY 생성, Deposit amount를 입력하고 하단에 위치한 Deposit 버튼을 눌러 Deposit 트랜잭션 실행
+- **Transaction**: Transaction modal에 있던 인터페이스와 디자인을 그대로 가져와서 구현
+- **Close Channel**: 2단계 채널 종료 프로세스 (아래 상세 설명 참조)
+- **Withdraw**: Withdraw 인출 가능한 금액과 토큰 심볼을 보여주고, Withdraw 가능한 상황이면 활성화, 이미 withdraw 했으면 비활성화
+
+**사용자 액션:**
+
+- **"Submit Proof" 버튼 클릭** → DB에서 승인된 proof들을 자동 포맷팅하여 `submitProofAndSignature` 트랜잭션 실행
+- **"Close Channel" 버튼 클릭** → Close Channel 컴포넌트 표시 (Transaction 컴포넌트 대체)
+
+---
+
+### 5. Close Channel 페이지 (`/state-explorer/close-channel`)
+
+**2단계 채널 종료 프로세스:**
+
+#### **Phase 1: Open → Closing (Proof 제출)**
+
+**화면 구성:**
+
+- 상단: "Close Channel - Step 1: Submit Proof" 타이틀
+- 중앙: Proof 제출 정보 표시
+  - DB에 저장된 승인된 proof 목록 표시
+  - 가장 최근 proof가 자동 선택됨
+  - Final State Root 미리보기
+  - Proof 데이터 요약 (트랜잭션 수, public inputs 수 등)
+- 하단: "Submit Proof & Move to Closing" 버튼
+
+**동작 방식:**
+
+1. DB에서 승인된(approved) proof 중 가장 최근 proof를 자동 선택
+2. Proof를 `submitProofAndSignature` 형식에 맞춰 자동 포맷팅
+3. `submitProofAndSignature()` 호출하여 채널 상태를 Closing으로 변경
+4. 성공 시 자동으로 Phase 2로 전환
+
+**사용자 액션:**
+
+- **"Submit Proof & Move to Closing" 버튼 클릭** → 트랜잭션 서명 → 성공 시 Phase 2로 자동 전환
+
+---
+
+#### **Phase 2: Closing → Closed (Final Balance 검증)**
+
+**화면 구성:**
+
+- 상단: "Close Channel - Step 2: Verify Final Balances" 타이틀
+- 중앙: Final Balance 검증 정보 표시
+  - 각 참여자별 최종 잔액 표시
+  - Final State Root 표시
+  - Permutation 배열 생성 상태
+  - Groth16 Proof 생성 진행 상황
+- 하단: "Verify & Close Channel" 버튼
+
+**동작 방식:**
+
+1. Phase 1에서 제출한 proof의 final state root 사용
+2. Final state snapshot 데이터 자동 생성
+3. Permutation 배열 자동 계산
+4. Groth16 proof 브라우저에서 자동 생성
+5. `verifyFinalBalancesGroth16()` 호출하여 채널 완전 종료
+6. 성공 시 채널 상태가 Closed로 변경되고 Withdraw 가능
+
+**사용자 액션:**
+
+- **"Verify & Close Channel" 버튼 클릭** → Proof 생성 (로딩) → 트랜잭션 서명 → 성공 시 Withdraw 컴포넌트로 전환
 
 ---

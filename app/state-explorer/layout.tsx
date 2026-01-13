@@ -18,6 +18,7 @@ import { useInitializeState } from "./_hooks/useInitializeState";
 import { InitializeStateConfirmModal } from "./_components/InitializeStateConfirmModal";
 import { useCloseChannel } from "./_hooks/useCloseChannel";
 import { useBridgeCoreRead } from "@/hooks/contract";
+import { Copy, Check } from "lucide-react";
 
 // ChannelState enum from contract: 0=None, 1=Initialized, 2=Open, 3=Closing, 4=Closed
 type ContractChannelState = 0 | 1 | 2 | 3 | 4;
@@ -54,6 +55,7 @@ export default function StateExplorerLayout({
   // Store contract channel state as number
   const [contractChannelState, setContractChannelState] = useState<ContractChannelState | null>(null);
   const [isLeader, setIsLeader] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   // Update channel state based on contract
   useEffect(() => {
@@ -173,12 +175,37 @@ export default function StateExplorerLayout({
     // });
   };
 
+  const handleCopyChannelId = async () => {
+    if (!channelId) return;
+
+    try {
+      await navigator.clipboard.writeText(channelId);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error("Failed to copy channel ID:", err);
+    }
+  };
+
   return (
     <AppLayout>
       <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold">Channel #{formatAddress(channelId)}</h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-3xl font-bold">Channel #{formatAddress(channelId)}</h1>
+            <button
+              onClick={handleCopyChannelId}
+              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors"
+              title={copied ? "Copied!" : "Copy channel ID"}
+            >
+              {copied ? (
+                <Check className="w-5 h-5 text-green-600 dark:text-green-400" />
+              ) : (
+                <Copy className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+              )}
+            </button>
+          </div>
         </div>
 
         {/* Leader Actions */}

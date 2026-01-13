@@ -236,7 +236,7 @@ export function useCreateChannel({
         enableFrostSignature: false,
       };
 
-      await writeContract({
+      writeContract({
         functionName: "openChannel",
         args: [channelParams],
       });

@@ -10,6 +10,7 @@
 import { useState } from "react";
 import { useAccount, useSignMessage } from "wagmi";
 import { Button, Input, Label, Card, CardContent } from "@tokamak/ui";
+import JSZip from "jszip";
 import {
   Dialog,
   DialogContent,
@@ -24,6 +25,7 @@ import { usePreviousStateSnapshot } from "@/app/state-explorer/_hooks/usePreviou
 import { useSynthesizer } from "@/app/state-explorer/_hooks/useSynthesizer";
 import { L2_PRV_KEY_MESSAGE } from "@/lib/l2KeyMessage";
 import { addHexPrefix } from "@ethereumjs/util";
+import { ProofList } from "./_components/ProofList";
 
 type Step = "input" | "confirm";
 
@@ -43,8 +45,12 @@ export function TransactionPage() {
   // UI state
   const [isSigning, setIsSigning] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [generatedZipBlob, setGeneratedZipBlob] = useState<Blob | null>(null);
+  const [proofGenerated, setProofGenerated] = useState(false);
+  const [proofListRefreshKey, setProofListRefreshKey] = useState(0);
 
   // Hook to fetch previous state snapshot
   const { fetchSnapshot } = usePreviousStateSnapshot({
@@ -150,23 +156,10 @@ export function TransactionPage() {
 
       // Call synthesizer API
       const zipBlob = await synthesize(initTxHash, previousStateSnapshot);
-
-      // Download the ZIP file
-      const url = URL.createObjectURL(zipBlob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `l2-transaction-channel-${currentChannelId}.zip`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-
-      // Close modal and reset form after successful download
-      setShowConfirmModal(false);
-      setKeySeed(null);
-      setRecipient(null);
-      setTokenAmount("");
-      setError(null);
+      
+      // Store the generated ZIP blob for later submission
+      setGeneratedZipBlob(zipBlob);
+      setProofGenerated(true);
     } catch (err) {
       console.error("Failed to synthesize L2 transaction:", err);
       setError(
@@ -176,6 +169,176 @@ export function TransactionPage() {
       );
     } finally {
       setIsDownloading(false);
+    }
+  };
+
+  // Reconstruct ZIP with new folder structure
+  const reconstructZip = async (
+    originalZipBlob: Blob,
+    channelId: string,
+    proofNumber: number
+  ): Promise<Blob> => {
+    const zip = new JSZip();
+    const originalZip = await JSZip.loadAsync(originalZipBlob);
+
+    // New folder name: <channelId>-<proof#sequence>
+    const newFolderName = `${channelId.toLowerCase()}-proof#${proofNumber}`;
+
+    // Process all files in the original ZIP
+    for (const [filePath, file] of Object.entries(originalZip.files)) {
+      if (file.dir) continue;
+
+      // Extract file name
+      const fileName = filePath.split("/").pop() || filePath;
+
+      // Determine which folder this file belongs to
+      let targetFolder = "";
+      if (
+        fileName === "proof.json" ||
+        filePath.includes("prove") ||
+        filePath.includes("proof")
+      ) {
+        targetFolder = `${newFolderName}/prove/`;
+      } else if (
+        fileName === "instance.json" ||
+        fileName === "state_snapshot.json" ||
+        fileName === "placementVariables.json" ||
+        fileName === "instance_description.json" ||
+        fileName === "permutation.json" ||
+        fileName === "block_info.json" ||
+        fileName === "contract_code.json" ||
+        fileName === "previous_state_snapshot.json" ||
+        filePath.includes("synthesizer")
+      ) {
+        targetFolder = `${newFolderName}/synthesizer/`;
+      } else {
+        // Skip preprocess files and other files
+        continue;
+      }
+
+      // Read file content and add to new ZIP
+      const content = await file.async("uint8array");
+      zip.file(`${targetFolder}${fileName}`, content);
+    }
+
+    // Generate new ZIP blob
+    return await zip.generateAsync({ type: "blob" });
+  };
+
+  // Handle submit proof to DB and download
+  const handleSubmitAndDownload = async () => {
+    if (!generatedZipBlob || !currentChannelId || !address) {
+      setError("Missing required data for proof submission");
+      return;
+    }
+
+    setIsSubmitting(true);
+    setError(null);
+
+    try {
+      // Step 1: Get next proof number atomically from backend
+      const proofNumberResponse = await fetch("/api/get-next-proof-number", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ channelId: currentChannelId.toLowerCase() }),
+      });
+
+      if (!proofNumberResponse.ok) {
+        const errorData = await proofNumberResponse.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to get next proof number");
+      }
+
+      const { proofNumber, subNumber, proofId, storageProofId } =
+        await proofNumberResponse.json();
+
+      // Step 2: Reconstruct ZIP with new folder structure
+      const reconstructedZipBlob = await reconstructZip(
+        generatedZipBlob,
+        currentChannelId,
+        proofNumber
+      );
+
+      // Step 3: Upload ZIP file
+      const formData = new FormData();
+      formData.append(
+        "file",
+        new File([reconstructedZipBlob], `proof-${proofId}.zip`, {
+          type: "application/zip",
+        })
+      );
+      formData.append("channelId", currentChannelId.toLowerCase());
+      formData.append("proofId", storageProofId);
+
+      const uploadResponse = await fetch("/api/save-proof-zip", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!uploadResponse.ok) {
+        const errorData = await uploadResponse.json().catch(() => ({}));
+        throw new Error(
+          errorData.error || errorData.details || "Upload failed"
+        );
+      }
+
+      // Step 3: Save metadata to DB using updateData
+      const proofMetadata = {
+        proofId: proofId,
+        sequenceNumber: proofNumber,
+        subNumber: subNumber,
+        submittedAt: new Date().toISOString(),
+        submitter: address,
+        timestamp: Date.now(),
+        uploadStatus: "complete",
+        status: "pending",
+        channelId: currentChannelId.toLowerCase(),
+      };
+
+      const saveResponse = await fetch("/api/db", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          path: `channels.${currentChannelId.toLowerCase()}.submittedProofs.${storageProofId}`,
+          data: proofMetadata,
+          operation: "update",
+        }),
+      });
+
+      if (!saveResponse.ok) {
+        const errorData = await saveResponse.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to save proof metadata");
+      }
+
+      // Step 4: Download the reconstructed ZIP file
+      const url = URL.createObjectURL(reconstructedZipBlob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `l2-transaction-channel-${currentChannelId}.zip`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      // Refresh proof list
+      setProofListRefreshKey((prev) => prev + 1);
+
+      // Close modal and reset form after successful submission and download
+      setShowConfirmModal(false);
+      setKeySeed(null);
+      setRecipient(null);
+      setTokenAmount("");
+      setGeneratedZipBlob(null);
+      setProofGenerated(false);
+      setError(null);
+    } catch (err) {
+      console.error("Failed to submit proof:", err);
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Failed to submit proof to database"
+      );
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -385,28 +548,78 @@ export function TransactionPage() {
                 </div>
 
                 <div className="flex flex-col gap-3">
-                  <Button
-                    onClick={handleSynthesize}
-                    disabled={isDownloading}
-                    className="w-full"
-                  >
-                    <Download className="w-4 h-4 mr-2" />
-                    Generate ZK Proof & Download
-                  </Button>
-                  <Button
-                    onClick={() => setShowConfirmModal(false)}
-                    variant="outline"
-                    className="w-full"
-                    disabled={isDownloading}
-                  >
-                    Back
-                  </Button>
+                  {!proofGenerated ? (
+                    <>
+                      <Button
+                        onClick={handleSynthesize}
+                        disabled={isDownloading}
+                        className="w-full"
+                      >
+                        {isDownloading ? (
+                          <>
+                            <LoadingSpinner size="sm" className="mr-2" />
+                            Generating ZK Proof...
+                          </>
+                        ) : (
+                          <>
+                            <Download className="w-4 h-4 mr-2" />
+                            Generate ZK Proof
+                          </>
+                        )}
+                      </Button>
+                      <Button
+                        onClick={() => setShowConfirmModal(false)}
+                        variant="outline"
+                        className="w-full"
+                        disabled={isDownloading}
+                      >
+                        Back
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <div className="p-3 bg-green-50 border border-green-200 rounded text-green-700 text-sm mb-2">
+                        ✓ ZK Proof generated successfully!
+                      </div>
+                      <Button
+                        onClick={handleSubmitAndDownload}
+                        disabled={isSubmitting}
+                        className="w-full"
+                      >
+                        {isSubmitting ? (
+                          <>
+                            <LoadingSpinner size="sm" className="mr-2" />
+                            Submitting & Downloading...
+                          </>
+                        ) : (
+                          <>
+                            <Download className="w-4 h-4 mr-2" />
+                            Submit & Download
+                          </>
+                        )}
+                      </Button>
+                      <Button
+                        onClick={() => setShowConfirmModal(false)}
+                        variant="outline"
+                        className="w-full"
+                        disabled={isSubmitting}
+                      >
+                        Close
+                      </Button>
+                    </>
+                  )}
                 </div>
               </div>
             </>
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Proof List */}
+      <div className="mt-8">
+        <h2 className="text-2xl font-bold mb-4">Proofs</h2>
+        <ProofList key={proofListRefreshKey} />
+      </div>
     </div>
   );
 }

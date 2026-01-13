@@ -123,7 +123,7 @@ export function useDeposit({
       const amount = parseInputAmount(depositAmount);
       const mptKeyBytes32 = mptKey as `0x${string}`;
 
-      await writeDeposit({
+      writeDeposit({
         functionName: "depositToken",
         args: [channelId, amount, mptKeyBytes32],
       });

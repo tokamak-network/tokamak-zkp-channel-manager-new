@@ -150,7 +150,7 @@ export function useInitializeState({ channelId }: UseInitializeStateParams) {
         },
       });
 
-      await writeInitialize({
+      writeInitialize({
         functionName: "initializeChannelState",
         args: [channelId, proofStruct],
       });

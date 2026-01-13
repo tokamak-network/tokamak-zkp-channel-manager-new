@@ -63,9 +63,9 @@ export function useBridgeDepositManagerWrite() {
   const { writeContract, ...rest } = useWriteContract();
 
   const writeContractWithConfig = useCallback(
-    async (
+    (
       params: Omit<WriteContractParameters, 'address' | 'abi'>
-    ): Promise<WriteContractReturnType> => {
+    ): WriteContractReturnType => {
       return writeContract({
         ...params,
         address,

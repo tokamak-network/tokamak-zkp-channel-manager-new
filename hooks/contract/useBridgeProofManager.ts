@@ -1,51 +1,53 @@
 /**
  * BridgeProofManager Contract Hooks
- * 
+ *
  * Provides hooks for interacting with the BridgeProofManager contract
  */
 
-import { 
+import {
   useReadContract,
   useWriteContract,
   useWaitForTransactionReceipt,
   UseReadContractParameters,
   UseWaitForTransactionReceiptParameters,
-  WriteContractParameters,
+} from "wagmi";
+import type {
   WriteContractReturnType,
-} from 'wagmi';
-import { 
-  CONTRACT_ABIS, 
-  getContractAddress, 
-  getContractAbi 
-} from '@tokamak/config';
-import type { Abi } from 'viem';
-import { useNetworkId } from './utils';
-import { useCallback } from 'react';
+  WriteContractParameters,
+} from "wagmi/actions";
+import {
+  CONTRACT_ABIS,
+  getContractAddress,
+  getContractAbi,
+} from "@tokamak/config";
+import type { Abi } from "viem";
+import { useNetworkId } from "./utils";
+import { useCallback } from "react";
 
 /**
  * Get BridgeProofManager contract address for current network
  */
 export function useBridgeProofManagerAddress(): `0x${string}` {
   const networkId = useNetworkId();
-  return getContractAddress('BridgeProofManager', networkId);
+  return getContractAddress("BridgeProofManager", networkId);
 }
 
 /**
  * Get BridgeProofManager contract ABI
  */
 function useBridgeProofManagerAbi(): readonly Abi[number][] {
-  return getContractAbi('BridgeProofManager');
+  return getContractAbi("BridgeProofManager");
 }
 
 /**
  * Hook for reading from BridgeProofManager contract
  */
-export function useBridgeProofManagerRead<TAbi extends Abi = typeof CONTRACT_ABIS.BridgeProofManager>(
-  config: Omit<UseReadContractParameters<TAbi>, 'address' | 'abi'>
-) {
+export function useBridgeProofManagerRead<
+  TAbi extends Abi = typeof CONTRACT_ABIS.BridgeProofManager
+>(config: Omit<UseReadContractParameters<TAbi>, "address" | "abi">) {
   const address = useBridgeProofManagerAddress();
   const abi = useBridgeProofManagerAbi();
-  
+
   return useReadContract({
     ...config,
     address,
@@ -63,14 +65,12 @@ export function useBridgeProofManagerWrite() {
   const { writeContract, ...rest } = useWriteContract();
 
   const writeContractWithConfig = useCallback(
-    async (
-      params: Omit<WriteContractParameters, 'address' | 'abi'>
-    ): Promise<WriteContractReturnType> => {
-      return writeContract({
+    (params: Omit<WriteContractParameters, "address" | "abi">): void => {
+      writeContract({
         ...params,
         address,
         abi: abi as Abi,
-      });
+      } as WriteContractParameters);
     },
     [writeContract, address, abi]
   );
@@ -89,4 +89,3 @@ export function useBridgeProofManagerWaitForReceipt(
 ) {
   return useWaitForTransactionReceipt(config);
 }
-

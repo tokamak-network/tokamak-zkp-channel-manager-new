@@ -653,7 +653,7 @@ export default function SubmitProofPage() {
     try {
       setIsLoading(true);
 
-      const hash = await writeContract({
+      const hash = writeContract({
         functionName: 'submitProofAndSignature',
         args: [
           BigInt(selectedChannelId),
