@@ -37,7 +37,8 @@ export function TransactionPage() {
   const [keySeed, setKeySeed] = useState<`0x${string}` | null>(null);
   const [recipient, setRecipient] = useState<`0x${string}` | null>(null);
   const [tokenAmount, setTokenAmount] = useState<string>("");
-  const [includeProof, setIncludeProof] = useState(false);
+  // ZK Proof is always included
+  const includeProof = true;
 
   // UI state
   const [isSigning, setIsSigning] = useState(false);
@@ -160,7 +161,6 @@ export function TransactionPage() {
       setKeySeed(null);
       setRecipient(null);
       setTokenAmount("");
-      setIncludeProof(false);
       setError(null);
     } catch (err) {
       console.error("Failed to synthesize L2 transaction:", err);
@@ -277,23 +277,19 @@ export function TransactionPage() {
             />
           </div>
 
-          {/* Include Proof Option */}
-          <div className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg bg-gray-50">
-            <input
-              type="checkbox"
-              id="includeProof"
-              checked={includeProof}
-              onChange={(e) => setIncludeProof(e.target.checked)}
-              className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
-            />
-            <label htmlFor="includeProof" className="flex-1 cursor-pointer">
-              <span className="text-sm font-medium text-gray-900">
-                Generate ZK Proof
-              </span>
-              <p className="text-xs text-gray-500 mt-0.5">
-                Include proof.json in the download (takes longer to process)
-              </p>
-            </label>
+          {/* ZK Proof Info */}
+          <div className="p-4 border border-gray-200 rounded-lg bg-blue-50">
+            <div className="flex items-start gap-2">
+              <CheckCircle className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
+              <div>
+                <p className="text-sm font-medium text-gray-900">
+                  ZK Proof will be generated
+                </p>
+                <p className="text-xs text-gray-600 mt-0.5">
+                  proof.json will be included in the download (takes longer to process)
+                </p>
+              </div>
+            </div>
           </div>
 
           {/* Continue Button */}
@@ -349,12 +345,8 @@ export function TransactionPage() {
                   <CheckCircle className="w-4 h-4" />
                   Generate ZK Proof
                 </span>
-                <span
-                  className={`font-medium ${
-                    includeProof ? "text-green-600" : "text-gray-500"
-                  }`}
-                >
-                  {includeProof ? "Yes" : "No"}
+                <span className="font-medium text-green-600">
+                  Yes
                 </span>
               </div>
             </div>
@@ -368,16 +360,12 @@ export function TransactionPage() {
                 {isDownloading ? (
                   <>
                     <LoadingSpinner size="sm" className="mr-2" />
-                    {includeProof
-                      ? "Synthesizing & Proving..."
-                      : "Synthesizing..."}
+                    Synthesizing & Proving...
                   </>
                 ) : (
                   <>
                     <Download className="w-4 h-4 mr-2" />
-                    {includeProof
-                      ? "Synthesize, Prove & Download"
-                      : "Synthesize & Download"}
+                    Synthesize, Prove & Download
                   </>
                 )}
               </Button>
