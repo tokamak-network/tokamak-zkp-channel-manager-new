@@ -53,11 +53,16 @@ export function useProofs({ channelId }: UseProofsParams): UseProofsReturn {
     setError(null);
 
     try {
+      // Normalize channelId to lowercase for consistent DB lookup
+      // (DB stores channelId in lowercase format)
+      const normalizedChannelId = channelId?.toLowerCase() || channelId;
+      const encodedChannelId = normalizedChannelId ? encodeURIComponent(normalizedChannelId) : channelId;
+      
       // Fetch all proof types
       const [submittedRes, verifiedRes, rejectedRes] = await Promise.all([
-        fetch(`/api/channels/${channelId}/proofs?type=submitted`),
-        fetch(`/api/channels/${channelId}/proofs?type=verified`),
-        fetch(`/api/channels/${channelId}/proofs?type=rejected`),
+        fetch(`/api/channels/${encodedChannelId}/proofs?type=submitted`),
+        fetch(`/api/channels/${encodedChannelId}/proofs?type=verified`),
+        fetch(`/api/channels/${encodedChannelId}/proofs?type=rejected`),
       ]);
 
       const [submittedData, verifiedData, rejectedData] = await Promise.all([

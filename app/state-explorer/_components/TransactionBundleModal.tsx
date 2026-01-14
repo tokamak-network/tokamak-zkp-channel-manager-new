@@ -24,6 +24,9 @@ import {
   Coins,
   CheckCircle,
   Upload,
+  FileText,
+  Eye,
+  X,
 } from "lucide-react";
 import {
   getChannel,
@@ -106,6 +109,8 @@ export function TransactionBundleModal({
   const [generatedZipBlob, setGeneratedZipBlob] = useState<Blob | null>(null);
   const [isSubmittingProof, setIsSubmittingProof] = useState(false);
   const isSubmittingProofRef = useRef(false);
+  const [showStateSnapshotModal, setShowStateSnapshotModal] = useState(false);
+  const [stateSnapshot, setStateSnapshot] = useState<StateSnapshot | null>(null);
 
   // Wagmi hooks for MetaMask signing
   const { signMessageAsync } = useSignMessage();
@@ -175,7 +180,10 @@ export function TransactionBundleModal({
       if (!participants || participants.length === 0) {
         try {
           // Fetch participants from contract using API
-          const response = await fetch(`/api/channels/${channelId}`);
+          // Normalize channelId to lowercase for consistent DB lookup
+          const normalizedChannelId = channelId?.toLowerCase() || channelId;
+          const encodedChannelId = normalizedChannelId ? encodeURIComponent(normalizedChannelId) : channelId;
+          const response = await fetch(`/api/channels/${encodedChannelId}`);
           if (response.ok) {
             const data = await response.json();
             if (data.data?.participants) {
@@ -249,13 +257,59 @@ export function TransactionBundleModal({
   const isFormValid = validateForm;
 
   // Handle proceed to summary
-  const handleProceedToSummary = () => {
+  const handleProceedToSummary = async () => {
     if (isFormValid()) {
+      // Pre-fetch state snapshot for viewing
+      try {
+        const snapshot = await fetchSnapshot();
+        setStateSnapshot(snapshot);
+      } catch (err) {
+        console.warn("Failed to pre-fetch state snapshot:", err);
+      }
       setStep("summary");
       setError(null);
     } else {
       setError("Please fill in all fields correctly");
     }
+  };
+
+  // Handle view state snapshot
+  const handleViewStateSnapshot = async () => {
+    try {
+      if (!stateSnapshot) {
+        const snapshot = await fetchSnapshot();
+        setStateSnapshot(snapshot);
+      }
+      setShowStateSnapshotModal(true);
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Failed to fetch state snapshot"
+      );
+    }
+  };
+
+  // Handle download state snapshot as JSON
+  const handleDownloadStateSnapshot = () => {
+    if (!stateSnapshot) return;
+
+    const jsonString = JSON.stringify(stateSnapshot, (key, value) => {
+      // Convert bigint to string for JSON serialization
+      if (typeof value === "bigint") {
+        return value.toString();
+      }
+      return value;
+    }, 2);
+    const blob = new Blob([jsonString], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `state-snapshot-channel-${selectedChannelId}-${new Date().toISOString()}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   // Handle back to input
@@ -282,9 +336,14 @@ export function TransactionBundleModal({
 
     try {
       // Get initialization transaction hash
+      // Normalize channelId to lowercase for consistent DB lookup
+      // (DB stores channelId in lowercase format)
+      const normalizedChannelId = selectedChannelId?.toLowerCase() || selectedChannelId;
+      const encodedChannelId = normalizedChannelId ? encodeURIComponent(normalizedChannelId) : selectedChannelId;
+      
       const initTxHash = bundleData?.channel?.initializationTxHash
         ? bundleData.channel.initializationTxHash
-        : await fetch(`/api/channels/${selectedChannelId}`)
+        : await fetch(`/api/channels/${encodedChannelId}`)
             .then((res) => res.json())
             .then((data) => data.data?.initializationTxHash)
             .catch(() => null);
@@ -747,6 +806,14 @@ export function TransactionBundleModal({
                   )}
                 </Button>
                 <Button
+                  onClick={handleViewStateSnapshot}
+                  variant="outline"
+                  className="w-full border-[#4fc3f7]/30 text-[#4fc3f7] hover:bg-[#4fc3f7]/10"
+                >
+                  <Eye className="w-4 h-4 mr-2" />
+                  View State Snapshot
+                </Button>
+                <Button
                   onClick={handleBackToInput}
                   variant="outline"
                   className="w-full border-[#4fc3f7]/30 text-[#4fc3f7] hover:bg-[#4fc3f7]/10"
@@ -866,5 +933,91 @@ export function TransactionBundleModal({
         </div>
       </DialogContent>
     </Dialog>
+
+    {/* State Snapshot Viewer Modal */}
+    <Dialog open={showStateSnapshotModal} onOpenChange={setShowStateSnapshotModal}>
+      <DialogContent className="sm:max-w-4xl max-h-[90vh] bg-gradient-to-b from-[#1a2347] to-[#0a1930] border-[#4fc3f7] text-white overflow-hidden flex flex-col">
+        <DialogHeader>
+          <DialogTitle className="flex items-center justify-between text-white">
+            <div className="flex items-center gap-2">
+              <div className="bg-[#4fc3f7] p-1.5 rounded">
+                <FileText className="h-4 w-4 text-white" />
+              </div>
+              State Snapshot for Synthesizer
+            </div>
+            <Button
+              onClick={() => setShowStateSnapshotModal(false)}
+              variant="ghost"
+              size="sm"
+              className="text-gray-400 hover:text-white"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </DialogTitle>
+          <DialogDescription className="text-gray-400">
+            This is the state snapshot that will be passed to the synthesizer for proof generation
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="flex-1 overflow-hidden flex flex-col gap-4">
+          {stateSnapshot ? (
+            <>
+              <div className="flex gap-2">
+                <Button
+                  onClick={handleDownloadStateSnapshot}
+                  variant="outline"
+                  size="sm"
+                  className="border-[#4fc3f7]/30 text-[#4fc3f7] hover:bg-[#4fc3f7]/10"
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  Download JSON
+                </Button>
+              </div>
+
+              <div className="flex-1 overflow-auto bg-[#0a1930] border border-[#4fc3f7]/30 rounded p-4">
+                <pre className="text-xs font-mono text-gray-300 whitespace-pre-wrap break-words">
+                  {JSON.stringify(stateSnapshot, (key, value) => {
+                    // Convert bigint to string for JSON serialization
+                    if (typeof value === "bigint") {
+                      return value.toString();
+                    }
+                    return value;
+                  }, 2)}
+                </pre>
+              </div>
+
+              <div className="bg-[#0a1930]/50 border border-[#4fc3f7]/20 rounded p-3 text-sm">
+                <div className="grid grid-cols-2 gap-2 text-gray-400">
+                  <div>
+                    <span className="text-[#4fc3f7]">State Root:</span>{" "}
+                    <span className="font-mono text-xs">
+                      {stateSnapshot.stateRoot?.slice(0, 20) || "N/A"}...
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[#4fc3f7]">Registered Keys:</span>{" "}
+                    {stateSnapshot.registeredKeys?.length || 0}
+                  </div>
+                  <div>
+                    <span className="text-[#4fc3f7]">Storage Entries:</span>{" "}
+                    {stateSnapshot.storageEntries?.length || 0}
+                  </div>
+                  <div>
+                    <span className="text-[#4fc3f7]">Pre-allocated Leaves:</span>{" "}
+                    {stateSnapshot.preAllocatedLeaves?.length || 0}
+                  </div>
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="flex items-center justify-center py-12">
+              <LoadingSpinner size="md" />
+              <span className="ml-3 text-gray-400">Loading state snapshot...</span>
+            </div>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }

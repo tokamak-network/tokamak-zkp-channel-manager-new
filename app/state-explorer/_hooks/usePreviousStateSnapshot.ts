@@ -9,8 +9,11 @@
 
 import { useState, useCallback } from "react";
 import { useConfig } from "wagmi";
-import { readContract } from "@wagmi/core";
-import { useBridgeCoreAddress, useBridgeCoreAbi } from "@/hooks/contract";
+import {
+  useBridgeCoreAddress,
+  useBridgeCoreAbi,
+  readBridgeCoreContract,
+} from "@/hooks/contract";
 import { StateSnapshot } from "tokamak-l2js";
 import { addHexPrefix } from "@ethereumjs/util";
 
@@ -58,6 +61,7 @@ export function usePreviousStateSnapshot({
       }
 
       // Step 2: Try to get from latest verified proof API
+      let apiSnapshot: StateSnapshot | null = null;
       try {
         const response = await fetch(
           `/api/get-latest-state-snapshot?channelId=${channelId}`
@@ -65,61 +69,84 @@ export function usePreviousStateSnapshot({
         if (response.ok) {
           const data = await response.json();
           if (data.snapshot) {
-            setPreviousStateSnapshot(data.snapshot);
-            setIsLoading(false);
-            return data.snapshot;
+            apiSnapshot = data.snapshot;
+            // Check if preAllocatedLeaves is missing or empty
+            if (apiSnapshot) {
+              const hasPreAllocatedLeaves =
+                apiSnapshot.preAllocatedLeaves &&
+                Array.isArray(apiSnapshot.preAllocatedLeaves) &&
+                apiSnapshot.preAllocatedLeaves.length > 0;
+
+              if (hasPreAllocatedLeaves) {
+                // Snapshot has preAllocatedLeaves, use it
+                setPreviousStateSnapshot(apiSnapshot);
+                setIsLoading(false);
+                return apiSnapshot;
+              } else {
+                // Snapshot is missing preAllocatedLeaves, will fetch from on-chain in Step 3
+                console.warn(
+                  "[usePreviousStateSnapshot] Snapshot from API missing preAllocatedLeaves, will fetch from on-chain and merge"
+                );
+              }
+            }
           }
         }
       } catch (apiError) {
         console.warn("Failed to fetch snapshot from API:", apiError);
       }
 
-      // Step 3: Fetch initial state from on-chain (first transfer simulation)
-      // channelId is now bytes32 (0x... string), not a number
+      // Step 3: Fetch from on-chain
+      // If apiSnapshot exists but is missing preAllocatedLeaves, merge it with on-chain data
+      // Otherwise, fetch everything from on-chain (first transfer simulation)
       const channelIdBytes32 = channelId.startsWith("0x")
         ? (channelId as `0x${string}`)
         : (`0x${channelId}` as `0x${string}`);
 
-      // Get channel info and participants using readContract
+      // Get channel info and participants using common contract hook
       const [channelInfo, participants] = await Promise.all([
-        readContract(config, {
-          address: bridgeCoreAddress,
-          abi: bridgeCoreAbi,
+        readBridgeCoreContract<
+          readonly [`0x${string}`, number, bigint, `0x${string}`]
+        >(config, bridgeCoreAddress, bridgeCoreAbi, {
           functionName: "getChannelInfo",
           args: [channelIdBytes32],
-        }) as Promise<readonly [`0x${string}`, number, bigint, `0x${string}`]>,
-        readContract(config, {
-          address: bridgeCoreAddress,
-          abi: bridgeCoreAbi,
-          functionName: "getChannelParticipants",
-          args: [channelIdBytes32],
-        }) as Promise<readonly `0x${string}`[]>,
+        }),
+        readBridgeCoreContract<readonly `0x${string}`[]>(
+          config,
+          bridgeCoreAddress,
+          bridgeCoreAbi,
+          {
+            functionName: "getChannelParticipants",
+            args: [channelIdBytes32],
+          }
+        ),
       ]);
 
       const [targetContract, state, participantCount, initialRoot] =
         channelInfo;
 
-      // Get pre-allocated keys using readContract
-      const preAllocatedKeys = (await readContract(config, {
-        address: bridgeCoreAddress,
-        abi: bridgeCoreAbi,
+      // Get pre-allocated keys using common contract hook
+      const preAllocatedKeys = await readBridgeCoreContract<
+        readonly `0x${string}`[]
+      >(config, bridgeCoreAddress, bridgeCoreAbi, {
         functionName: "getPreAllocatedKeys",
         args: [targetContract],
-      })) as readonly `0x${string}`[] | undefined;
+      });
 
-      const registeredKeys: string[] = [];
       const preAllocatedLeaves: Array<{ key: string; value: string }> = [];
 
-      // Fetch pre-allocated leaves using readContract
+      // Fetch pre-allocated leaves using common contract hook
       if (preAllocatedKeys && preAllocatedKeys.length > 0) {
         const preAllocatedLeafResults = await Promise.all(
           preAllocatedKeys.map((key) =>
-            readContract(config, {
-              address: bridgeCoreAddress,
-              abi: bridgeCoreAbi,
-              functionName: "getPreAllocatedLeaf",
-              args: [targetContract, key],
-            })
+            readBridgeCoreContract<readonly [bigint, boolean]>(
+              config,
+              bridgeCoreAddress,
+              bridgeCoreAbi,
+              {
+                functionName: "getPreAllocatedLeaf",
+                args: [targetContract, key],
+              }
+            )
           )
         );
 
@@ -138,8 +165,6 @@ export function usePreviousStateSnapshot({
             keyHex = `0x${String(keyValue).padStart(64, "0")}`;
           }
 
-          registeredKeys.push(keyHex);
-
           const result = preAllocatedLeafResults[index] as
             | readonly [bigint, boolean]
             | undefined;
@@ -153,24 +178,69 @@ export function usePreviousStateSnapshot({
         });
       }
 
-      // Fetch participants' MPT keys and deposits using readContract
+      // Validate preAllocatedLeaves - required for proof generation
+      if (!preAllocatedKeys || preAllocatedKeys.length === 0) {
+        const errorMessage = `Pre-allocated keys are missing or empty for target contract ${targetContract}. Proof generation cannot proceed without pre-allocated leaves.`;
+        console.error("[usePreviousStateSnapshot]", errorMessage);
+        setError(errorMessage);
+        setIsLoading(false);
+        throw new Error(errorMessage);
+      }
+
+      if (!preAllocatedLeaves || preAllocatedLeaves.length === 0) {
+        const errorMessage = `Pre-allocated leaves are missing or empty for target contract ${targetContract}. Expected ${preAllocatedKeys.length} leaves but got 0. Proof generation cannot proceed without pre-allocated leaves.`;
+        console.error("[usePreviousStateSnapshot]", errorMessage);
+        setError(errorMessage);
+        setIsLoading(false);
+        throw new Error(errorMessage);
+      }
+
+      // If we have an API snapshot but it was missing preAllocatedLeaves, merge them
+      if (apiSnapshot && preAllocatedLeaves.length > 0) {
+        const mergedSnapshot: StateSnapshot = {
+          ...apiSnapshot,
+          preAllocatedLeaves,
+        };
+        console.log(
+          `[usePreviousStateSnapshot] Merged preAllocatedLeaves (${preAllocatedLeaves.length} entries) into API snapshot`
+        );
+        setPreviousStateSnapshot(mergedSnapshot);
+        setIsLoading(false);
+        return mergedSnapshot;
+      }
+
+      // Otherwise, fetch everything from on-chain (first transfer simulation)
+      const registeredKeys: string[] = [];
+
+      // Add pre-allocated keys to registeredKeys
+      preAllocatedLeaves.forEach((leaf) => {
+        registeredKeys.push(leaf.key);
+      });
+
+      // Fetch participants' MPT keys and deposits using common contract hook
       const storageEntries: Array<{ key: string; value: string }> = [];
 
       if (participants.length > 0) {
         const participantDataResults = await Promise.all(
           participants.flatMap((participant) => [
-            readContract(config, {
-              address: bridgeCoreAddress,
-              abi: bridgeCoreAbi,
-              functionName: "getL2MptKey",
-              args: [channelIdBytes32, participant],
-            }) as Promise<bigint>,
-            readContract(config, {
-              address: bridgeCoreAddress,
-              abi: bridgeCoreAbi,
-              functionName: "getParticipantDeposit",
-              args: [channelIdBytes32, participant],
-            }) as Promise<bigint>,
+            readBridgeCoreContract<bigint>(
+              config,
+              bridgeCoreAddress,
+              bridgeCoreAbi,
+              {
+                functionName: "getL2MptKey",
+                args: [channelIdBytes32, participant],
+              }
+            ),
+            readBridgeCoreContract<bigint>(
+              config,
+              bridgeCoreAddress,
+              bridgeCoreAbi,
+              {
+                functionName: "getParticipantDeposit",
+                args: [channelIdBytes32, participant],
+              }
+            ),
           ])
         );
 

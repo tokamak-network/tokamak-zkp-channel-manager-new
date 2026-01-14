@@ -91,3 +91,36 @@ export function useBridgeCoreWaitForReceipt(
 ) {
   return useWaitForTransactionReceipt(config);
 }
+
+/**
+ * Helper function to read from BridgeCore contract in async contexts
+ * Use this when you need to call readContract inside async functions
+ * (e.g., inside useCallback, useEffect, or event handlers)
+ * 
+ * This function uses the address and ABI from useBridgeCoreAddress() and useBridgeCoreAbi()
+ * which should be called at the hook level and passed to this function.
+ * 
+ * @param config - Wagmi config from useConfig()
+ * @param address - BridgeCore contract address (from useBridgeCoreAddress())
+ * @param abi - BridgeCore contract ABI (from useBridgeCoreAbi())
+ * @param params - Function name and arguments
+ * @returns Promise with the contract read result
+ */
+export async function readBridgeCoreContract<TResult = unknown>(
+  config: Parameters<typeof useReadContract>[0]["config"],
+  address: `0x${string}`,
+  abi: readonly Abi[number][],
+  params: {
+    functionName: string;
+    args?: readonly unknown[];
+  }
+): Promise<TResult> {
+  const { readContract } = await import("@wagmi/core");
+
+  return readContract(config, {
+    address,
+    abi,
+    functionName: params.functionName,
+    args: params.args,
+  }) as Promise<TResult>;
+}

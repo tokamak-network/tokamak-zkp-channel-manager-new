@@ -130,8 +130,13 @@ export function TransactionPage() {
 
     try {
       // Get initialization transaction hash
-      console.log("[TransactionPage] Fetching channel data for:", currentChannelId);
-      const response = await fetch(`/api/channels/${currentChannelId}`);
+      // Normalize channelId to lowercase for consistent DB lookup
+      // (DB stores channelId in lowercase format)
+      const normalizedChannelId = currentChannelId?.toLowerCase() || currentChannelId;
+      const encodedChannelId = normalizedChannelId ? encodeURIComponent(normalizedChannelId) : currentChannelId;
+      
+      console.log("[TransactionPage] Fetching channel data for:", currentChannelId, "(normalized:", normalizedChannelId + ")");
+      const response = await fetch(`/api/channels/${encodedChannelId}`);
       const responseData = await response.json();
       console.log("[TransactionPage] API response:", responseData);
       

@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAccount } from 'wagmi';
 import { keccak256, encodePacked } from 'viem';
+import { toBytes32 } from '@/lib/channelId';
 import { 
   FileText, 
   CheckCircle2, 
@@ -72,37 +73,42 @@ export default function SubmitProofPage() {
   const [requireSignature, setRequireSignature] = useState(true);
   const [isProcessingZip, setIsProcessingZip] = useState(false);
 
+  // Convert channelId to bytes32 for contract calls
+  const channelIdBytes32 = useMemo(() => {
+    return selectedChannelId ? toBytes32(selectedChannelId) : undefined;
+  }, [selectedChannelId]);
+
   // Get channel info from contract
   const { data: channelInfo } = useBridgeCoreRead({
     functionName: 'getChannelInfo',
-    args: selectedChannelId ? [BigInt(selectedChannelId)] : undefined,
+    args: channelIdBytes32 ? [channelIdBytes32] : undefined,
     query: {
-      enabled: Boolean(selectedChannelId && isConnected),
+      enabled: Boolean(channelIdBytes32 && isConnected),
     },
   });
 
   const { data: channelParticipants } = useBridgeCoreRead({
     functionName: 'getChannelParticipants',
-    args: selectedChannelId ? [BigInt(selectedChannelId)] : undefined,
+    args: channelIdBytes32 ? [channelIdBytes32] : undefined,
     query: {
-      enabled: Boolean(selectedChannelId && isConnected),
+      enabled: Boolean(channelIdBytes32 && isConnected),
     },
   });
 
   const { data: targetContract } = useBridgeCoreRead({
     functionName: 'getChannelTargetContract',
-    args: selectedChannelId ? [BigInt(selectedChannelId)] : undefined,
+    args: channelIdBytes32 ? [channelIdBytes32] : undefined,
     query: {
-      enabled: Boolean(selectedChannelId && isConnected),
+      enabled: Boolean(channelIdBytes32 && isConnected),
     },
   });
 
   // Check if channel has frost signatures enabled
   const { data: isFrostSignatureEnabled } = useBridgeCoreRead({
     functionName: 'isFrostSignatureEnabled',
-    args: selectedChannelId ? [BigInt(selectedChannelId)] : undefined,
+    args: channelIdBytes32 ? [channelIdBytes32] : undefined,
     query: {
-      enabled: Boolean(selectedChannelId && isConnected),
+      enabled: Boolean(channelIdBytes32 && isConnected),
     },
   });
 
@@ -653,10 +659,16 @@ export default function SubmitProofPage() {
     try {
       setIsLoading(true);
 
+      // Convert channelId to bytes32 format (contract expects bytes32)
+      const channelIdBytes32 = toBytes32(selectedChannelId);
+      if (!channelIdBytes32) {
+        throw new Error("Invalid channel ID");
+      }
+
       const hash = writeContract({
         functionName: 'submitProofAndSignature',
         args: [
-          BigInt(selectedChannelId),
+          channelIdBytes32,
           uploadedProofs.map(p => p.data),
           requireSignature && signature ? signature : {
             message: '0x0000000000000000000000000000000000000000000000000000000000000000' as `0x${string}`,

@@ -8,6 +8,7 @@ import { useEffect, useCallback } from "react";
 import { useAccount } from "wagmi";
 import { useDepositStore } from "@/stores";
 import { parseInputAmount } from "@/lib/utils/format";
+import { toBytes32 } from "@/lib/channelId";
 import {
   useBridgeDepositManagerWrite,
   useBridgeDepositManagerWaitForReceipt,
@@ -122,10 +123,16 @@ export function useDeposit({
     try {
       const amount = parseInputAmount(depositAmount);
       const mptKeyBytes32 = mptKey as `0x${string}`;
+      
+      // Convert channelId to bytes32 format (contract expects bytes32)
+      const channelIdBytes32 = toBytes32(channelId);
+      if (!channelIdBytes32) {
+        throw new Error("Invalid channel ID");
+      }
 
       writeDeposit({
         functionName: "depositToken",
-        args: [channelId, amount, mptKeyBytes32],
+        args: [channelIdBytes32, amount, mptKeyBytes32],
       });
     } catch (error) {
       console.error("Error depositing token:", error);

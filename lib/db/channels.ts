@@ -6,6 +6,77 @@
 
 import { getData, setData, pushData, updateData, deleteData } from './helpers';
 
+/**
+ * Normalize Ethereum addresses and hashes to lowercase
+ * Ethereum addresses and transaction hashes are case-insensitive
+ * but we store them in lowercase for consistency
+ */
+function normalizeEthValue(value: string | null | undefined): string | null | undefined {
+  if (!value || typeof value !== 'string') return value;
+  // Check if it looks like an Ethereum address or hash (starts with 0x)
+  if (value.startsWith('0x') || value.startsWith('0X')) {
+    return value.toLowerCase();
+  }
+  return value;
+}
+
+/**
+ * Normalize an array of Ethereum addresses
+ */
+function normalizeEthArray(values: string[] | null | undefined): string[] | null | undefined {
+  if (!values || !Array.isArray(values)) return values;
+  return values.map(normalizeEthValue).filter((v): v is string => v !== null && v !== undefined);
+}
+
+/**
+ * Normalize channel data: convert all Ethereum addresses and hashes to lowercase
+ * This includes:
+ * - channelId
+ * - targetContract
+ * - participants (array of addresses)
+ * - initializationTxHash
+ * - openChannelTxHash
+ * - Any other fields that look like Ethereum addresses/hashes
+ */
+function normalizeChannelData(data: Partial<Channel>): Partial<Channel> {
+  const normalized: Partial<Channel> = { ...data };
+
+  // Normalize channelId
+  if (normalized.channelId) {
+    normalized.channelId = normalizeEthValue(normalized.channelId) || normalized.channelId;
+  }
+
+  // Normalize targetContract (Ethereum address)
+  if (normalized.targetContract) {
+    normalized.targetContract = normalizeEthValue(normalized.targetContract) || normalized.targetContract;
+  }
+
+  // Normalize participants (array of Ethereum addresses)
+  if (normalized.participants) {
+    normalized.participants = normalizeEthArray(normalized.participants) || normalized.participants;
+  }
+
+  // Normalize transaction hashes
+  if (normalized.initializationTxHash) {
+    normalized.initializationTxHash = normalizeEthValue(normalized.initializationTxHash) || normalized.initializationTxHash;
+  }
+
+  if (normalized.openChannelTxHash) {
+    normalized.openChannelTxHash = normalizeEthValue(normalized.openChannelTxHash) || normalized.openChannelTxHash;
+  }
+
+  // Normalize any other fields that might be Ethereum addresses/hashes
+  // Check all string fields that start with 0x
+  Object.keys(normalized).forEach((key) => {
+    const value = normalized[key];
+    if (typeof value === 'string' && (value.startsWith('0x') || value.startsWith('0X'))) {
+      (normalized as any)[key] = normalizeEthValue(value);
+    }
+  });
+
+  return normalized;
+}
+
 // ============================================================================
 // Channel Operations
 // ============================================================================
@@ -28,17 +99,27 @@ export interface Channel {
 
 /**
  * Get channel by ID
- * Normalizes channel ID to lowercase for consistent lookup
- * (Ethereum addresses/hashes are case-insensitive)
+ * 
+ * Case-insensitive lookup: Accepts channelId in any case (uppercase, lowercase, mixed)
+ * and always returns the channel if it exists, regardless of case.
+ * 
+ * Storage normalization: All channels are stored with lowercase channelId keys
+ * for consistency (Ethereum addresses/hashes are case-insensitive).
+ * 
+ * @param channelId - Channel ID in any case format
+ * @returns Channel data or null if not found
  */
 export async function getChannel(channelId: string): Promise<Channel | null> {
   // Normalize channel ID to lowercase for consistent lookup
+  // This ensures we can find channels regardless of input case
   const normalizedId = channelId.toLowerCase();
   
-  // Try exact match first (normalized)
+  // Try exact match first (normalized to lowercase)
+  // All channels are stored with lowercase keys
   let channel = await getData<Channel>(`channels.${normalizedId}`);
   
-  // If not found, try case-insensitive search through channels object
+  // Fallback: If not found, try case-insensitive search through all channels
+  // This handles edge cases where data might have been stored with different casing
   if (!channel) {
     const channelsData = await getData<Record<string, Channel>>('channels');
     if (channelsData) {
@@ -54,6 +135,7 @@ export async function getChannel(channelId: string): Promise<Channel | null> {
   
   if (!channel) return null;
   
+  // Always return with normalized channelId for consistency
   return {
     ...channel,
     channelId: channel.channelId || normalizedId,
@@ -83,33 +165,52 @@ export async function getActiveChannels(): Promise<Channel[]> {
 
 /**
  * Create or update a channel
- * Normalizes channel ID to lowercase for consistent storage
- * (Ethereum addresses/hashes are case-insensitive)
+ * 
+ * Normalizes all Ethereum addresses and hashes to lowercase for consistent storage.
+ * This includes:
+ * - channelId (key and value)
+ * - targetContract
+ * - participants array
+ * - transaction hashes (initializationTxHash, openChannelTxHash, etc.)
+ * 
+ * (Ethereum addresses/hashes are case-insensitive but stored in lowercase)
  */
 export async function saveChannel(channelId: string, channelData: Partial<Channel>): Promise<void> {
   // Normalize channel ID to lowercase for consistent storage
   const normalizedId = channelId.toLowerCase();
   
+  // Normalize all Ethereum addresses and hashes in channel data
+  const normalizedData = normalizeChannelData(channelData);
+  
   await setData(`channels.${normalizedId}`, {
-    ...channelData,
+    ...normalizedData,
     channelId: normalizedId, // Store normalized ID in channel data as well
   });
 }
 
 /**
  * Update channel fields
- * Normalizes channel ID to lowercase for consistent storage
- * (Ethereum addresses/hashes are case-insensitive)
+ * 
+ * Normalizes all Ethereum addresses and hashes to lowercase for consistent storage.
+ * This includes:
+ * - channelId (if being updated)
+ * - targetContract
+ * - participants array
+ * - transaction hashes
+ * 
+ * (Ethereum addresses/hashes are case-insensitive but stored in lowercase)
  */
 export async function updateChannel(channelId: string, updates: Partial<Channel>): Promise<void> {
   // Normalize channel ID to lowercase for consistent storage
   const normalizedId = channelId.toLowerCase();
   
-  // If channelId is being updated, normalize it too
-  const normalizedUpdates = {
-    ...updates,
-    ...(updates.channelId && { channelId: updates.channelId.toLowerCase() }),
-  };
+  // Normalize all Ethereum addresses and hashes in updates
+  const normalizedUpdates = normalizeChannelData(updates);
+  
+  // If channelId is being updated, ensure it's normalized
+  if (normalizedUpdates.channelId) {
+    normalizedUpdates.channelId = normalizedUpdates.channelId.toLowerCase();
+  }
   
   await updateData(`channels.${normalizedId}`, normalizedUpdates);
 }
@@ -158,7 +259,7 @@ export async function getChannelParticipants(channelId: string): Promise<Partici
 
 /**
  * Add or update a participant
- * Normalizes channel ID to lowercase for consistent storage
+ * Normalizes channel ID and participant address to lowercase for consistent storage
  */
 export async function saveParticipant(
   channelId: string,
@@ -166,9 +267,11 @@ export async function saveParticipant(
   participantData: Partial<Participant>
 ): Promise<void> {
   const normalizedId = channelId.toLowerCase();
-  await setData(`channels.${normalizedId}.participants.${address}`, {
+  const normalizedAddress = normalizeEthValue(address) || address.toLowerCase();
+  
+  await setData(`channels.${normalizedId}.participants.${normalizedAddress}`, {
     ...participantData,
-    address,
+    address: normalizedAddress,
   });
 }
 
@@ -262,7 +365,7 @@ export async function getChannelUserBalances(channelId: string): Promise<UserBal
 
 /**
  * Save or update user balance
- * Normalizes channel ID to lowercase for consistent storage
+ * Normalizes channel ID and user address to lowercase for consistent storage
  */
 export async function saveUserBalance(
   channelId: string,
@@ -270,9 +373,11 @@ export async function saveUserBalance(
   balanceData: Partial<UserBalance>
 ): Promise<void> {
   const normalizedId = channelId.toLowerCase();
-  await setData(`channels.${normalizedId}.userBalances.${address}`, {
+  const normalizedAddress = normalizeEthValue(address) || address.toLowerCase();
+  
+  await setData(`channels.${normalizedId}.userBalances.${normalizedAddress}`, {
     ...balanceData,
-    address,
+    address: normalizedAddress,
   });
 }
 

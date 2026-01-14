@@ -245,6 +245,12 @@ function InitializeStatePageContent() {
     setInitializeError(null);
 
     try {
+      // Convert channelId to bytes32 format (contract expects bytes32, not bigint)
+      // channelId from store is bigint type
+      const channelIdBytes32 = `0x${channelId
+        .toString(16)
+        .padStart(64, "0")}` as `0x${string}`;
+
       // Prepare proof struct for contract
       const proof = {
         pA: proofData.pA,
@@ -253,10 +259,20 @@ function InitializeStatePageContent() {
         merkleRoot: proofData.merkleRoot as `0x${string}`,
       };
 
+      console.log("Calling initializeChannelState with:", {
+        channelIdBytes32,
+        proof: {
+          pA: proof.pA.map((v) => v.toString()),
+          pB: proof.pB.map((v) => v.toString()),
+          pC: proof.pC.map((v) => v.toString()),
+          merkleRoot: proof.merkleRoot,
+        },
+      });
+
       // Call contract (don't await - let wagmi handle the transaction)
       writeInitialize({
         functionName: "initializeChannelState",
-        args: [channelId, proof],
+        args: [channelIdBytes32, proof],
       });
     } catch (error) {
       console.error("Error initializing channel state:", error);

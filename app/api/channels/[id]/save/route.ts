@@ -9,10 +9,16 @@ interface RouteParams {
  * POST /api/channels/:id/save - Save channel information after creation
  * 
  * Saves channel information to the database based on transaction receipt.
+ * 
+ * Storage normalization: Channel ID is automatically normalized to lowercase
+ * before saving. This ensures consistent storage regardless of input case.
  */
 export async function POST(request: Request, { params }: RouteParams) {
   try {
     const { id } = await params;
+    // saveChannel automatically normalizes channelId to lowercase
+    console.log('[API] POST /api/channels/:id/save - Channel ID:', id);
+    console.log('[API] POST /api/channels/:id/save - Will be normalized to:', id.toLowerCase());
     const body = await request.json();
 
     const {

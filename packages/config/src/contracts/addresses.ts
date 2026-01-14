@@ -7,16 +7,17 @@
 
 export const CONTRACT_ADDRESSES = {
   sepolia: {
-    TokamakVerifier: '0xF43C2a14A8e5Ab3FC8740ea4AABc45010ED9fb52',
-    Groth16Verifier16Leaves: '0x27f453C0f7eAC419A390edaae6b0ABA64D6490c9',
-    Groth16Verifier32Leaves: '0xCF85A85856237C8B1E9FE43e117ca8245c2AbE6A',
-    Groth16Verifier64Leaves: '0x9192Ab6CCe1FF89393153BD54CE95F7aEE0Cf831',
-    Groth16Verifier128Leaves: '0xdb70a38547f6Bcc655786b2cf19D0f34e7B3ebED',
-    BridgeCore: '0x04C0A9366280A4B6bcE0f01d5D18014d1Bd03845',
-    BridgeDepositManager: '0x1B6073D620b8977D4760F5a36f1Be0ceB3A21fAE',
-    BridgeProofManager: '0xCfD17915Fe378f49c4bF574d63F3De5c7AFD78c7',
-    BridgeWithdrawManager: '0x0B9bE3471eEB400Dcf0872D7795308a959E3FDa8',
-    BridgeAdminManager: '0x845C23BA92cE8994079eAB7E7fD078e5269F647d',
+    TokamakVerifier: '0xf43c2a14a8e5ab3fc8740ea4aabc45010ed9fb52',
+    Groth16Verifier16Leaves: '0x27f453c0f7eac419a390edaae6b0aba64d6490c9',
+    Groth16Verifier32Leaves: '0xcf85a85856237c8b1e9fe43e117ca8245c2abe6a',
+    Groth16Verifier64Leaves: '0x9192ab6cce1ff89393153bd54ce95f7aee0cf831',
+    Groth16Verifier128Leaves: '0xdb70a38547f6bcc655786b2cf19d0f34e7b3ebed',
+    ZecFrost: '0x910eee98a93d54ad52694cbf2b45b1534c8c8d10',
+    BridgeCore: '0xb6bd0fad0b47e8c322606a199fa83ed8ca182f23',
+    BridgeDepositManager: '0x509c052f28924cbeafb75dba8b507517b1989668',
+    BridgeProofManager: '0x576e38b03deefaee4b591106cba6c3bd4a5537d0',
+    BridgeWithdrawManager: '0xeef0e1b4bfc44dbc35557c7ff0c7f8c9cd02dffb',
+    BridgeAdminManager: '0xc5604c16779b7430827c0ad6b8c758792f99bac7',
   } as const,
 } as const;
 

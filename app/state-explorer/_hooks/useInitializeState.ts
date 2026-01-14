@@ -115,28 +115,15 @@ export function useInitializeState({ channelId }: UseInitializeStateParams) {
       // Step 2: Call contract
       // Ensure all proof values are bigint (not string)
       const proofStruct = {
-        pA: proof.pA.map((val) => (typeof val === "string" ? BigInt(val) : val)) as [
-          bigint,
-          bigint,
-          bigint,
-          bigint,
-        ],
-        pB: proof.pB.map((val) => (typeof val === "string" ? BigInt(val) : val)) as [
-          bigint,
-          bigint,
-          bigint,
-          bigint,
-          bigint,
-          bigint,
-          bigint,
-          bigint,
-        ],
-        pC: proof.pC.map((val) => (typeof val === "string" ? BigInt(val) : val)) as [
-          bigint,
-          bigint,
-          bigint,
-          bigint,
-        ],
+        pA: proof.pA.map((val) =>
+          typeof val === "string" ? BigInt(val) : val
+        ) as [bigint, bigint, bigint, bigint],
+        pB: proof.pB.map((val) =>
+          typeof val === "string" ? BigInt(val) : val
+        ) as [bigint, bigint, bigint, bigint, bigint, bigint, bigint, bigint],
+        pC: proof.pC.map((val) =>
+          typeof val === "string" ? BigInt(val) : val
+        ) as [bigint, bigint, bigint, bigint],
         merkleRoot: proof.merkleRoot as `0x${string}`,
       };
 
@@ -156,12 +143,12 @@ export function useInitializeState({ channelId }: UseInitializeStateParams) {
       });
     } catch (err) {
       console.error("Error initializing state:", err);
-      
+
       // Extract detailed error message
       let errorMessage = "Failed to initialize state";
       if (err instanceof Error) {
         errorMessage = err.message;
-        
+
         // Try to extract revert reason from viem error
         if (err.message.includes("revert")) {
           const revertMatch = err.message.match(/revert\s+(.+)/i);
@@ -169,18 +156,21 @@ export function useInitializeState({ channelId }: UseInitializeStateParams) {
             errorMessage = `Contract reverted: ${revertMatch[1]}`;
           }
         }
-        
+
         // Check for specific error types
         if (err.message.includes("execution reverted")) {
-          const reasonMatch = err.message.match(/execution reverted(?:.*?reason="([^"]+)")?/i);
+          const reasonMatch = err.message.match(
+            /execution reverted(?:.*?reason="([^"]+)")?/i
+          );
           if (reasonMatch && reasonMatch[1]) {
             errorMessage = `Contract reverted: ${reasonMatch[1]}`;
           } else {
-            errorMessage = "Contract execution reverted. Please check channel state and permissions.";
+            errorMessage =
+              "Contract execution reverted. Please check channel state and permissions.";
           }
         }
       }
-      
+
       setError(errorMessage);
       setIsProcessing(false);
     }

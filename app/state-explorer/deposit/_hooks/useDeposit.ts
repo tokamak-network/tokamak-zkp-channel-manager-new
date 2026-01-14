@@ -8,6 +8,7 @@ import { useEffect, useCallback } from "react";
 import { useAccount } from "wagmi";
 import { parseUnits } from "viem";
 import { useDepositStore } from "@/stores/useDepositStore";
+import { toBytes32 } from "@/lib/channelId";
 import {
   useBridgeDepositManagerWrite,
   useBridgeDepositManagerWaitForReceipt,
@@ -137,7 +138,13 @@ export function useDeposit({
 
     try {
       const amount = parseUnits(depositAmount, tokenDecimals);
-      const channelIdBytes32 = channelId as `0x${string}`;
+      
+      // Convert channelId to bytes32 format (contract expects bytes32)
+      const channelIdBytes32 = toBytes32(channelId);
+      if (!channelIdBytes32) {
+        throw new Error("Invalid channel ID");
+      }
+      
       const mptKeyBytes32 = mptKey as `0x${string}`;
 
       console.log("📝 Deposit params:", {
