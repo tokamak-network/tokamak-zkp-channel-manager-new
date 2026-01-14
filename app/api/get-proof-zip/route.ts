@@ -29,6 +29,15 @@ export async function GET(request: NextRequest) {
 
     // Get file metadata from database
     const dbPath = `channels.${channelIdStr}.${proofStatus}.${proofId}.zipFile`;
+    
+    // Debug logging
+    console.log("[get-proof-zip] Looking for ZIP file:", {
+      channelId: channelIdStr,
+      proofId,
+      proofStatus,
+      dbPath,
+    });
+    
     const zipMetadata = await getData<{
       filePath?: string;
       content?: string; // Legacy: base64 content
@@ -37,8 +46,24 @@ export async function GET(request: NextRequest) {
     }>(dbPath);
 
     if (!zipMetadata) {
+      // Try to get the parent object to see what keys exist
+      const parentPath = `channels.${channelIdStr}.${proofStatus}`;
+      const parentData = await getData<Record<string, any>>(parentPath);
+      const availableKeys = parentData ? Object.keys(parentData) : [];
+      
+      console.error("[get-proof-zip] ZIP file not found:", {
+        channelId: channelIdStr,
+        proofId,
+        proofStatus,
+        dbPath,
+        availableKeys: availableKeys.slice(0, 10), // Log first 10 keys
+      });
+      
       return NextResponse.json(
-        { error: "ZIP file not found" },
+        { 
+          error: "ZIP file not found",
+          details: `Proof ID "${proofId}" not found in ${proofStatus}. Available keys: ${availableKeys.slice(0, 5).join(", ")}${availableKeys.length > 5 ? "..." : ""}`
+        },
         { status: 404 }
       );
     }

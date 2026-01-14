@@ -19,7 +19,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
-import { Key, Wallet, Coins, CheckCircle, ArrowRight, Download, AlertCircle } from "lucide-react";
+import { Key, Wallet, Coins, CheckCircle, Download, AlertCircle } from "lucide-react";
 import { useChannelFlowStore } from "@/stores/useChannelFlowStore";
 import { usePreviousStateSnapshot } from "@/app/state-explorer/_hooks/usePreviousStateSnapshot";
 import { useSynthesizer } from "@/app/state-explorer/_hooks/useSynthesizer";
@@ -462,12 +462,13 @@ export function TransactionPage() {
 
           {/* Continue Button */}
           <Button
+            variant="primary"
+            color="blue"
             onClick={handleContinue}
             disabled={!validateForm() || isDownloading}
             className="w-full"
           >
             Continue
-            <ArrowRight className="w-4 h-4 ml-2" />
           </Button>
         </CardContent>
       </Card>
@@ -551,6 +552,8 @@ export function TransactionPage() {
                   {!proofGenerated ? (
                     <>
                       <Button
+                        variant="primary"
+                        color="blue"
                         onClick={handleSynthesize}
                         disabled={isDownloading}
                         className="w-full"
@@ -568,8 +571,9 @@ export function TransactionPage() {
                         )}
                       </Button>
                       <Button
-                        onClick={() => setShowConfirmModal(false)}
                         variant="outline"
+                        color="gray"
+                        onClick={() => setShowConfirmModal(false)}
                         className="w-full"
                         disabled={isDownloading}
                       >
@@ -582,6 +586,8 @@ export function TransactionPage() {
                         ✓ ZK Proof generated successfully!
                       </div>
                       <Button
+                        variant="primary"
+                        color="green"
                         onClick={handleSubmitAndDownload}
                         disabled={isSubmitting}
                         className="w-full"
@@ -599,8 +605,9 @@ export function TransactionPage() {
                         )}
                       </Button>
                       <Button
-                        onClick={() => setShowConfirmModal(false)}
                         variant="outline"
+                        color="gray"
+                        onClick={() => setShowConfirmModal(false)}
                         className="w-full"
                         disabled={isSubmitting}
                       >

@@ -78,13 +78,85 @@
 
 - **Deposit**: L2 MPT KEY 생성, Deposit amount를 입력하고 하단에 위치한 Deposit 버튼을 눌러 Deposit 트랜잭션 실행
 - **Transaction**: Transaction modal에 있던 인터페이스와 디자인을 그대로 가져와서 구현
+  - **Proof List**: 채널에 제출된 모든 proof 목록 표시 (승인됨, 대기중, 거부됨)
+  - **Submit Proof 버튼**: Proof List 최하단에 위치, 리더만 표시, 승인된 proof가 있을 때만 활성화
 - **Close Channel**: 2단계 채널 종료 프로세스 (아래 상세 설명 참조)
 - **Withdraw**: Withdraw 인출 가능한 금액과 토큰 심볼을 보여주고, Withdraw 가능한 상황이면 활성화, 이미 withdraw 했으면 비활성화
 
 **사용자 액션:**
 
-- **"Submit Proof" 버튼 클릭** → DB에서 승인된 proof들을 자동 포맷팅하여 `submitProofAndSignature` 트랜잭션 실행
+- **"Submit Proof" 버튼 클릭** (Transaction 컴포넌트 내) → DB에서 승인된 proof들을 자동 포맷팅하여 `submitProofAndSignature` 트랜잭션 실행 (아래 상세 설명 참조)
 - **"Close Channel" 버튼 클릭** → Close Channel 컴포넌트 표시 (Transaction 컴포넌트 대체)
+
+---
+
+### 4-1. Transaction 컴포넌트 - Submit Proof 기능
+
+**위치:** `/state-explorer` 페이지 내 Transaction 컴포넌트 (Proof List 최하단)
+
+**화면 구성:**
+
+- Proof List 최하단에 "Submit Proof (N)" 버튼 표시
+  - 리더만 표시됨
+  - 승인된 proof가 있을 때만 활성화
+  - 승인된 proof 개수 표시
+
+**동작 방식:**
+
+1. **"Submit Proof" 버튼 클릭**
+
+   - DB에서 승인된(verified) proof들을 `getProofs(channelId, 'verified')`로 가져오기
+   - `sequenceNumber` 기준으로 정렬
+   - 각 proof의 ZIP 파일을 `/api/get-proof-zip` API로 로드
+
+2. **자동 포맷팅**
+
+   - 공용 포맷팅 함수 `formatVerifiedProofsForSubmission()` 사용
+   - 각 proof ZIP 파일을 파싱하여 `proof.json`과 `instance.json` 추출
+   - `formatProofForContract()` 함수로 contract 형식으로 변환:
+     - `proofPart1`: `proof_entries_part1` 배열을 bigint 배열로 변환
+     - `proofPart2`: `proof_entries_part2` 배열을 bigint 배열로 변환
+     - `publicInputs`: `a_pub_user + a_pub_block + a_pub_function` 배열을 bigint 배열로 변환
+     - `smax`: 고정값 `256`
+   - 마지막 proof에서 final state root 추출 (`extractFinalStateRoot()`)
+   - Message hash 계산 (`computeMessageHash()`)
+
+3. **확인 모달 표시**
+
+   - 포맷팅된 proof 리스트 표시
+   - 각 proof의 sequence number와 제출 날짜 표시
+   - Final state root 미리보기
+   - 총 proof 개수 표시
+
+4. **"Confirm & Submit" 버튼 클릭**
+
+   - `submitProofAndSignature()` 트랜잭션 호출
+   - 파라미터:
+     - `channelId`: 현재 채널 ID (bigint)
+     - `proofs`: 포맷팅된 proof 배열 (최대 5개)
+     - `signature`: 서명 객체 (현재는 빈 서명 사용)
+
+5. **성공 처리**
+   - 트랜잭션 성공 시 success 스타일 모달 표시
+   - Final state root 표시
+   - "Close" 버튼으로 모달 닫기
+   - Proof List 자동 새로고침
+
+**공용 포맷팅 함수:**
+
+- 위치: `app/state-explorer/_utils/proofFormatter.ts`
+- 함수: `formatVerifiedProofsForSubmission(proofZipFiles: (File | Blob)[], channelId: string)`
+- 반환값: `FormattedProofForSubmission`
+  - `proofData`: `ProofData[]` - contract 형식의 proof 배열
+  - `finalStateRoot`: `0x${string}` - 최종 state root
+  - `messageHash`: `0x${string}` - 서명용 메시지 해시
+
+**에러 처리:**
+
+- 승인된 proof가 없을 경우: 버튼 비활성화 또는 에러 메시지
+- Proof 파일 로드 실패: 에러 메시지 표시
+- 포맷팅 실패: 에러 메시지 표시
+- 트랜잭션 실패: 에러 메시지 표시 및 재시도 가능
 
 ---
 

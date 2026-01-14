@@ -52,24 +52,126 @@
     @apply disabled:cursor-not-allowed disabled:opacity-50;
   }
 
+  /* Primary variants with colors - matching card style */
+  .btn-primary-default {
+    @apply bg-primary-100 text-primary-800 hover:bg-primary-200 focus:ring-primary-500 border border-primary-300 rounded-lg;
+  }
+
+  .btn-primary-blue {
+    @apply bg-blue-50 text-blue-700 hover:bg-blue-100 focus:ring-blue-500 border border-blue-200 rounded-lg;
+  }
+
+  .btn-primary-green {
+    @apply bg-green-50 text-green-700 hover:bg-green-100 focus:ring-green-500 border border-green-200 rounded-lg;
+  }
+
+  .btn-primary-red {
+    @apply bg-red-50 text-red-700 hover:bg-red-100 focus:ring-red-500 border border-red-200 rounded-lg;
+  }
+
+  .btn-primary-yellow {
+    @apply bg-yellow-50 text-yellow-700 hover:bg-yellow-100 focus:ring-yellow-500 border border-yellow-200 rounded-lg;
+  }
+
+  .btn-primary-gray {
+    @apply bg-gray-50 text-gray-700 hover:bg-gray-100 focus:ring-gray-500 border border-gray-200 rounded-lg;
+  }
+
+  /* Secondary variants with colors - matching card style */
+  .btn-secondary-default {
+    @apply bg-gray-50 text-gray-700 hover:bg-gray-100 focus:ring-gray-500 border border-gray-200 rounded-lg;
+  }
+
+  .btn-secondary-blue {
+    @apply bg-blue-50 text-blue-700 hover:bg-blue-100 focus:ring-blue-500 border border-blue-200 rounded-lg;
+  }
+
+  .btn-secondary-green {
+    @apply bg-green-50 text-green-700 hover:bg-green-100 focus:ring-green-500 border border-green-200 rounded-lg;
+  }
+
+  .btn-secondary-red {
+    @apply bg-red-50 text-red-700 hover:bg-red-100 focus:ring-red-500 border border-red-200 rounded-lg;
+  }
+
+  .btn-secondary-yellow {
+    @apply bg-yellow-50 text-yellow-700 hover:bg-yellow-100 focus:ring-yellow-500 border border-yellow-200 rounded-lg;
+  }
+
+  .btn-secondary-gray {
+    @apply bg-gray-50 text-gray-700 hover:bg-gray-100 focus:ring-gray-500 border border-gray-200 rounded-lg;
+  }
+
+  /* Outline variants with colors - matching card style */
+  .btn-outline-default {
+    @apply border border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-100 hover:border-gray-300 focus:ring-gray-500 rounded-lg;
+  }
+
+  .btn-outline-blue {
+    @apply border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 hover:border-blue-300 focus:ring-blue-500 rounded-lg;
+  }
+
+  .btn-outline-green {
+    @apply border border-green-200 bg-green-50 text-green-700 hover:bg-green-100 hover:border-green-300 focus:ring-green-500 rounded-lg;
+  }
+
+  .btn-outline-red {
+    @apply border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 hover:border-red-300 focus:ring-red-500 rounded-lg;
+  }
+
+  .btn-outline-yellow {
+    @apply border border-yellow-200 bg-yellow-50 text-yellow-700 hover:bg-yellow-100 hover:border-yellow-300 focus:ring-yellow-500 rounded-lg;
+  }
+
+  .btn-outline-gray {
+    @apply border border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-100 hover:border-gray-300 focus:ring-gray-500 rounded-lg;
+  }
+
+  /* Ghost variants with colors - matching card style */
+  .btn-ghost-default {
+    @apply bg-transparent text-gray-700 hover:bg-gray-50 focus:ring-gray-500 rounded-lg;
+  }
+
+  .btn-ghost-blue {
+    @apply bg-transparent text-blue-700 hover:bg-blue-50 focus:ring-blue-500 rounded-lg;
+  }
+
+  .btn-ghost-green {
+    @apply bg-transparent text-green-700 hover:bg-green-50 focus:ring-green-500 rounded-lg;
+  }
+
+  .btn-ghost-red {
+    @apply bg-transparent text-red-700 hover:bg-red-50 focus:ring-red-500 rounded-lg;
+  }
+
+  .btn-ghost-yellow {
+    @apply bg-transparent text-yellow-700 hover:bg-yellow-50 focus:ring-yellow-500 rounded-lg;
+  }
+
+  .btn-ghost-gray {
+    @apply bg-transparent text-gray-700 hover:bg-gray-50 focus:ring-gray-500 rounded-lg;
+  }
+
+  /* Danger variant (always red) - matching card style */
+  .btn-danger {
+    @apply bg-red-50 text-red-700 hover:bg-red-100 focus:ring-red-500 border border-red-200 rounded-lg;
+  }
+
+  /* Legacy support - fallback to default colors - matching card style */
   .btn-primary {
-    @apply bg-primary-600 text-white hover:bg-primary-700 focus:ring-primary-500;
+    @apply bg-primary-100 text-primary-800 hover:bg-primary-200 focus:ring-primary-500 border border-primary-300 rounded-lg;
   }
 
   .btn-secondary {
-    @apply bg-gray-100 text-gray-900 hover:bg-gray-200 focus:ring-gray-500;
+    @apply bg-gray-50 text-gray-700 hover:bg-gray-100 focus:ring-gray-500 border border-gray-200 rounded-lg;
   }
 
   .btn-outline {
-    @apply border border-[var(--border)] bg-transparent hover:bg-[var(--muted)] focus:ring-gray-500;
+    @apply border border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-100 focus:ring-gray-500 rounded-lg;
   }
 
   .btn-ghost {
-    @apply bg-transparent hover:bg-[var(--muted)] focus:ring-gray-500;
-  }
-
-  .btn-danger {
-    @apply bg-red-600 text-white hover:bg-red-700 focus:ring-red-500;
+    @apply bg-transparent text-gray-700 hover:bg-gray-100 focus:ring-gray-500 rounded-lg;
   }
 
   .btn-sm {

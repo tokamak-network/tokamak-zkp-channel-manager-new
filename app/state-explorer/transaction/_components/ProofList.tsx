@@ -33,6 +33,8 @@ import { SubmitProofModal } from "@/app/state-explorer/_components/SubmitProofMo
 import { useProofs, useProofActions, type Proof } from "../_hooks";
 import { formatDate } from "../_utils/proofUtils";
 import { ProofStatusBadge } from "./ProofStatusBadge";
+import { useSubmitProof } from "@/app/state-explorer/_hooks/useSubmitProof";
+import { SubmitProofConfirmModal } from "./SubmitProofConfirmModal";
 
 interface ProofListProps {
   onRefresh?: () => void;
@@ -103,6 +105,19 @@ export function ProofList({}: ProofListProps) {
   });
 
   const [isSubmitProofModalOpen, setIsSubmitProofModalOpen] = useState(false);
+  const [isSubmitProofConfirmModalOpen, setIsSubmitProofConfirmModalOpen] = useState(false);
+
+  // Submit proof hook
+  const {
+    loadAndFormatProofs,
+    submitProofs,
+    isLoadingProofs,
+    isSubmitting,
+    isTransactionSuccess,
+    error: submitError,
+    formattedProofs,
+    verifiedProofsList,
+  } = useSubmitProof(currentChannelId);
 
   // Calculate statistics
   const stats = {
@@ -115,6 +130,46 @@ export function ProofList({}: ProofListProps) {
   // Get pending proofs for leader approval
   const pendingProofs = proofs.filter((p) => p.status === "pending");
   const showApproveButton = isLeader && pendingProofs.length > 0;
+
+  // Get approved proofs count (before early returns)
+  const approvedProofsCount = proofs.filter(
+    (p) => p.status === "verified"
+  ).length;
+
+  // Handle submit proof button click
+  const handleSubmitProofClick = async () => {
+    if (!currentChannelId || approvedProofsCount === 0) {
+      alert("No approved proofs to submit");
+      return;
+    }
+
+    try {
+      await loadAndFormatProofs();
+      setIsSubmitProofConfirmModalOpen(true);
+    } catch (error) {
+      console.error("Failed to load proofs:", error);
+      alert(error instanceof Error ? error.message : "Failed to load proofs");
+    }
+  };
+
+  // Handle confirm submission
+  const handleConfirmSubmit = async () => {
+    try {
+      await submitProofs();
+    } catch (error) {
+      console.error("Failed to submit proofs:", error);
+      // Error is already handled in the hook
+    }
+  };
+
+  // Close modal on success - must be before early returns
+  useEffect(() => {
+    if (isTransactionSuccess && currentChannelId) {
+      // Refresh proof list after successful submission
+      fetchProofs();
+      // Modal will be closed by user clicking Close button
+    }
+  }, [isTransactionSuccess, currentChannelId, fetchProofs]);
 
   // Debug logging
   useEffect(() => {
@@ -146,6 +201,7 @@ export function ProofList({}: ProofListProps) {
     address,
   ]);
 
+  // Early returns after all hooks
   if (!currentChannelId) {
     return null;
   }
@@ -166,19 +222,15 @@ export function ProofList({}: ProofListProps) {
     );
   }
 
-  // Get approved proofs count
-  const approvedProofsCount = proofs.filter(
-    (p) => p.status === "verified"
-  ).length;
-
   return (
     <div className="space-y-6">
       {/* Action Buttons */}
       <div className="flex justify-between items-center">
         <Button
+          variant="primary"
+          color="green"
           onClick={handleDownloadAllApprovedProofs}
           disabled={isDownloadingAllApproved || approvedProofsCount === 0}
-          className="bg-green-600 hover:bg-green-700 text-white"
         >
           {isDownloadingAllApproved ? (
             <>
@@ -193,8 +245,9 @@ export function ProofList({}: ProofListProps) {
           )}
         </Button>
         <Button
+          variant="primary"
+          color="blue"
           onClick={() => setIsSubmitProofModalOpen(true)}
-          className="bg-blue-600 hover:bg-blue-700 text-white"
         >
           <Upload className="w-4 h-4 mr-2" />
           Upload Proof
@@ -301,10 +354,10 @@ export function ProofList({}: ProofListProps) {
                 {/* Verify button - always available for all proofs */}
                 <Button
                   variant="outline"
+                  color="blue"
                   size="sm"
                   onClick={() => handleVerifyProof(proof)}
                   disabled={isVerifying}
-                  className="text-blue-600 border-blue-200 hover:bg-blue-50"
                 >
                   {isVerifying ? (
                     <LoadingSpinner size="sm" />
@@ -317,10 +370,10 @@ export function ProofList({}: ProofListProps) {
                 </Button>
                 <Button
                   variant="outline"
+                  color="blue"
                   size="sm"
                   onClick={() => handleDownload(proof)}
                   disabled={downloadingProofKey === proof.key}
-                  className="text-blue-600 border-blue-200 hover:bg-blue-50"
                 >
                   {downloadingProofKey === proof.key ? (
                     <>
@@ -337,10 +390,10 @@ export function ProofList({}: ProofListProps) {
                 {isLeader && (
                   <Button
                     variant="outline"
+                    color="red"
                     size="sm"
                     onClick={() => handleDeleteClick(proof)}
                     disabled={deletingProofKey === proof.key}
-                    className="text-red-600 border-red-200 hover:bg-red-50"
                   >
                     {deletingProofKey === proof.key ? (
                       <LoadingSpinner size="sm" />
@@ -362,9 +415,11 @@ export function ProofList({}: ProofListProps) {
       {showApproveButton && (
         <div className="mt-4">
           <Button
+            variant="primary"
+            color="yellow"
             onClick={handleApproveSelected}
             disabled={!selectedProofForApproval || isVerifying}
-            className="w-full bg-gradient-to-r from-yellow-500 to-yellow-600 text-white py-3 rounded-lg font-semibold hover:from-yellow-600 hover:to-yellow-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            className="w-full"
           >
             {isVerifying ? (
               <>
@@ -376,6 +431,33 @@ export function ProofList({}: ProofListProps) {
                 <CheckCircle2 className="w-5 h-5" />
                 Approve Selected Proof
               </>
+            )}
+          </Button>
+        </div>
+      )}
+
+      {/* Submit Proof Button */}
+      {isLeader && approvedProofsCount > 0 && (
+        <div className="mt-6 pt-6 border-t border-gray-200">
+          <Button
+            variant="primary"
+            color="blue"
+            onClick={handleSubmitProofClick}
+            disabled={isLoadingProofs || isSubmitting}
+            className="w-full"
+          >
+            {isLoadingProofs ? (
+              <>
+                <LoadingSpinner size="sm" className="mr-2" />
+                Loading Proofs...
+              </>
+            ) : isSubmitting ? (
+              <>
+                <LoadingSpinner size="sm" className="mr-2" />
+                Submitting...
+              </>
+            ) : (
+              <>Submit Proof ({approvedProofsCount})</>
             )}
           </Button>
         </div>
@@ -413,6 +495,7 @@ export function ProofList({}: ProofListProps) {
           <DialogFooter className="gap-2">
             <Button
               variant="outline"
+              color="gray"
               onClick={() => {
                 setShowDeleteConfirm(false);
                 setProofToDelete(null);
@@ -422,9 +505,10 @@ export function ProofList({}: ProofListProps) {
               Cancel
             </Button>
             <Button
+              variant="primary"
+              color="red"
               onClick={handleDeleteConfirm}
               disabled={deletingProofKey !== null}
-              className="bg-red-600 hover:bg-red-700 text-white"
             >
               {deletingProofKey ? (
                 <>
@@ -442,7 +526,7 @@ export function ProofList({}: ProofListProps) {
         </DialogContent>
       </Dialog>
 
-      {/* Submit Proof Modal */}
+      {/* Submit Proof Modal (Upload) */}
       {currentChannelId && (
         <SubmitProofModal
           isOpen={isSubmitProofModalOpen}
@@ -452,6 +536,26 @@ export function ProofList({}: ProofListProps) {
             fetchProofs();
             setIsSubmitProofModalOpen(false);
           }}
+        />
+      )}
+
+      {/* Submit Proof Confirmation Modal */}
+      {currentChannelId && (
+        <SubmitProofConfirmModal
+          isOpen={isSubmitProofConfirmModalOpen}
+          onClose={() => {
+            setIsSubmitProofConfirmModalOpen(false);
+            // Reset on close if not successful
+            if (!isTransactionSuccess) {
+              // Keep formatted proofs for retry
+            }
+          }}
+          onConfirm={handleConfirmSubmit}
+          formattedProofs={formattedProofs}
+          verifiedProofs={verifiedProofsList}
+          isSubmitting={isSubmitting}
+          isSuccess={isTransactionSuccess}
+          error={submitError}
         />
       )}
     </div>
