@@ -69,7 +69,7 @@ This document analyzes the existing `Tokamak-zkp-channel-manager` repository to 
 **API Routes (22):**
 | Category | Routes | Notes |
 |----------|--------|-------|
-| ZK Proofs | `generate-groth16-proof`, `verify-proof`, `verify-proof-binary`, `get-initial-proof`, `tokamak-zk-evm` | Core ZK functionality |
+| ZK Proofs | `generate-groth16-proof`, `verify-proof-binary`, `get-initial-proof`, `tokamak-zk-evm` | Core ZK functionality (verify-proof merged into tokamak-zk-evm) |
 | Channel State | `get-contract-state-for-proof`, `get-channel-deposits-with-keys`, `get-participant-deposit`, `simulate-contract-public-signals` | Contract interactions |
 | Proof Files | `save-proof-zip`, `save-proof-file`, `get-proof-zip`, `delete-proof`, `get-next-proof-number` | File management |
 | DKG | `frost-dkg` | WebSocket proxy |

@@ -349,6 +349,19 @@ export async function moveProof(
 }
 
 /**
+ * Delete a proof
+ * Normalizes channel ID to lowercase for consistent lookup
+ */
+export async function deleteProof(
+  channelId: string,
+  type: 'submitted' | 'verified' | 'rejected',
+  proofKey: string
+): Promise<void> {
+  const normalizedId = channelId.toLowerCase();
+  await deleteData(`channels.${normalizedId}.${type}Proofs.${proofKey}`);
+}
+
+/**
  * Get current state number based on verified proofs
  * Returns the next state number (max sequenceNumber + 1)
  * Returns 0 if no verified proofs exist

@@ -12,7 +12,12 @@ import {
 import { getBlockInfo, getBlockNumber, getContractCode } from "@/lib/ethers";
 import { StateSnapshot } from "tokamak-l2js";
 import { bytesToHex } from "@ethereumjs/util";
-import { FIXED_TARGET_CONTRACT, DEFAULT_NETWORK, NETWORKS } from "@tokamak/config";
+import {
+  FIXED_TARGET_CONTRACT,
+  DEFAULT_NETWORK,
+  NETWORKS,
+} from "@tokamak/config";
+import { getProofs, saveProof, deleteProof } from "@/lib/db/channels";
 
 export const runtime = "nodejs";
 export const maxDuration = 300; // 5 minutes timeout for long-running synthesis
@@ -34,7 +39,18 @@ export type VerifyProofRequest = {
   proofZipBase64: string; // Base64 encoded ZIP file containing proof files
 };
 
-export type TokamakZkEvmRequest = SynthesizeTxRequest | VerifyProofRequest;
+export type ApproveProofRequest = {
+  action: "approve-proof";
+  channelId: string;
+  proofKey: string;
+  sequenceNumber: number;
+  verifierAddress: string;
+};
+
+export type TokamakZkEvmRequest =
+  | SynthesizeTxRequest
+  | VerifyProofRequest
+  | ApproveProofRequest;
 
 async function addDirToZip(zip: JSZip, dir: string, rootDir: string) {
   const entries = await fs.readdir(dir, { withFileTypes: true });
@@ -77,6 +93,101 @@ async function safeRemove(targetPath: string, label: string) {
   }
 }
 
+async function handleApproveProof(body: ApproveProofRequest) {
+  try {
+    const { channelId, proofKey, sequenceNumber, verifierAddress } = body;
+
+    if (!channelId || !proofKey || !sequenceNumber || !verifierAddress) {
+      return NextResponse.json(
+        {
+          error:
+            "Missing required fields: channelId, proofKey, sequenceNumber, verifierAddress",
+        },
+        { status: 400 }
+      );
+    }
+
+    // Get all submitted proofs
+    const submittedProofs = await getProofs(channelId, "submitted");
+
+    if (!submittedProofs || submittedProofs.length === 0) {
+      return NextResponse.json(
+        { error: "No submitted proofs found" },
+        { status: 404 }
+      );
+    }
+
+    // Find the proof to verify and others with same sequenceNumber
+    const proofToVerify = submittedProofs.find((p) => p.key === proofKey);
+    const sameSequenceProofs = submittedProofs.filter(
+      (p) => p.sequenceNumber === sequenceNumber
+    );
+
+    if (!proofToVerify) {
+      return NextResponse.json(
+        { error: "Proof not found in submitted proofs" },
+        { status: 404 }
+      );
+    }
+
+    // Perform all operations atomically
+    const operations: Promise<any>[] = [];
+
+    // 1. Move verified proof to verifiedProofs
+    const verifiedProof = {
+      ...proofToVerify,
+      status: "verified" as const,
+      verifiedAt: new Date().toISOString(),
+      verifiedBy: verifierAddress,
+    };
+    operations.push(saveProof(channelId, "verified", verifiedProof));
+
+    // 2. Move other proofs with same sequenceNumber to rejectedProofs
+    const rejectedProofs = sameSequenceProofs
+      .filter((p) => p.key !== proofKey)
+      .map((p) => ({
+        ...p,
+        status: "rejected" as const,
+        rejectedAt: new Date().toISOString(),
+        rejectedBy: verifierAddress,
+        reason: "Another proof was verified for this sequence",
+      }));
+
+    for (const rejectedProof of rejectedProofs) {
+      operations.push(saveProof(channelId, "rejected", rejectedProof));
+    }
+
+    // 3. Remove all proofs from submittedProofs
+    for (const proofToRemove of sameSequenceProofs) {
+      if (proofToRemove.key) {
+        operations.push(deleteProof(channelId, "submitted", proofToRemove.key));
+      }
+    }
+
+    // Execute all operations
+    await Promise.all(operations);
+
+    return NextResponse.json({
+      success: true,
+      message: "Proof verified successfully",
+      verifiedProof: {
+        proofId: (verifiedProof as any).proofId || verifiedProof.key,
+        sequenceNumber: verifiedProof.sequenceNumber,
+      },
+      rejectedCount: rejectedProofs.length,
+    });
+  } catch (error) {
+    console.error("Error approving proof:", error);
+    return NextResponse.json(
+      {
+        error: "Failed to approve proof",
+        details: error instanceof Error ? error.message : "Unknown error",
+      },
+      { status: 500 }
+    );
+  }
+}
+
 async function handleVerify(body: VerifyProofRequest) {
   const { proofZipBase64 } = body;
   const tokamakRoot = path.join(process.cwd(), "Tokamak-Zk-EVM");
@@ -96,7 +207,11 @@ async function handleVerify(body: VerifyProofRequest) {
 
     // Create temp directory with resource structure
     const resourceDir = path.join(tempDir, "resource");
-    const synthesizerOutputDir = path.join(resourceDir, "synthesizer", "output");
+    const synthesizerOutputDir = path.join(
+      resourceDir,
+      "synthesizer",
+      "output"
+    );
     const proveOutputDir = path.join(resourceDir, "prove", "output");
     await fs.mkdir(synthesizerOutputDir, { recursive: true });
     await fs.mkdir(proveOutputDir, { recursive: true });
@@ -152,15 +267,23 @@ async function handleVerify(body: VerifyProofRequest) {
 
     const distRoot = getTokamakDistRoot();
     const distResourceDir = path.join(distRoot, "resource");
-    const distSynthesizerDir = path.join(distResourceDir, "synthesizer", "output");
-    const distPreprocessDir = path.join(distResourceDir, "preprocess", "output");
+    const distSynthesizerDir = path.join(
+      distResourceDir,
+      "synthesizer",
+      "output"
+    );
+    const distPreprocessDir = path.join(
+      distResourceDir,
+      "preprocess",
+      "output"
+    );
     const distProveDir = path.join(distResourceDir, "prove", "output");
-    
+
     // Create dist resource directories
     await fs.mkdir(distSynthesizerDir, { recursive: true });
     await fs.mkdir(distPreprocessDir, { recursive: true });
     await fs.mkdir(distProveDir, { recursive: true });
-    
+
     // Copy synthesizer files to dist
     const synthFiles = await fs.readdir(synthesizerOutputDir);
     for (const file of synthFiles) {
@@ -169,7 +292,7 @@ async function handleVerify(body: VerifyProofRequest) {
         path.join(distSynthesizerDir, file)
       );
     }
-    
+
     // Copy proof file to dist
     await fs.copyFile(
       path.join(proveOutputDir, "proof.json"),
@@ -182,18 +305,16 @@ async function handleVerify(body: VerifyProofRequest) {
     console.log("Executing:", preprocessCommand);
 
     try {
-      const { stdout: preprocessStdout, stderr: preprocessStderr } = await execFileAsync(
-        tokamakCli,
-        ["--preprocess"],
-        {
+      const { stdout: preprocessStdout, stderr: preprocessStderr } =
+        await execFileAsync(tokamakCli, ["--preprocess"], {
           cwd: tokamakRoot,
           timeout: 300000, // 5 minutes timeout
-        }
-      );
+        });
 
       console.log("Preprocess completed");
       if (preprocessStdout) console.log("Preprocess stdout:", preprocessStdout);
-      if (preprocessStderr) console.warn("Preprocess stderr:", preprocessStderr);
+      if (preprocessStderr)
+        console.warn("Preprocess stderr:", preprocessStderr);
     } catch (preprocessError: any) {
       console.error("Preprocess execution error:", preprocessError);
 
@@ -227,14 +348,10 @@ async function handleVerify(body: VerifyProofRequest) {
     console.log("Executing:", verifyCommand);
 
     try {
-      const { stdout, stderr } = await execFileAsync(
-        tokamakCli,
-        ["--verify"],
-        {
-          cwd: tokamakRoot,
-          timeout: 300000, // 5 minutes timeout
-        }
-      );
+      const { stdout, stderr } = await execFileAsync(tokamakCli, ["--verify"], {
+        cwd: tokamakRoot,
+        timeout: 300000, // 5 minutes timeout
+      });
 
       console.log("Verify stdout:", stdout);
       if (stderr) {
@@ -258,10 +375,11 @@ async function handleVerify(body: VerifyProofRequest) {
       }
 
       // Check if verification passed
-      const isVerified = stdout.includes("Verify: verify output => true") || 
-                        stdout.includes("✓") ||
-                        stdout.toLowerCase().includes("success");
-      
+      const isVerified =
+        stdout.includes("Verify: verify output => true") ||
+        stdout.includes("✓") ||
+        stdout.toLowerCase().includes("success");
+
       return NextResponse.json({
         verified: isVerified,
         message: isVerified
@@ -320,15 +438,19 @@ async function handleVerify(body: VerifyProofRequest) {
 export async function POST(req: Request) {
   let outputDir: string | undefined = undefined;
   let tempDir: string | undefined = undefined;
-  
+
   try {
     const body: TokamakZkEvmRequest = await req.json();
-    
+
     // Route based on action
     if (body.action === "verify") {
       return await handleVerify(body);
     }
-    
+
+    if (body.action === "approve-proof") {
+      return await handleApproveProof(body);
+    }
+
     // Handle synthesize action
     const {
       channelId,
@@ -418,37 +540,39 @@ export async function POST(req: Request) {
       const { env, ...rest } = options;
       const commandDisplay = [tokamakCliPath, ...args].join(" ");
       console.log(`Executing tokamak-cli ${label} command:`, commandDisplay);
-      
+
       try {
         const { stdout, stderr } = await execFileAsync(tokamakCliPath, args, {
           cwd: distRoot,
           env: { ...baseEnv, ...env },
           ...rest,
         });
-        
+
         if (stdout) {
           console.log(`--${label} stdout:`, stdout);
         }
-        
+
         if (stderr) {
           console.warn(`--${label} stderr:`, stderr);
-          
+
           // Check for synthesizer errors in stderr
           const stderrStr = String(stderr);
-          const hasSynthesizerError = 
+          const hasSynthesizerError =
             stderrStr.includes("Synthesizer: step error:") ||
             stderrStr.includes("Synthesizer: Handler:") ||
-            stderrStr.includes("Synthesizer:") && stderrStr.includes("Output data mismatch") ||
-            stderrStr.includes("Synthesizer:") && stderrStr.includes("error:") ||
+            (stderrStr.includes("Synthesizer:") &&
+              stderrStr.includes("Output data mismatch")) ||
+            (stderrStr.includes("Synthesizer:") &&
+              stderrStr.includes("error:")) ||
             stderrStr.includes("Undefined synthesizer handler");
-          
+
           if (hasSynthesizerError) {
             // Extract the first error message
             const errorMatch = stderrStr.match(/error: (.+?)(?:\n|$)/);
-            const errorMessage = errorMatch 
-              ? errorMatch[1] 
+            const errorMessage = errorMatch
+              ? errorMatch[1]
               : "Synthesizer execution failed";
-            
+
             throw new Error(`Synthesizer error: ${errorMessage}`);
           }
         }
@@ -456,23 +580,25 @@ export async function POST(req: Request) {
         // If execFileAsync throws, check stderr for synthesizer errors
         if (execError.stderr) {
           const stderrStr = String(execError.stderr);
-          const hasSynthesizerError = 
+          const hasSynthesizerError =
             stderrStr.includes("Synthesizer: step error:") ||
             stderrStr.includes("Synthesizer: Handler:") ||
-            stderrStr.includes("Synthesizer:") && stderrStr.includes("Output data mismatch") ||
-            stderrStr.includes("Synthesizer:") && stderrStr.includes("error:") ||
+            (stderrStr.includes("Synthesizer:") &&
+              stderrStr.includes("Output data mismatch")) ||
+            (stderrStr.includes("Synthesizer:") &&
+              stderrStr.includes("error:")) ||
             stderrStr.includes("Undefined synthesizer handler");
-          
+
           if (hasSynthesizerError) {
             const errorMatch = stderrStr.match(/error: (.+?)(?:\n|$)/);
-            const errorMessage = errorMatch 
-              ? errorMatch[1] 
+            const errorMessage = errorMatch
+              ? errorMatch[1]
               : "Synthesizer execution failed";
-            
+
             throw new Error(`Synthesizer error: ${errorMessage}`);
           }
         }
-        
+
         // Re-throw the original error
         throw execError;
       }
@@ -506,12 +632,9 @@ export async function POST(req: Request) {
     if (includeProof) {
       console.log("Running tokamak-cli prove...");
       try {
-        await runTokamakCli(
-          ["--prove"],
-          {
-            timeout: 600000, // 10 minutes timeout
-          }
-        );
+        await runTokamakCli(["--prove"], {
+          timeout: 600000, // 10 minutes timeout
+        });
       } catch (proveError: any) {
         console.error("Prove failed:", proveError);
         throw new Error(

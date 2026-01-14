@@ -16,7 +16,7 @@ import JSZip from "jszip";
 interface SubmitProofModalProps {
   isOpen: boolean;
   onClose: () => void;
-  channelId: number;
+  channelId: number | string; // Support both number and string (bytes32)
   onUploadSuccess?: () => void; // Callback when upload completes successfully
 }
 
@@ -214,13 +214,19 @@ export function SubmitProofModal({
 
     try {
       // Step 1: Get next proof number atomically from backend
+      // Normalize channelId for API call
+      const normalizedChannelId =
+        typeof channelId === "string"
+          ? channelId.toLowerCase()
+          : channelId.toString();
+
       setUploadProgress(10);
       const proofNumberResponse = await fetch("/api/get-next-proof-number", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ channelId }),
+        body: JSON.stringify({ channelId: normalizedChannelId }),
       });
 
       if (!proofNumberResponse.ok) {
@@ -235,7 +241,7 @@ export function SubmitProofModal({
       setUploadProgress(30);
       const formData = new FormData();
       formData.append("file", file);
-      formData.append("channelId", channelId.toString());
+      formData.append("channelId", normalizedChannelId);
       formData.append("proofId", storageProofId);
 
       const uploadResponse = await fetch("/api/save-proof-zip", {
@@ -254,6 +260,8 @@ export function SubmitProofModal({
       setUploadProgress(90);
 
       // Step 3: Save metadata to DB
+      // Use the already normalized channelId from Step 1
+
       const proofMetadata = {
         proofId: proofId,
         sequenceNumber: proofNumber,
@@ -263,17 +271,17 @@ export function SubmitProofModal({
         timestamp: Date.now(),
         uploadStatus: "complete",
         status: "pending",
-        channelId: channelId.toString(),
+        channelId: normalizedChannelId,
       };
 
       await updateData(
-        `channels.${channelId}.submittedProofs.${storageProofId}`,
+        `channels.${normalizedChannelId}.submittedProofs.${storageProofId}`,
         proofMetadata
       );
 
       // Update zipFile metadata fields individually
       await updateData(
-        `channels.${channelId}.submittedProofs.${storageProofId}.zipFile`,
+        `channels.${normalizedChannelId}.submittedProofs.${storageProofId}.zipFile`,
         {
           fileName: file.name,
           size: size,
@@ -348,22 +356,29 @@ export function SubmitProofModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div className="bg-gradient-to-b from-[#1a2347] to-[#0a1930] border border-[#4fc3f7] rounded-lg shadow-xl shadow-[#4fc3f7]/20 w-full max-w-md mx-4">
+      <div className="bg-white border border-gray-200 rounded-lg shadow-xl w-full max-w-md mx-4">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-[#4fc3f7]/30">
+        <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <div className="flex items-center gap-3">
-            <div className="bg-[#4fc3f7] p-2 rounded">
-              <FileArchive className="w-5 h-5 text-white" />
+            <div className="bg-blue-100 p-2 rounded">
+              <FileArchive className="w-5 h-5 text-blue-600" />
             </div>
             <div>
-              <h2 className="text-xl font-semibold text-white">Submit Proof</h2>
-              <p className="text-sm text-gray-400">Channel #{channelId}</p>
+              <h2 className="text-xl font-semibold text-gray-900">
+                Submit Proof
+              </h2>
+              <p className="text-sm text-gray-600">
+                Channel #
+                {typeof channelId === "string"
+                  ? channelId.slice(0, 10) + "..."
+                  : channelId}
+              </p>
             </div>
           </div>
           <button
             onClick={handleClose}
             disabled={uploading}
-            className="text-gray-400 hover:text-white transition-colors disabled:opacity-50"
+            className="text-gray-400 hover:text-gray-600 transition-colors disabled:opacity-50"
           >
             <X className="w-5 h-5" />
           </button>
@@ -373,17 +388,17 @@ export function SubmitProofModal({
         <div className="p-6">
           {success ? (
             <div className="text-center py-8">
-              <div className="bg-green-500/20 border border-green-500/50 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
-                <CheckCircle2 className="w-8 h-8 text-green-400" />
+              <div className="bg-green-100 border border-green-200 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
+                <CheckCircle2 className="w-8 h-8 text-green-600" />
               </div>
-              <h3 className="text-lg font-semibold text-white mb-2">
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
                 Upload Successful!
               </h3>
-              <p className="text-gray-400 text-sm mb-4">
+              <p className="text-gray-600 text-sm mb-4">
                 Your proof files have been uploaded successfully.
               </p>
               {uploadedUrl && (
-                <p className="text-xs text-[#4fc3f7] break-all">{uploadedUrl}</p>
+                <p className="text-xs text-blue-600 break-all">{uploadedUrl}</p>
               )}
             </div>
           ) : (
@@ -394,16 +409,16 @@ export function SubmitProofModal({
                 onDrop={handleDrop}
                 className={`border-2 border-dashed rounded-lg p-8 text-center transition-all ${
                   file
-                    ? "border-[#4fc3f7] bg-[#4fc3f7]/5"
-                    : "border-[#4fc3f7]/30 hover:border-[#4fc3f7]/50"
+                    ? "border-blue-500 bg-blue-50"
+                    : "border-gray-300 hover:border-blue-400 bg-gray-50"
                 }`}
               >
                 {file ? (
                   <div className="space-y-3">
-                    <FileArchive className="w-12 h-12 text-[#4fc3f7] mx-auto" />
+                    <FileArchive className="w-12 h-12 text-blue-600 mx-auto" />
                     <div>
-                      <p className="text-white font-medium">{file.name}</p>
-                      <p className="text-gray-400 text-sm">
+                      <p className="text-gray-900 font-medium">{file.name}</p>
+                      <p className="text-gray-600 text-sm">
                         {(file.size / 1024 / 1024).toFixed(2)} MB
                       </p>
                     </div>
@@ -414,7 +429,7 @@ export function SubmitProofModal({
                           fileInputRef.current.value = "";
                         }
                       }}
-                      className="text-sm text-red-400 hover:text-red-300"
+                      className="text-sm text-red-600 hover:text-red-700"
                       disabled={uploading}
                     >
                       Remove file
@@ -422,12 +437,12 @@ export function SubmitProofModal({
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    <Upload className="w-12 h-12 text-[#4fc3f7] mx-auto" />
+                    <Upload className="w-12 h-12 text-blue-600 mx-auto" />
                     <div>
-                      <p className="text-white font-medium mb-1">
+                      <p className="text-gray-900 font-medium mb-1">
                         Drop ZIP file here or click to browse
                       </p>
-                      <p className="text-gray-400 text-sm">
+                      <p className="text-gray-600 text-sm">
                         Upload proof files as a ZIP archive
                       </p>
                     </div>
@@ -441,7 +456,7 @@ export function SubmitProofModal({
                     />
                     <label
                       htmlFor="file-upload"
-                      className="inline-block px-4 py-2 bg-[#4fc3f7] hover:bg-[#029bee] text-white rounded cursor-pointer transition-colors"
+                      className="inline-block px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded cursor-pointer transition-colors"
                     >
                       Select ZIP File
                     </label>
@@ -451,9 +466,9 @@ export function SubmitProofModal({
 
               {/* Error Message */}
               {error && (
-                <div className="mt-4 bg-red-500/10 border border-red-500/30 p-3 rounded flex items-start gap-2">
-                  <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
-                  <p className="text-red-400 text-sm">{error}</p>
+                <div className="mt-4 bg-red-50 border border-red-200 p-3 rounded flex items-start gap-2">
+                  <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                  <p className="text-red-700 text-sm">{error}</p>
                 </div>
               )}
 
@@ -461,14 +476,14 @@ export function SubmitProofModal({
               {uploading && (
                 <div className="mt-4 space-y-2">
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-400">Uploading...</span>
-                    <span className="text-[#4fc3f7]">
+                    <span className="text-gray-600">Uploading...</span>
+                    <span className="text-blue-600 font-medium">
                       {Math.round(uploadProgress)}%
                     </span>
                   </div>
-                  <div className="w-full bg-[#0a1930] rounded-full h-2">
+                  <div className="w-full bg-gray-200 rounded-full h-2">
                     <div
-                      className="bg-[#4fc3f7] h-2 rounded-full transition-all duration-300"
+                      className="bg-blue-600 h-2 rounded-full transition-all duration-300"
                       style={{ width: `${uploadProgress}%` }}
                     />
                   </div>
@@ -480,7 +495,7 @@ export function SubmitProofModal({
                 <button
                   onClick={handleClose}
                   disabled={uploading}
-                  className="flex-1 px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex-1 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Cancel
                 </button>
@@ -492,7 +507,7 @@ export function SubmitProofModal({
                   }}
                   type="button"
                   disabled={!file || uploading}
-                  className="flex-1 px-4 py-2 bg-[#4fc3f7] hover:bg-[#029bee] text-white rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer pointer-events-auto"
+                  className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer pointer-events-auto"
                 >
                   {uploading ? (
                     <>

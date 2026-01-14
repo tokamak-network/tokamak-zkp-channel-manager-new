@@ -11,13 +11,12 @@ import { useState, useEffect } from "react";
 import { useAccount } from "wagmi";
 import { Button } from "@tokamak/ui";
 import {
-  CheckCircle,
-  Clock,
-  XCircle,
   Download,
   Trash2,
   FileCheck,
   AlertTriangle,
+  CheckCircle2,
+  Upload,
 } from "lucide-react";
 import {
   Dialog,
@@ -30,23 +29,10 @@ import {
 import { useChannelFlowStore } from "@/stores/useChannelFlowStore";
 import { useBridgeCoreRead } from "@/hooks/contract";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
-
-interface Proof {
-  key: string;
-  proofId: string;
-  sequenceNumber: number;
-  subNumber: number;
-  submittedAt: string;
-  submitter: string;
-  status: "pending" | "verified" | "rejected";
-  uploadStatus?: string;
-  channelId: string;
-  zipFile?: {
-    filePath: string;
-    fileName: string;
-    size: number;
-  };
-}
+import { SubmitProofModal } from "@/app/state-explorer/_components/SubmitProofModal";
+import { useProofs, useProofActions, type Proof } from "../_hooks";
+import { formatDate } from "../_utils/proofUtils";
+import { ProofStatusBadge } from "./ProofStatusBadge";
 
 interface ProofListProps {
   onRefresh?: () => void;
@@ -66,9 +52,10 @@ export function ProofList({}: ProofListProps) {
   });
 
   // Check if current user is leader
-  const isLeader = channelLeader && address
-    ? channelLeader.toLowerCase() === address.toLowerCase()
-    : false;
+  const isLeader =
+    channelLeader && address
+      ? String(channelLeader).toLowerCase() === String(address).toLowerCase()
+      : false;
 
   // Debug logging
   useEffect(() => {
@@ -80,75 +67,42 @@ export function ProofList({}: ProofListProps) {
     });
   }, [channelLeader, address, isLeader, currentChannelId]);
 
-  const [proofs, setProofs] = useState<Proof[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [deletingProofKey, setDeletingProofKey] = useState<string | null>(null);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [proofToDelete, setProofToDelete] = useState<Proof | null>(null);
+  // Use proof fetching hook
+  const {
+    proofs,
+    isLoading,
+    error,
+    refetch: fetchProofs,
+  } = useProofs({
+    channelId: currentChannelId,
+  });
 
-  // Fetch proofs
-  const fetchProofs = async () => {
-    if (!currentChannelId) {
-      setProofs([]);
-      setIsLoading(false);
-      return;
-    }
+  // Use proof actions hook
+  const {
+    handleDownloadAllApprovedProofs,
+    handleDownload,
+    isDownloadingAllApproved,
+    downloadingProofKey,
+    handleDeleteClick,
+    handleDeleteConfirm,
+    showDeleteConfirm,
+    setShowDeleteConfirm,
+    proofToDelete,
+    setProofToDelete,
+    deletingProofKey,
+    handleApproveSelected,
+    selectedProofForApproval,
+    setSelectedProofForApproval,
+    isVerifying,
+    handleVerifyProof,
+  } = useProofActions({
+    channelId: currentChannelId,
+    proofs,
+    isLeader,
+    onRefresh: fetchProofs,
+  });
 
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      // Fetch all proof types
-      const [submittedRes, verifiedRes, rejectedRes] = await Promise.all([
-        fetch(`/api/channels/${currentChannelId}/proofs?type=submitted`),
-        fetch(`/api/channels/${currentChannelId}/proofs?type=verified`),
-        fetch(`/api/channels/${currentChannelId}/proofs?type=rejected`),
-      ]);
-
-      const [submittedData, verifiedData, rejectedData] = await Promise.all([
-        submittedRes.json(),
-        verifiedRes.json(),
-        rejectedRes.json(),
-      ]);
-
-      const allProofs: Proof[] = [
-        ...(submittedData.data || submittedData.proofs || []).map((p: any) => ({
-          ...p,
-          status: "pending" as const,
-        })),
-        ...(verifiedData.data || verifiedData.proofs || []).map((p: any) => ({
-          ...p,
-          status: "verified" as const,
-        })),
-        ...(rejectedData.data || rejectedData.proofs || []).map((p: any) => ({
-          ...p,
-          status: "rejected" as const,
-        })),
-      ];
-
-      // Sort by sequence number and sub number
-      allProofs.sort((a, b) => {
-        if (a.sequenceNumber !== b.sequenceNumber) {
-          return a.sequenceNumber - b.sequenceNumber;
-        }
-        return a.subNumber - b.subNumber;
-      });
-
-      setProofs(allProofs);
-    } catch (err) {
-      console.error("Failed to fetch proofs:", err);
-      setError(
-        err instanceof Error ? err.message : "Failed to load proofs"
-      );
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchProofs();
-  }, [currentChannelId]);
+  const [isSubmitProofModalOpen, setIsSubmitProofModalOpen] = useState(false);
 
   // Calculate statistics
   const stats = {
@@ -158,144 +112,39 @@ export function ProofList({}: ProofListProps) {
     rejected: proofs.filter((p) => p.status === "rejected").length,
   };
 
-  // Handle download
-  const handleDownload = async (proof: Proof) => {
-    try {
-      const statusMap: Record<string, string> = {
-        pending: "submittedProofs",
-        verified: "verifiedProofs",
-        rejected: "rejectedProofs",
-      };
+  // Get pending proofs for leader approval
+  const pendingProofs = proofs.filter((p) => p.status === "pending");
+  const showApproveButton = isLeader && pendingProofs.length > 0;
 
-      const response = await fetch(
-        `/api/get-proof-zip?channelId=${currentChannelId}&proofId=${proof.key}&status=${statusMap[proof.status]}&format=binary`
-      );
-
-      if (!response.ok) {
-        throw new Error("Failed to download proof");
-      }
-
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = proof.zipFile?.fileName || `proof-${proof.proofId}.zip`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error("Failed to download proof:", err);
-      alert("Failed to download proof file");
-    }
-  };
-
-  // Handle delete button click - show confirmation modal
-  const handleDeleteClick = (proof: Proof) => {
-    if (!address || !isLeader) {
-      alert("Only the channel leader can delete proofs");
-      return;
-    }
-    setProofToDelete(proof);
-    setShowDeleteConfirm(true);
-  };
-
-  // Handle confirmed delete
-  const handleDeleteConfirm = async () => {
-    if (!proofToDelete || !address || !isLeader) {
-      return;
-    }
-
-    // First confirmation
-    if (!confirm(`Are you sure you want to delete ${proofToDelete.proofId}?`)) {
-      setShowDeleteConfirm(false);
-      setProofToDelete(null);
-      return;
-    }
-
-    // Second confirmation
-    if (!confirm(`This action cannot be undone. Delete ${proofToDelete.proofId}?`)) {
-      setShowDeleteConfirm(false);
-      setProofToDelete(null);
-      return;
-    }
-
-    setDeletingProofKey(proofToDelete.key);
-    setShowDeleteConfirm(false);
-
-    try {
-      const response = await fetch("/api/delete-proof", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          channelId: currentChannelId,
-          proofKey: proofToDelete.key,
-          userAddress: address,
-          isLeader: isLeader,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || "Failed to delete proof");
-      }
-
-      // Refresh proof list
-      await fetchProofs();
-    } catch (err) {
-      console.error("Failed to delete proof:", err);
-      alert(
-        err instanceof Error
-          ? err.message
-          : "Failed to delete proof"
-      );
-    } finally {
-      setDeletingProofKey(null);
-    }
-  };
-
-  // Format date
-  const formatDate = (dateString: string) => {
-    try {
-      const date = new Date(dateString);
-      return date.toLocaleDateString("ko-KR", {
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-      }).replace(/\./g, ".").replace(/\s/g, "");
-    } catch {
-      return dateString;
-    }
-  };
-
-  // Get status badge
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "verified":
-        return (
-          <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-700">
-            <CheckCircle className="w-3 h-3" />
-            Verified
-          </span>
-        );
-      case "pending":
-        return (
-          <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium bg-yellow-100 text-yellow-700">
-            <Clock className="w-3 h-3" />
-            Pending
-          </span>
-        );
-      case "rejected":
-        return (
-          <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium bg-red-100 text-red-700">
-            <XCircle className="w-3 h-3" />
-            Rejected
-          </span>
-        );
-      default:
-        return null;
-    }
-  };
+  // Debug logging
+  useEffect(() => {
+    console.log("[ProofList] Approve button visibility:", {
+      isLeader,
+      pendingProofsCount: pendingProofs.length,
+      pendingProofs: pendingProofs.map((p) => ({
+        key: p.key,
+        proofId: p.proofId,
+        status: p.status,
+      })),
+      showApproveButton,
+      selectedProofForApproval,
+      allProofs: proofs.map((p) => ({
+        key: p.key,
+        proofId: p.proofId,
+        status: p.status,
+      })),
+      channelLeader,
+      address,
+    });
+  }, [
+    isLeader,
+    pendingProofs.length,
+    showApproveButton,
+    selectedProofForApproval,
+    proofs.length,
+    channelLeader,
+    address,
+  ]);
 
   if (!currentChannelId) {
     return null;
@@ -317,8 +166,41 @@ export function ProofList({}: ProofListProps) {
     );
   }
 
+  // Get approved proofs count
+  const approvedProofsCount = proofs.filter(
+    (p) => p.status === "verified"
+  ).length;
+
   return (
     <div className="space-y-6">
+      {/* Action Buttons */}
+      <div className="flex justify-between items-center">
+        <Button
+          onClick={handleDownloadAllApprovedProofs}
+          disabled={isDownloadingAllApproved || approvedProofsCount === 0}
+          className="bg-green-600 hover:bg-green-700 text-white"
+        >
+          {isDownloadingAllApproved ? (
+            <>
+              <LoadingSpinner size="sm" className="mr-2" />
+              Downloading...
+            </>
+          ) : (
+            <>
+              <Download className="w-4 h-4 mr-2" />
+              All Approved Proof Download ({approvedProofsCount})
+            </>
+          )}
+        </Button>
+        <Button
+          onClick={() => setIsSubmitProofModalOpen(true)}
+          className="bg-blue-600 hover:bg-blue-700 text-white"
+        >
+          <Upload className="w-4 h-4 mr-2" />
+          Upload Proof
+        </Button>
+      </div>
+
       {/* Summary Statistics */}
       <div className="grid grid-cols-4 gap-4">
         <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
@@ -345,6 +227,24 @@ export function ProofList({}: ProofListProps) {
         </div>
       </div>
 
+      {/* Approve Selected Proof Section (Leader Only) */}
+      {showApproveButton && (
+        <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold text-yellow-800">
+              Leader Action Required
+            </h3>
+            <span className="bg-yellow-500/20 text-yellow-700 text-xs px-2 py-0.5 rounded font-medium">
+              PENDING APPROVAL
+            </span>
+          </div>
+          <p className="text-yellow-700 text-sm mb-4">
+            Select one proof to approve. All other proofs in the same sequence
+            will be automatically rejected.
+          </p>
+        </div>
+      )}
+
       {/* Proof List */}
       <div className="space-y-2">
         {proofs.length === 0 ? (
@@ -355,15 +255,39 @@ export function ProofList({}: ProofListProps) {
           proofs.map((proof) => (
             <div
               key={proof.key}
-              className="flex items-center justify-between p-4 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+              className={`flex items-center justify-between p-4 bg-white border rounded-lg transition-colors ${
+                proof.status === "pending" &&
+                selectedProofForApproval === proof.key
+                  ? "border-yellow-500 bg-yellow-50"
+                  : "border-gray-200 hover:bg-gray-50"
+              }`}
             >
               <div className="flex items-center gap-4 flex-1">
-                {/* Status */}
-                <div className="w-24">{getStatusBadge(proof.status)}</div>
+                {/* Radio button for pending proofs (leader only) */}
+                {proof.status === "pending" && isLeader && (
+                  <input
+                    type="radio"
+                    name="proofApproval"
+                    value={proof.key}
+                    checked={selectedProofForApproval === proof.key}
+                    onChange={(e) =>
+                      setSelectedProofForApproval(e.target.value)
+                    }
+                    className="w-4 h-4 text-yellow-500 focus:ring-yellow-500 focus:ring-2 cursor-pointer"
+                  />
+                )}
 
-                {/* Proof ID */}
+                {/* Status badge for verified/rejected proofs (left side) */}
+                {(proof.status === "verified" ||
+                  proof.status === "rejected") && (
+                  <ProofStatusBadge status={proof.status} />
+                )}
+
+                {/* Proof ID - format based on status */}
                 <div className="font-mono font-medium text-gray-900">
-                  {proof.proofId}
+                  {proof.status === "verified"
+                    ? `proof#${proof.sequenceNumber}`
+                    : `proof#${proof.sequenceNumber}-${proof.subNumber}`}
                 </div>
 
                 {/* Date */}
@@ -374,24 +298,41 @@ export function ProofList({}: ProofListProps) {
 
               {/* Actions */}
               <div className="flex items-center gap-2">
-                {proof.status === "pending" && isLeader && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="text-blue-600 border-blue-200 hover:bg-blue-50"
-                  >
-                    <FileCheck className="w-4 h-4 mr-1" />
-                    Verify Proof
-                  </Button>
-                )}
+                {/* Verify button - always available for all proofs */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleVerifyProof(proof)}
+                  disabled={isVerifying}
+                  className="text-blue-600 border-blue-200 hover:bg-blue-50"
+                >
+                  {isVerifying ? (
+                    <LoadingSpinner size="sm" />
+                  ) : (
+                    <>
+                      <FileCheck className="w-4 h-4 mr-1" />
+                      Verify Proof
+                    </>
+                  )}
+                </Button>
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => handleDownload(proof)}
+                  disabled={downloadingProofKey === proof.key}
                   className="text-blue-600 border-blue-200 hover:bg-blue-50"
                 >
-                  <Download className="w-4 h-4 mr-1" />
-                  Download Files
+                  {downloadingProofKey === proof.key ? (
+                    <>
+                      <LoadingSpinner size="sm" className="mr-1" />
+                      Downloading...
+                    </>
+                  ) : (
+                    <>
+                      <Download className="w-4 h-4 mr-1" />
+                      Download Files
+                    </>
+                  )}
                 </Button>
                 {isLeader && (
                   <Button
@@ -417,6 +358,29 @@ export function ProofList({}: ProofListProps) {
         )}
       </div>
 
+      {/* Approve Selected Proof Button */}
+      {showApproveButton && (
+        <div className="mt-4">
+          <Button
+            onClick={handleApproveSelected}
+            disabled={!selectedProofForApproval || isVerifying}
+            className="w-full bg-gradient-to-r from-yellow-500 to-yellow-600 text-white py-3 rounded-lg font-semibold hover:from-yellow-600 hover:to-yellow-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          >
+            {isVerifying ? (
+              <>
+                <LoadingSpinner size="sm" />
+                Processing...
+              </>
+            ) : (
+              <>
+                <CheckCircle2 className="w-5 h-5" />
+                Approve Selected Proof
+              </>
+            )}
+          </Button>
+        </div>
+      )}
+
       {/* Delete Confirmation Modal */}
       <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
         <DialogContent className="sm:max-w-md bg-white border-gray-200">
@@ -426,10 +390,11 @@ export function ProofList({}: ProofListProps) {
               Delete Proof
             </DialogTitle>
             <DialogDescription className="text-gray-600">
-              Are you sure you want to delete this proof? This action cannot be undone.
+              Are you sure you want to delete this proof? This action cannot be
+              undone.
             </DialogDescription>
           </DialogHeader>
-          
+
           {proofToDelete && (
             <div className="py-4">
               <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
@@ -457,7 +422,6 @@ export function ProofList({}: ProofListProps) {
               Cancel
             </Button>
             <Button
-              variant="default"
               onClick={handleDeleteConfirm}
               disabled={deletingProofKey !== null}
               className="bg-red-600 hover:bg-red-700 text-white"
@@ -477,6 +441,19 @@ export function ProofList({}: ProofListProps) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Submit Proof Modal */}
+      {currentChannelId && (
+        <SubmitProofModal
+          isOpen={isSubmitProofModalOpen}
+          onClose={() => setIsSubmitProofModalOpen(false)}
+          channelId={currentChannelId}
+          onUploadSuccess={() => {
+            fetchProofs();
+            setIsSubmitProofModalOpen(false);
+          }}
+        />
+      )}
     </div>
   );
 }
