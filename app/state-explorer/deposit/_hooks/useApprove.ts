@@ -74,9 +74,20 @@ export function useApprove({ tokenAddress, depositAmount }: UseApproveParams) {
 
   // Calculate if approval is needed
   const needsApproval = useMemo(() => {
-    if (!allowance || parsedAmount === BigInt(0)) return false;
-    return parsedAmount > (allowance as bigint);
-  }, [allowance, parsedAmount]);
+    // If allowance is still loading, we can't determine if approval is needed yet
+    if (isLoadingAllowance || allowance === undefined) {
+      return false; // Don't show approve button while loading
+    }
+    
+    // If no deposit amount, no approval needed
+    if (parsedAmount === BigInt(0)) {
+      return false;
+    }
+    
+    // Check if allowance is less than required amount
+    const allowanceBigInt = allowance as bigint;
+    return parsedAmount > allowanceBigInt;
+  }, [allowance, parsedAmount, isLoadingAllowance]);
 
   // Check if balance is insufficient
   const isInsufficientBalance = useMemo(() => {
@@ -119,12 +130,6 @@ export function useApprove({ tokenAddress, depositAmount }: UseApproveParams) {
     }
 
     try {
-      console.log("🔐 Approving tokens:", {
-        tokenAddress,
-        spender: depositManagerAddress,
-        amount: parsedAmount.toString(),
-      });
-
       await writeApprove({
         address: tokenAddress,
         abi: ERC20_ABI,

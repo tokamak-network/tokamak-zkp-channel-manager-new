@@ -108,10 +108,7 @@ export function DepositPage() {
   });
 
   const handleGenerateKey = async () => {
-    const accountInfo = await generate();
-    if (accountInfo) {
-      console.log("✅ MPT Key generated successfully:", accountInfo.mptKey);
-    }
+    await generate();
   };
 
   return (
@@ -230,10 +227,11 @@ export function DepositPage() {
         )}
 
         {/* Approve Button - Shows when approval is needed */}
+        {/* Note: Approve button is not disabled by balance check - users can approve even without sufficient balance */}
         {needsApproval && !approvalSuccess && (
           <Button
             onClick={handleApprove}
-            disabled={!depositAmount || isApproving || isInsufficientBalance}
+            disabled={!depositAmount || isApproving}
             className="w-full"
             variant="outline"
           >
