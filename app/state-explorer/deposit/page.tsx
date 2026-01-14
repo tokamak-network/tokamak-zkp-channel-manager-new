@@ -181,7 +181,8 @@ export function DepositPage() {
               </span>
             </p>
           )}
-          {isInsufficientBalance && (
+          {/* Only show insufficient balance message when deposit button is visible (not when approve button is shown) */}
+          {isInsufficientBalance && (!needsApproval || approvalSuccess) && (
             <p className="text-sm text-red-500 mt-1">
               Insufficient balance. You cannot deposit more than your current
               balance.
