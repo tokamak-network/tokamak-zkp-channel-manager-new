@@ -248,7 +248,10 @@ export function usePreviousStateSnapshot({
           const mptKey = participantDataResults[index * 2] as bigint;
           const deposit = participantDataResults[index * 2 + 1] as bigint;
 
-          if (mptKey && deposit) {
+          // Include in storageEntries if mptKey is non-zero (even if deposit is zero)
+          // Previously used `if (mptKey && deposit)` condition, but BigInt(0) is falsy,
+          // causing participants with zero amount deposits to be excluded
+          if (mptKey !== undefined && mptKey !== null && mptKey !== BigInt(0)) {
             const mptKeyHex = `0x${mptKey.toString(16).padStart(64, "0")}`;
             const depositHex = `0x${deposit.toString(16).padStart(64, "0")}`;
 

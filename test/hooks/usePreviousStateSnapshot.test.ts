@@ -266,25 +266,32 @@ async function testFetchChannelInitialState() {
         const mptKeyResult = participantDataResults[index * 2];
         const depositResult = participantDataResults[index * 2 + 1];
 
+        // Include in storageEntries if mptKey is non-zero (even if deposit is zero)
+        // Previously used truthy check on `depositResult.result`, but BigInt(0) is falsy,
+        // causing participants with zero amount deposits to be excluded
         if (
           mptKeyResult?.status === "success" &&
-          mptKeyResult.result &&
+          mptKeyResult.result !== undefined &&
+          mptKeyResult.result !== null &&
           depositResult?.status === "success" &&
-          depositResult.result
+          depositResult.result !== undefined
         ) {
           const mptKey = mptKeyResult.result as bigint;
           const deposit = depositResult.result as bigint;
 
-          const mptKeyHex = `0x${mptKey.toString(16).padStart(64, "0")}`;
-          const depositHex = `0x${deposit.toString(16).padStart(64, "0")}`;
+          // Only add if mptKey is non-zero (valid MPT key)
+          if (mptKey !== BigInt(0)) {
+            const mptKeyHex = `0x${mptKey.toString(16).padStart(64, "0")}`;
+            const depositHex = `0x${deposit.toString(16).padStart(64, "0")}`;
 
-          registeredKeys.push(mptKeyHex);
-          storageEntries.push({ key: mptKeyHex, value: depositHex });
+            registeredKeys.push(mptKeyHex);
+            storageEntries.push({ key: mptKeyHex, value: depositHex });
 
-          console.log(`   ✅ Participant ${index + 1}:`);
-          console.log(`      Address: ${participant}`);
-          console.log(`      MPT Key: ${mptKeyHex}`);
-          console.log(`      Deposit: ${depositHex}`);
+            console.log(`   ✅ Participant ${index + 1}:`);
+            console.log(`      Address: ${participant}`);
+            console.log(`      MPT Key: ${mptKeyHex}`);
+            console.log(`      Deposit: ${depositHex}`);
+          }
         }
       });
       console.log("");
