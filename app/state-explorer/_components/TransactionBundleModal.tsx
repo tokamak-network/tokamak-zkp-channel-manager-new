@@ -305,7 +305,18 @@ export function TransactionBundleModal({
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `state-snapshot-channel-${selectedChannelId}-${new Date().toISOString()}.json`;
+    // Use local time for filename instead of UTC
+    const now = new Date();
+    const localTimeStr = now.toLocaleString("ko-KR", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false,
+    }).replace(/[:\s]/g, "-").replace(/\//g, "-");
+    link.download = `state-snapshot-channel-${selectedChannelId}-${localTimeStr}.json`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -473,7 +484,7 @@ export function TransactionBundleModal({
         proofId: proofId,
         sequenceNumber: proofNumber,
         subNumber: subNumber,
-        submittedAt: new Date().toISOString(),
+        submittedAt: Date.now(), // Unix timestamp (milliseconds) - avoids timezone issues
         submitter: address,
         timestamp: Date.now(),
         uploadStatus: "complete",

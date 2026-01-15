@@ -2,7 +2,7 @@
  * Wagmi Configuration
  * 
  * Configures wagmi with supported chains and providers.
- * RPC URLs default to wallet's connected RPC provider.
+ * Uses Alchemy RPC for Sepolia to avoid rate limiting issues.
  */
 
 import { createConfig, http } from 'wagmi';
@@ -12,9 +12,11 @@ import { NETWORKS } from '@tokamak/config';
 // Configure chains (using Wagmi chain definitions from config)
 export const chains = [NETWORKS.sepolia, NETWORKS.mainnet] as const;
 
+// Alchemy RPC URL for Sepolia (hardcoded to avoid rate limiting)
+const SEPOLIA_RPC_URL = 'https://eth-sepolia.g.alchemy.com/v2/PbqCcGx1oHN7yNaFdUJUYqPEN0QSp23S';
+
 // Create wagmi config
-// Using http() without arguments defaults to wallet's RPC provider
-// This allows users to use their wallet's configured RPC endpoint
+// Using dedicated Alchemy RPC for Sepolia to avoid MetaMask default RPC rate limiting
 export const wagmiConfig = createConfig({
   chains,
   connectors: [
@@ -23,7 +25,7 @@ export const wagmiConfig = createConfig({
     coinbaseWallet({ appName: 'Tokamak ZKP Channel Manager' }),
   ],
   transports: {
-    [NETWORKS.sepolia.id]: http(), // Uses wallet's RPC by default
+    [NETWORKS.sepolia.id]: http(SEPOLIA_RPC_URL), // Use Alchemy RPC to avoid rate limiting
     [NETWORKS.mainnet.id]: http(), // Uses wallet's RPC by default
   },
 });

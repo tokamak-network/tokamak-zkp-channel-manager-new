@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
       fileName: file.name,
       mimeType: "application/zip",
       size: file.size,
-      uploadedAt: new Date().toISOString(),
+      uploadedAt: Date.now(), // Unix timestamp (milliseconds) - avoids timezone issues
     });
 
     return NextResponse.json({

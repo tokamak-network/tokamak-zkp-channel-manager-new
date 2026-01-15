@@ -1,16 +1,22 @@
-'use client';
+"use client";
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
-import { useAccount } from 'wagmi';
-import { Button, Card } from '@tokamak/ui';
-import { AlertCircle, CheckCircle, Loader2, ChevronRight, FileText } from 'lucide-react';
-import { useChannelInfo } from '@/hooks/useChannelInfo';
-import { useSubmitProof } from '../_hooks/useSubmitProof';
-import { useCloseChannel } from '../_hooks/useCloseChannel';
-import { useBridgeCoreRead, useBridgeProofManagerRead } from '@/hooks/contract';
-import { generateClientSideProof } from '@/lib/clientProofGeneration';
-import { keccak256, encodePacked } from 'viem';
+import { useState, useEffect, useMemo, useCallback } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
+import { useAccount } from "wagmi";
+import { Button, Card } from "@tokamak/ui";
+import {
+  AlertCircle,
+  CheckCircle,
+  Loader2,
+  ChevronRight,
+  FileText,
+} from "lucide-react";
+import { useChannelInfo } from "@/hooks/useChannelInfo";
+import { useSubmitProof } from "../_hooks/useSubmitProof";
+import { useCloseChannel } from "../_hooks/useCloseChannel";
+import { useBridgeCoreRead, useBridgeProofManagerRead } from "@/hooks/contract";
+import { generateClientSideProof } from "@/lib/clientProofGeneration";
+import { keccak256, encodePacked } from "viem";
 
 interface VerifiedProof {
   key: string;
@@ -21,7 +27,7 @@ interface VerifiedProof {
     fileName: string;
     size: number;
   };
-  verifiedAt: string;
+  verifiedAt: string | number; // Unix timestamp (number) or ISO string (string) for backward compatibility
   verifiedBy: string;
 }
 
@@ -29,7 +35,7 @@ export default function CloseChannelPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const { address, isConnected } = useAccount();
-  const channelId = searchParams?.get('channelId') || '';
+  const channelId = searchParams?.get("channelId") || "";
 
   const { channelInfo, isLeader } = useChannelInfo(channelId);
 
@@ -37,7 +43,7 @@ export default function CloseChannelPage() {
   const [phase, setPhase] = useState<1 | 2>(1);
   const [verifiedProofs, setVerifiedProofs] = useState<VerifiedProof[]>([]);
   const [isLoadingProofs, setIsLoadingProofs] = useState(true);
-  const [proofsError, setProofsError] = useState('');
+  const [proofsError, setProofsError] = useState("");
 
   // Phase 1 states - use useSubmitProof hook
   const {
@@ -51,9 +57,9 @@ export default function CloseChannelPage() {
 
   // Phase 2 states
   const [isGeneratingFinalProof, setIsGeneratingFinalProof] = useState(false);
-  const [finalProofStatus, setFinalProofStatus] = useState('');
+  const [finalProofStatus, setFinalProofStatus] = useState("");
   const [isClosingChannel, setIsClosingChannel] = useState(false);
-  const [closeChannelError, setCloseChannelError] = useState('');
+  const [closeChannelError, setCloseChannelError] = useState("");
   const [finalBalances, setFinalBalances] = useState<bigint[]>([]);
   const [permutation, setPermutation] = useState<bigint[]>([]);
   const [groth16Proof, setGroth16Proof] = useState<{
@@ -64,7 +70,7 @@ export default function CloseChannelPage() {
 
   // Get channel data for Phase 2
   const { data: channelParticipants } = useBridgeCoreRead({
-    functionName: 'getChannelParticipants',
+    functionName: "getChannelParticipants",
     args: channelId ? [channelId as `0x${string}`] : undefined,
     query: {
       enabled: !!channelId && isConnected && phase === 2,
@@ -72,7 +78,7 @@ export default function CloseChannelPage() {
   });
 
   const { data: channelTreeSize } = useBridgeCoreRead({
-    functionName: 'getChannelTreeSize',
+    functionName: "getChannelTreeSize",
     args: channelId ? [channelId as `0x${string}`] : undefined,
     query: {
       enabled: !!channelId && isConnected && phase === 2,
@@ -80,7 +86,7 @@ export default function CloseChannelPage() {
   });
 
   const { data: finalStateRoot } = useBridgeProofManagerRead({
-    functionName: 'getChannelFinalStateRoot',
+    functionName: "getChannelFinalStateRoot",
     args: channelId ? [channelId as `0x${string}`] : undefined,
     query: {
       enabled: !!channelId && isConnected && phase === 2,
@@ -88,7 +94,7 @@ export default function CloseChannelPage() {
   });
 
   const { data: channelTargetContract } = useBridgeCoreRead({
-    functionName: 'getChannelTargetContract',
+    functionName: "getChannelTargetContract",
     args: channelId ? [channelId as `0x${string}`] : undefined,
     query: {
       enabled: !!channelId && isConnected && phase === 2,
@@ -96,7 +102,7 @@ export default function CloseChannelPage() {
   });
 
   const { data: preAllocatedKeys } = useBridgeCoreRead({
-    functionName: 'getPreAllocatedKeys',
+    functionName: "getPreAllocatedKeys",
     args: channelTargetContract ? [channelTargetContract] : undefined,
     query: {
       enabled: !!channelTargetContract && isConnected && phase === 2,
@@ -121,26 +127,30 @@ export default function CloseChannelPage() {
     const fetchVerifiedProofs = async () => {
       try {
         setIsLoadingProofs(true);
-        const response = await fetch(`/api/channels/${channelId}/proofs?type=verified`);
+        const response = await fetch(
+          `/api/channels/${channelId}/proofs?type=verified`
+        );
         const data = await response.json();
 
         if (data.success && data.data) {
           let proofsArray: VerifiedProof[] = [];
           if (Array.isArray(data.data)) {
             proofsArray = data.data;
-          } else if (data.data && typeof data.data === 'object') {
-            proofsArray = Object.entries(data.data).map(([key, value]: [string, any]) => ({
-              key,
-              ...value,
-            }));
+          } else if (data.data && typeof data.data === "object") {
+            proofsArray = Object.entries(data.data).map(
+              ([key, value]: [string, any]) => ({
+                key,
+                ...value,
+              })
+            );
           }
           // Sort by sequence number descending (most recent first)
           proofsArray.sort((a, b) => b.sequenceNumber - a.sequenceNumber);
           setVerifiedProofs(proofsArray);
         }
       } catch (error) {
-        console.error('Error fetching verified proofs:', error);
-        setProofsError('Failed to load verified proofs');
+        console.error("Error fetching verified proofs:", error);
+        setProofsError("Failed to load verified proofs");
       } finally {
         setIsLoadingProofs(false);
       }
@@ -181,50 +191,54 @@ export default function CloseChannelPage() {
     try {
       await submitProofs();
     } catch (error) {
-      console.error('Error submitting proof:', error);
+      console.error("Error submitting proof:", error);
     }
   }, [selectedProof, submitProofs]);
 
   // Phase 2: Build permutation array
   const buildPermutation = useCallback(async () => {
     if (!channelParticipants || !finalStateRoot || !channelTargetContract) {
-      throw new Error('Missing channel data');
+      throw new Error("Missing channel data");
     }
 
-    setFinalProofStatus('Fetching final state snapshot...');
+    setFinalProofStatus("Fetching final state snapshot...");
 
     // Get final state snapshot from API
     const response = await fetch(
       `/api/get-contract-state-for-proof?channelId=${channelId}&stateRoot=${finalStateRoot}`
     );
     if (!response.ok) {
-      throw new Error('Failed to fetch final state snapshot');
+      throw new Error("Failed to fetch final state snapshot");
     }
     const snapshotData = await response.json();
 
     if (!snapshotData.success || !snapshotData.data) {
-      throw new Error('Invalid state snapshot data');
+      throw new Error("Invalid state snapshot data");
     }
 
-    setFinalProofStatus('Calculating permutation...');
+    setFinalProofStatus("Calculating permutation...");
 
     // Get registered keys from contract (already fetched via hook)
     if (!preAllocatedKeys || !Array.isArray(preAllocatedKeys)) {
-      throw new Error('Failed to fetch registered keys from contract');
+      throw new Error("Failed to fetch registered keys from contract");
     }
     const registeredKeys: string[] = preAllocatedKeys as string[];
 
     // Normalize storage key function
     const normalizeStorageKey = (key: string): string => {
-      return key.toLowerCase().startsWith('0x') ? key.toLowerCase() : `0x${key.toLowerCase()}`;
+      return key.toLowerCase().startsWith("0x")
+        ? key.toLowerCase()
+        : `0x${key.toLowerCase()}`;
     };
 
     // Build value map from snapshot
     const valuesByKey = new Map<string, string>();
-    snapshotData.data.storageEntries?.forEach((entry: { key: string; value: string }) => {
-      const normalizedKey = normalizeStorageKey(entry.key);
-      valuesByKey.set(normalizedKey, entry.value);
-    });
+    snapshotData.data.storageEntries?.forEach(
+      (entry: { key: string; value: string }) => {
+        const normalizedKey = normalizeStorageKey(entry.key);
+        valuesByKey.set(normalizedKey, entry.value);
+      }
+    );
 
     // Build permutation: map registered keys to their indices in the snapshot
     const perm: bigint[] = [];
@@ -234,7 +248,9 @@ export default function CloseChannelPage() {
 
       // Find index in snapshot storage entries
       for (let j = 0; j < snapshotData.data.storageEntries.length; j++) {
-        const snapshotKey = normalizeStorageKey(snapshotData.data.storageEntries[j].key);
+        const snapshotKey = normalizeStorageKey(
+          snapshotData.data.storageEntries[j].key
+        );
         if (snapshotKey === registeredKey) {
           foundIndex = j;
           break;
@@ -256,45 +272,53 @@ export default function CloseChannelPage() {
     for (const participant of channelParticipants) {
       // Find participant's balance in snapshot
       let participantBalance = BigInt(0);
-      snapshotData.data.storageEntries?.forEach((entry: { key: string; value: string }) => {
-        // Extract participant address from key if it matches
-        // This is a simplified version - actual implementation may need more logic
-        if (entry.key.toLowerCase().includes(participant.toLowerCase())) {
-          participantBalance = BigInt(entry.value);
+      snapshotData.data.storageEntries?.forEach(
+        (entry: { key: string; value: string }) => {
+          // Extract participant address from key if it matches
+          // This is a simplified version - actual implementation may need more logic
+          if (entry.key.toLowerCase().includes(participant.toLowerCase())) {
+            participantBalance = BigInt(entry.value);
+          }
         }
-      });
+      );
       balances.push(participantBalance);
     }
 
     setFinalBalances(balances);
 
     return { permutation: perm, finalBalances: balances, snapshotData };
-  }, [channelId, channelParticipants, finalStateRoot, channelTargetContract, preAllocatedKeys]);
+  }, [
+    channelId,
+    channelParticipants,
+    finalStateRoot,
+    channelTargetContract,
+    preAllocatedKeys,
+  ]);
 
   // Phase 2: Generate Groth16 proof
   const generateGroth16ProofForClose = useCallback(async () => {
     if (!channelTreeSize || !finalStateRoot || !channelTargetContract) {
-      throw new Error('Missing channel data');
+      throw new Error("Missing channel data");
     }
 
-    setFinalProofStatus('Preparing circuit input...');
+    setFinalProofStatus("Preparing circuit input...");
 
     // Get final state snapshot
     const response = await fetch(
       `/api/get-contract-state-for-proof?channelId=${channelId}&stateRoot=${finalStateRoot}`
     );
     if (!response.ok) {
-      throw new Error('Failed to fetch final state snapshot');
+      throw new Error("Failed to fetch final state snapshot");
     }
     const snapshotData = await response.json();
 
     if (!snapshotData.success || !snapshotData.data) {
-      throw new Error('Invalid state snapshot data');
+      throw new Error("Invalid state snapshot data");
     }
 
     // Get registered keys from contract (already fetched via hook)
     if (!preAllocatedKeys || !Array.isArray(preAllocatedKeys)) {
-      throw new Error('Failed to fetch registered keys from contract');
+      throw new Error("Failed to fetch registered keys from contract");
     }
     const registeredKeys: string[] = preAllocatedKeys as string[];
 
@@ -309,32 +333,40 @@ export default function CloseChannelPage() {
 
     // Normalize storage key
     const normalizeStorageKey = (key: string): string => {
-      return key.toLowerCase().startsWith('0x') ? key.toLowerCase() : `0x${key.toLowerCase()}`;
+      return key.toLowerCase().startsWith("0x")
+        ? key.toLowerCase()
+        : `0x${key.toLowerCase()}`;
     };
 
     // Build value map
     const valuesByKey = new Map<string, string>();
-    snapshotData.data.storageEntries?.forEach((entry: { key: string; value: string }) => {
-      const normalizedKey = normalizeStorageKey(entry.key);
-      valuesByKey.set(normalizedKey, entry.value);
-    });
+    snapshotData.data.storageEntries?.forEach(
+      (entry: { key: string; value: string }) => {
+        const normalizedKey = normalizeStorageKey(entry.key);
+        valuesByKey.set(normalizedKey, entry.value);
+      }
+    );
 
     // Fill arrays up to tree size
     for (let i = 0; i < Math.min(treeSize, registeredKeys.length); i++) {
       const key = registeredKeys[i];
       const normalizedKey = normalizeStorageKey(key);
-      const value = valuesByKey.get(normalizedKey) || '0';
+      const value = valuesByKey.get(normalizedKey) || "0";
       storageKeys.push(normalizedKey);
       storageValues.push(value);
     }
 
     // Pad to tree size if needed
     while (storageKeys.length < treeSize) {
-      storageKeys.push('0x0000000000000000000000000000000000000000000000000000000000000000');
-      storageValues.push('0');
+      storageKeys.push(
+        "0x0000000000000000000000000000000000000000000000000000000000000000"
+      );
+      storageValues.push("0");
     }
 
-    setFinalProofStatus('Generating Groth16 proof... This may take a few minutes...');
+    setFinalProofStatus(
+      "Generating Groth16 proof... This may take a few minutes..."
+    );
 
     // Generate proof
     const proofResult = await generateClientSideProof(
@@ -353,13 +385,19 @@ export default function CloseChannelPage() {
     });
 
     return proofResult;
-  }, [channelId, channelTreeSize, finalStateRoot, channelTargetContract, preAllocatedKeys]);
+  }, [
+    channelId,
+    channelTreeSize,
+    finalStateRoot,
+    channelTargetContract,
+    preAllocatedKeys,
+  ]);
 
   // Phase 2: Verify final balances and close channel
   const handleVerifyAndClose = useCallback(async () => {
     setIsClosingChannel(true);
-    setCloseChannelError('');
-    setFinalProofStatus('Preparing final state data...');
+    setCloseChannelError("");
+    setFinalProofStatus("Preparing final state data...");
 
     try {
       // Step 1: Build permutation and final balances
@@ -369,7 +407,7 @@ export default function CloseChannelPage() {
       await generateGroth16ProofForClose();
 
       // Step 3: Close channel
-      setFinalProofStatus('Submitting to blockchain...');
+      setFinalProofStatus("Submitting to blockchain...");
       await closeChannel();
 
       // Success - redirect to withdraw after a delay
@@ -377,13 +415,21 @@ export default function CloseChannelPage() {
         router.push(`/state-explorer?channelId=${channelId}`);
       }, 2000);
     } catch (error) {
-      console.error('Error closing channel:', error);
-      setCloseChannelError(error instanceof Error ? error.message : 'Failed to close channel');
+      console.error("Error closing channel:", error);
+      setCloseChannelError(
+        error instanceof Error ? error.message : "Failed to close channel"
+      );
     } finally {
       setIsClosingChannel(false);
-      setFinalProofStatus('');
+      setFinalProofStatus("");
     }
-  }, [buildPermutation, generateGroth16ProofForClose, closeChannel, channelId, router]);
+  }, [
+    buildPermutation,
+    generateGroth16ProofForClose,
+    closeChannel,
+    channelId,
+    router,
+  ]);
 
   // Update error state from hook
   useEffect(() => {
@@ -423,17 +469,35 @@ export default function CloseChannelPage() {
       {/* Progress Indicator */}
       <div className="mb-8">
         <div className="flex items-center justify-center gap-4">
-          <div className={`flex items-center gap-2 ${phase === 1 ? 'text-primary' : 'text-green-500'}`}>
-            <div className={`flex items-center justify-center w-8 h-8 rounded-full ${phase === 1 ? 'bg-primary text-primary-foreground' : 'bg-green-500 text-white'}`}>
-              {phase === 2 ? <CheckCircle className="h-5 w-5" /> : '1'}
+          <div
+            className={`flex items-center gap-2 ${
+              phase === 1 ? "text-primary" : "text-green-500"
+            }`}
+          >
+            <div
+              className={`flex items-center justify-center w-8 h-8 rounded-full ${
+                phase === 1
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-green-500 text-white"
+              }`}
+            >
+              {phase === 2 ? <CheckCircle className="h-5 w-5" /> : "1"}
             </div>
             <span className="font-medium">Submit Proof</span>
           </div>
-          
+
           <ChevronRight className="h-5 w-5 text-muted-foreground" />
-          
-          <div className={`flex items-center gap-2 ${phase === 2 ? 'text-primary' : 'text-muted-foreground'}`}>
-            <div className={`flex items-center justify-center w-8 h-8 rounded-full ${phase === 2 ? 'bg-primary text-primary-foreground' : 'border-2'}`}>
+
+          <div
+            className={`flex items-center gap-2 ${
+              phase === 2 ? "text-primary" : "text-muted-foreground"
+            }`}
+          >
+            <div
+              className={`flex items-center justify-center w-8 h-8 rounded-full ${
+                phase === 2 ? "bg-primary text-primary-foreground" : "border-2"
+              }`}
+            >
               2
             </div>
             <span className="font-medium">Verify & Close</span>
@@ -444,11 +508,15 @@ export default function CloseChannelPage() {
       {/* Phase 1: Submit Proof */}
       {phase === 1 && (
         <Card className="p-6">
-          <h2 className="text-2xl font-bold mb-6">Phase 1: Submit Proof to Close Channel</h2>
-          
+          <h2 className="text-2xl font-bold mb-6">
+            Phase 1: Submit Proof to Close Channel
+          </h2>
+
           <div className="space-y-6">
             <div>
-              <h3 className="text-lg font-semibold mb-3">Channel Information</h3>
+              <h3 className="text-lg font-semibold mb-3">
+                Channel Information
+              </h3>
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
                   <span className="text-muted-foreground">Channel ID:</span>
@@ -462,7 +530,9 @@ export default function CloseChannelPage() {
             </div>
 
             <div>
-              <h3 className="text-lg font-semibold mb-3">Verified Proofs Available</h3>
+              <h3 className="text-lg font-semibold mb-3">
+                Verified Proofs Available
+              </h3>
               <div className="text-sm text-muted-foreground mb-4">
                 Total: {verifiedProofs.length} proof(s)
               </div>
@@ -477,7 +547,8 @@ export default function CloseChannelPage() {
                         Sequence: {selectedProof.sequenceNumber}
                       </div>
                       <div className="text-xs text-muted-foreground mt-1">
-                        Verified: {new Date(selectedProof.verifiedAt).toLocaleString()}
+                        Verified:{" "}
+                        {new Date(selectedProof.verifiedAt).toLocaleString()}
                       </div>
                     </div>
                     <div className="text-xs bg-green-500/10 text-green-600 px-2 py-1 rounded">
@@ -490,7 +561,9 @@ export default function CloseChannelPage() {
               {!selectedProof && (
                 <div className="flex items-center gap-2 text-yellow-600 bg-yellow-50 p-4 rounded-lg">
                   <AlertCircle className="h-5 w-5" />
-                  <span>No verified proofs available. Please verify proofs first.</span>
+                  <span>
+                    No verified proofs available. Please verify proofs first.
+                  </span>
                 </div>
               )}
             </div>
@@ -512,16 +585,26 @@ export default function CloseChannelPage() {
             <div className="flex justify-end gap-3">
               <Button
                 variant="outline"
-                onClick={() => router.push(`/state-explorer?channelId=${channelId}`)}
+                onClick={() =>
+                  router.push(`/state-explorer?channelId=${channelId}`)
+                }
               >
                 Cancel
               </Button>
               <Button
                 onClick={handleSubmitProof}
-                disabled={!selectedProof || isSubmittingTransaction || submitProofSuccess}
+                disabled={
+                  !selectedProof ||
+                  isSubmittingTransaction ||
+                  submitProofSuccess
+                }
               >
-                {isSubmittingTransaction && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {isSubmittingTransaction ? 'Submitting...' : 'Submit Proof & Move to Closing'}
+                {isSubmittingTransaction && (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                )}
+                {isSubmittingTransaction
+                  ? "Submitting..."
+                  : "Submit Proof & Move to Closing"}
               </Button>
             </div>
           </div>
@@ -531,24 +614,33 @@ export default function CloseChannelPage() {
       {/* Phase 2: Verify Final Balances */}
       {phase === 2 && (
         <Card className="p-6">
-          <h2 className="text-2xl font-bold mb-6">Phase 2: Verify Final Balances & Close Channel</h2>
-          
+          <h2 className="text-2xl font-bold mb-6">
+            Phase 2: Verify Final Balances & Close Channel
+          </h2>
+
           <div className="space-y-6">
             <div className="flex items-center gap-2 text-green-600 bg-green-50 p-4 rounded-lg">
               <CheckCircle className="h-5 w-5" />
-              <span>Proof submitted successfully. Channel is now in Closing state.</span>
+              <span>
+                Proof submitted successfully. Channel is now in Closing state.
+              </span>
             </div>
 
             <div>
-              <h3 className="text-lg font-semibold mb-3">Final Balance Verification</h3>
+              <h3 className="text-lg font-semibold mb-3">
+                Final Balance Verification
+              </h3>
               <p className="text-sm text-muted-foreground mb-4">
-                This step will generate a Groth16 proof to verify the final state of all participants' balances
-                and permanently close the channel.
+                This step will generate a Groth16 proof to verify the final
+                state of all participants' balances and permanently close the
+                channel.
               </p>
-              
+
               {channelParticipants && (
                 <div className="space-y-2">
-                  <div className="text-sm font-medium">Participants ({channelParticipants.length}):</div>
+                  <div className="text-sm font-medium">
+                    Participants ({channelParticipants.length}):
+                  </div>
                   <div className="text-xs text-muted-foreground space-y-1">
                     {channelParticipants.map((addr, idx) => (
                       <div key={idx} className="font-mono">
@@ -570,7 +662,9 @@ export default function CloseChannelPage() {
 
               {channelTreeSize && (
                 <div className="mt-4">
-                  <div className="text-sm font-medium">Tree Size: {Number(channelTreeSize)} leaves</div>
+                  <div className="text-sm font-medium">
+                    Tree Size: {Number(channelTreeSize)} leaves
+                  </div>
                 </div>
               )}
 
@@ -578,7 +672,7 @@ export default function CloseChannelPage() {
                 <div className="mt-4 space-y-2">
                   <div className="text-sm font-medium">Permutation Array:</div>
                   <div className="text-xs font-mono text-muted-foreground">
-                    [{permutation.map(p => p.toString()).join(', ')}]
+                    [{permutation.map((p) => p.toString()).join(", ")}]
                   </div>
                 </div>
               )}
@@ -628,10 +722,20 @@ export default function CloseChannelPage() {
               </Button>
               <Button
                 onClick={handleVerifyAndClose}
-                disabled={isClosingChannel || isClosingChannelProcessing || !channelParticipants || !finalStateRoot || !channelTreeSize}
+                disabled={
+                  isClosingChannel ||
+                  isClosingChannelProcessing ||
+                  !channelParticipants ||
+                  !finalStateRoot ||
+                  !channelTreeSize
+                }
               >
-                {(isClosingChannel || isClosingChannelProcessing) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {isClosingChannel || isClosingChannelProcessing ? 'Closing Channel...' : 'Verify & Close Channel'}
+                {(isClosingChannel || isClosingChannelProcessing) && (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                )}
+                {isClosingChannel || isClosingChannelProcessing
+                  ? "Closing Channel..."
+                  : "Verify & Close Channel"}
               </Button>
             </div>
           </div>

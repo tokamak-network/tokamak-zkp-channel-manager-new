@@ -49,7 +49,7 @@ export async function POST(request: Request, { params }: RouteParams) {
       openChannelTxHash: txHash,
       blockNumber: blockNumber?.toString(),
       blockTimestamp: blockTimestamp?.toString(),
-      createdAt: new Date().toISOString(),
+      createdAt: Date.now(), // Unix timestamp (milliseconds) - avoids timezone issues
     });
 
     return NextResponse.json({

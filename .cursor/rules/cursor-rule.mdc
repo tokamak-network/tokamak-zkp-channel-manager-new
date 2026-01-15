@@ -1,0 +1,25 @@
+---
+name: cursor-rule
+description: This is a new rule
+---
+
+# Cursor Rules - Tokamak ZKP Channel Manager
+
+## 📚 필수 참고 문서
+
+작업 시 `docs/` 폴더 내의 모든 문서를 항상 참고하세요. 새 문서가 추가되면 자동으로 참고 대상에 포함됩니다.
+
+주요 문서:
+
+- `docs/MIGRATION_PATTERNS.md` - 마이그레이션 패턴 및 컴포넌트 설계 가이드
+- `docs/ARCHITECTURE.md` - 레거시 코드 분석 및 아키텍처 이해
+- `docs/MIGRATION_GUIDE.md` - 전체 마이그레이션 전략
+- `docs/development/` - 개발 관련 문서 (Wagmi, 기타 개발 도구 문서 등)
+- `docs/references/` - **외부 레포지토리 분석 문서** (GitHub 레포지토리 구조 및 코드 분석 txt 파일들)
+  - `docs/references/tokamak-zk-evm.txt` - Tokamak ZK-EVM 레포지토리 분석
+  - `docs/references/tokamak-zkp-channel-manager-old.txt` - 레거시 채널 매니저 레포지토리 분석
+- 기타 `docs/` 폴더 내의 모든 문서
+
+**중요**: 외부 레포지토리 관련 작업 시 반드시 `docs/references/` 폴더의 분석 문서를 먼저 참고하세요.
+
+이 문서들에 정의된 원칙과 패턴을 엄격히 따르세요.

@@ -266,7 +266,7 @@ export function SubmitProofModal({
         proofId: proofId,
         sequenceNumber: proofNumber,
         subNumber: subNumber,
-        submittedAt: new Date().toISOString(),
+        submittedAt: Date.now(), // Unix timestamp (milliseconds) - avoids timezone issues
         submitter: address || "",
         timestamp: Date.now(),
         uploadStatus: "complete",

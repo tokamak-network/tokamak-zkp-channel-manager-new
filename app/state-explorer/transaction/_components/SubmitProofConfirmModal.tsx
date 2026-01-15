@@ -23,7 +23,7 @@ interface VerifiedProof {
   key: string;
   proofId: string;
   sequenceNumber: number;
-  submittedAt: string;
+  submittedAt: string | number; // Unix timestamp (number) or ISO string (string) for backward compatibility
 }
 
 interface SubmitProofConfirmModalProps {

@@ -6,11 +6,21 @@
  */
 
 /**
- * Format date string to Korean locale format
+ * Format date (Unix timestamp in milliseconds or ISO string) to Korean locale format
+ * Supports both Unix timestamp (number) and ISO string for backward compatibility
  */
-export function formatDate(dateString: string): string {
+export function formatDate(dateInput: string | number): string {
   try {
-    const date = new Date(dateString);
+    // Handle both Unix timestamp (number) and ISO string (string)
+    const date = typeof dateInput === "number" 
+      ? new Date(dateInput) 
+      : new Date(dateInput);
+    
+    // Check if date is valid
+    if (isNaN(date.getTime())) {
+      return String(dateInput);
+    }
+    
     return date
       .toLocaleDateString("ko-KR", {
         year: "numeric",
@@ -20,6 +30,6 @@ export function formatDate(dateString: string): string {
       .replace(/\./g, ".")
       .replace(/\s/g, "");
   } catch {
-    return dateString;
+    return String(dateInput);
   }
 }

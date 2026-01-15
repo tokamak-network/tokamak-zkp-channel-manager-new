@@ -51,7 +51,7 @@ interface ProofData {
   sequenceNumber?: number;
   subNumber?: number;
   verifier?: string;
-  verifiedAt?: string;
+  verifiedAt?: string | number; // Unix timestamp (number) or ISO string (string) for backward compatibility
   verifiedBy?: string;
   zipFile?: {
     path?: string;

@@ -7,27 +7,22 @@
 
 "use client";
 
-import { useState } from "react";
 import { Button, Card, CardContent } from "@tokamak/ui";
 import { useChannelFlowStore } from "@/stores/useChannelFlowStore";
+import { useWithdraw } from "./_hooks";
 
 export function WithdrawPage() {
   const { currentChannelId } = useChannelFlowStore();
-  const [isWithdrawing, setIsWithdrawing] = useState(false);
-  const [hasWithdrawn, setHasWithdrawn] = useState(false);
+  const {
+    handleWithdraw,
+    isWithdrawing,
+    withdrawSuccess,
+    error,
+  } = useWithdraw({ channelId: currentChannelId });
 
   // TODO: Get from contract
   const withdrawableAmount = "10.5";
   const tokenSymbol = "TON";
-
-  const handleWithdraw = async () => {
-    setIsWithdrawing(true);
-    // TODO: Implement withdraw transaction
-    console.log("Withdraw from channel:", currentChannelId);
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-    setIsWithdrawing(false);
-    setHasWithdrawn(true);
-  };
 
   return (
     <Card className="max-w-2xl">
@@ -48,21 +43,27 @@ export function WithdrawPage() {
         </div>
 
         {/* Status Messages */}
-        {hasWithdrawn && (
+        {withdrawSuccess && (
           <div className="p-4 bg-green-50 border border-green-200 rounded text-green-700">
             ✓ Tokens have been withdrawn successfully
+          </div>
+        )}
+
+        {error && (
+          <div className="p-4 bg-red-50 border border-red-200 rounded text-red-700">
+            {error}
           </div>
         )}
 
         {/* Withdraw Button */}
         <Button
           onClick={handleWithdraw}
-          disabled={isWithdrawing || hasWithdrawn}
+          disabled={isWithdrawing || withdrawSuccess}
           className="w-full"
         >
           {isWithdrawing
             ? "Withdrawing..."
-            : hasWithdrawn
+            : withdrawSuccess
             ? "Already Withdrawn"
             : "Withdraw"}
         </Button>

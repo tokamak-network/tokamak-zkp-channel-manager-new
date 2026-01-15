@@ -47,6 +47,36 @@ export default function ChannelsPage() {
 
 ## 시작하기
 
+### 레포지토리 클론
+
+이 프로젝트는 `Tokamak-Zk-EVM` 서브모듈을 사용합니다. **가장 간단한 방법**은 일반 클론 후 `npm install`만 하면 됩니다:
+
+```bash
+git clone <repository-url>
+cd tokamak-zkp-channel-manager-new
+npm install  # postinstall 스크립트가 자동으로 서브모듈을 설정합니다
+```
+
+**다른 방법들:**
+
+서브모듈을 클론 시점에 함께 가져오려면:
+
+```bash
+git clone --recursive <repository-url>
+# 또는
+git clone --recurse-submodules <repository-url>
+```
+
+수동으로 서브모듈만 설정하려면:
+
+```bash
+npm run setup
+# 또는
+bash scripts/setup-submodules.sh
+```
+
+### 개발 환경 설정
+
 ```bash
 # 의존성 설치
 npm install

@@ -24,7 +24,7 @@ interface VerifiedProof {
     fileName: string;
     size: number;
   };
-  verifiedAt: string;
+  verifiedAt: string | number; // Unix timestamp (number) or ISO string (string) for backward compatibility
   verifiedBy: string;
 }
 
@@ -199,13 +199,23 @@ export function useSubmitProof(channelId: string | null) {
 
       // channelId is bytes32, pass as hex string directly
       // Contract expects bytes32, not uint256 (contract was upgraded)
+      console.log("=".repeat(80));
+      console.log("[useSubmitProof] ChannelId Parsing:");
+      console.log("=".repeat(80));
+      console.log("Original channelId:", channelId);
+      console.log("channelId type:", typeof channelId);
+      console.log("channelId startsWith('0x'):", channelId.startsWith("0x"));
+      console.log("channelId length:", channelId.length);
+
       let channelIdBytes32: `0x${string}`;
       if (channelId.startsWith("0x")) {
         // Already hex string - use directly
         channelIdBytes32 = channelId as `0x${string}`;
+        console.log("Using channelId as-is (already hex string)");
       } else {
         // Convert numeric string to bytes32 hex format (padded to 32 bytes)
-        const hexValue = BigInt(channelId).toString(16).padStart(64, "0");
+        const bigIntValue = BigInt(channelId);
+        const hexValue = bigIntValue.toString(16).padStart(64, "0");
         channelIdBytes32 = `0x${hexValue}` as `0x${string}`;
       }
 
@@ -246,127 +256,26 @@ export function useSubmitProof(channelId: string | null) {
             );
           };
 
-          const converted = {
+          return {
             proofPart1: proof.proofPart1.map(toBigInt),
             proofPart2: proof.proofPart2.map(toBigInt),
             publicInputs: proof.publicInputs.map(toBigInt),
             smax: toBigInt(proof.smax),
           };
-
-          // Debug: Verify all values are bigint
-          console.log("[useSubmitProof] Converted proof data types:", {
-            proofPart1First: typeof converted.proofPart1[0],
-            proofPart1IsBigInt: typeof converted.proofPart1[0] === "bigint",
-            proofPart2First: typeof converted.proofPart2[0],
-            proofPart2IsBigInt: typeof converted.proofPart2[0] === "bigint",
-            publicInputsFirst: typeof converted.publicInputs[0],
-            publicInputsIsBigInt: typeof converted.publicInputs[0] === "bigint",
-            publicInputsLength: converted.publicInputs.length,
-            smax: typeof converted.smax,
-            smaxIsBigInt: typeof converted.smax === "bigint",
-          });
-
-          return converted;
         }
       );
 
       // Call writeContract - wrap in try-catch to handle synchronous errors
       try {
         // Prepare args for writeContract
-        // Contract signature: submitProofAndSignature(uint256 channelId, ProofData[] calldata proofs, Signature calldata signature)
+        // Contract signature: submitProofAndSignature(bytes32 channelId, ProofData[] calldata proofs, Signature calldata signature)
         const contractArgs = [
           channelIdBytes32, // bytes32 hex string
           proofDataForContract,
           signature,
         ];
 
-        // Log full parameters being passed to writeContract
-        // Convert BigInt values to strings for JSON serialization
-        const loggableArgs = [
-          channelIdBytes32, // bytes32 hex string
-          proofDataForContract.map((proof) => ({
-            proofPart1: proof.proofPart1.map((v) => v.toString()),
-            proofPart2: proof.proofPart2.map((v) => v.toString()),
-            publicInputs: proof.publicInputs.map((v) => v.toString()),
-            smax: proof.smax.toString(),
-          })),
-          {
-            message: signature.message,
-            rx: signature.rx.toString(),
-            ry: signature.ry.toString(),
-            z: signature.z.toString(),
-          },
-        ];
-
-        console.log("=".repeat(80));
-        console.log("[useSubmitProof] writeContract Parameters:");
-        console.log("=".repeat(80));
-        console.log("Function Name: submitProofAndSignature");
-        console.log("\n[Arg 0] channelId (bytes32):", channelIdBytes32);
-        console.log(
-          "\n[Arg 1] proofs (ProofData[]):",
-          JSON.stringify(loggableArgs[1], null, 2)
-        );
-        console.log(
-          "\n[Arg 2] signature:",
-          JSON.stringify(loggableArgs[2], null, 2)
-        );
-        console.log(
-          "\nFull args array:",
-          JSON.stringify(loggableArgs, null, 2)
-        );
-        console.log("=".repeat(80));
-
-        // Log detailed proof information
-        console.log("\n[useSubmitProof] Proof Details:");
-        proofDataForContract.forEach((proof, index) => {
-          console.log(`\nProof ${index + 1}:`, {
-            proofPart1Length: proof.proofPart1.length,
-            proofPart2Length: proof.proofPart2.length,
-            publicInputsLength: proof.publicInputs.length,
-            smax: proof.smax.toString(),
-            hasPublicInputs:
-              !!proof.publicInputs && proof.publicInputs.length > 0,
-            hasSmax: proof.smax !== undefined && proof.smax !== null,
-            publicInputsFirst: proof.publicInputs[0]?.toString(),
-            publicInputsSecond: proof.publicInputs[1]?.toString(),
-            publicInputsEighth: proof.publicInputs[8]?.toString(),
-            publicInputsNinth: proof.publicInputs[9]?.toString(),
-          });
-        });
-
-        // Verify contractArgs structure before calling writeContract
-        console.log("\n[useSubmitProof] Verifying contractArgs structure:");
-        console.log("contractArgs length:", contractArgs.length);
-        console.log("contractArgs[0] (channelId):", contractArgs[0]);
-        console.log(
-          "contractArgs[1] (proofs) type:",
-          Array.isArray(contractArgs[1]) ? "array" : typeof contractArgs[1]
-        );
-        console.log(
-          "contractArgs[1] (proofs) length:",
-          Array.isArray(contractArgs[1]) ? contractArgs[1].length : "N/A"
-        );
-
-        if (Array.isArray(contractArgs[1]) && contractArgs[1].length > 0) {
-          const firstProof = contractArgs[1][0] as any;
-          console.log("First proof structure:", {
-            hasProofPart1: !!firstProof.proofPart1,
-            hasProofPart2: !!firstProof.proofPart2,
-            hasPublicInputs: !!firstProof.publicInputs,
-            hasSmax: firstProof.smax !== undefined && firstProof.smax !== null,
-            publicInputsType: Array.isArray(firstProof.publicInputs)
-              ? "array"
-              : typeof firstProof.publicInputs,
-            publicInputsLength: Array.isArray(firstProof.publicInputs)
-              ? firstProof.publicInputs.length
-              : "N/A",
-            smaxValue: firstProof.smax?.toString(),
-          });
-        }
-
-        console.log("contractArgs[2] (signature):", contractArgs[2]);
-        console.log("\n[useSubmitProof] Calling writeContract...");
+        console.log("contractArgs", contractArgs);
 
         writeContract({
           functionName: "submitProofAndSignature",
@@ -401,32 +310,7 @@ export function useSubmitProof(channelId: string | null) {
       if (writeError) {
         const errorAny = writeError as any;
 
-        // Deep dive into error structure to find revert reason
-        const errorDetails: any = {
-          message: writeError.message,
-          name: writeError.name,
-          cause: errorAny.cause,
-          shortMessage: errorAny.shortMessage,
-          data: errorAny.data,
-          reason: errorAny.reason,
-          code: errorAny.code,
-          details: errorAny.details,
-        };
-
-        // Try to extract from nested structures
-        if (errorAny.cause) {
-          errorDetails.causeReason = errorAny.cause.reason;
-          errorDetails.causeData = errorAny.cause.data;
-          errorDetails.causeMessage = errorAny.cause.message;
-          errorDetails.causeShortMessage = errorAny.cause.shortMessage;
-
-          if (errorAny.cause.data) {
-            errorDetails.causeDataMessage = errorAny.cause.data.message;
-            errorDetails.causeDataReason = errorAny.cause.data.reason;
-          }
-        }
-
-        console.error("[useSubmitProof] Write error details:", errorDetails);
+        // Extract error details from nested structures
 
         // Check if this is a network error (not a contract revert)
         // "Failed to fetch" in revert reason usually indicates a network error was misclassified
@@ -441,10 +325,6 @@ export function useSubmitProof(channelId: string | null) {
             errorAny.cause.data.reason.includes("Failed to fetch"));
 
         if (isNetworkError) {
-          console.error(
-            "[useSubmitProof] Network error detected (misclassified as revert):",
-            writeError.message
-          );
           setError(
             "Network error: Failed to connect to the blockchain. This may be due to:\n" +
               "1. Network connectivity issues\n" +
@@ -469,11 +349,6 @@ export function useSubmitProof(channelId: string | null) {
           !writeError.message.includes("Failed to fetch")
             ? writeError.message.match(/revert[:\s]+(.+)/i)?.[1]
             : null);
-
-        console.error(
-          "[useSubmitProof] Extracted revert reason:",
-          revertReason || "Could not extract revert reason"
-        );
 
         // Filter out invalid revert reasons (network errors, generic messages)
         const isValidRevertReason =
@@ -514,15 +389,6 @@ export function useSubmitProof(channelId: string | null) {
               "4. Network connection is stable"
           );
         }
-      }
-      if (receiptError) {
-        const errorAny = receiptError as any;
-        console.error("[useSubmitProof] Receipt error:", {
-          error: receiptError,
-          message: receiptError.message,
-          cause: errorAny.cause,
-          shortMessage: errorAny.shortMessage,
-        });
       }
     }
   }, [writeError, receiptError]);

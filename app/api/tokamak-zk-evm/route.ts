@@ -134,10 +134,11 @@ async function handleApproveProof(body: ApproveProofRequest) {
     const operations: Promise<any>[] = [];
 
     // 1. Move verified proof to verifiedProofs
+    // Use Unix timestamp instead of ISO string to avoid timezone issues
     const verifiedProof = {
       ...proofToVerify,
       status: "verified" as const,
-      verifiedAt: new Date().toISOString(),
+      verifiedAt: Date.now(), // Unix timestamp (milliseconds)
       verifiedBy: verifierAddress,
     };
     operations.push(saveProof(channelId, "verified", verifiedProof));
@@ -148,7 +149,7 @@ async function handleApproveProof(body: ApproveProofRequest) {
       .map((p) => ({
         ...p,
         status: "rejected" as const,
-        rejectedAt: new Date().toISOString(),
+        rejectedAt: Date.now(), // Unix timestamp (milliseconds)
         rejectedBy: verifierAddress,
         reason: "Another proof was verified for this sequence",
       }));

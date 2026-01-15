@@ -11,7 +11,7 @@ export interface Proof {
   proofId: string;
   sequenceNumber: number;
   subNumber: number;
-  submittedAt: string;
+  submittedAt: string | number; // Unix timestamp (number) or ISO string (string) for backward compatibility
   submitter: string;
   status: "pending" | "verified" | "rejected";
   uploadStatus?: string;

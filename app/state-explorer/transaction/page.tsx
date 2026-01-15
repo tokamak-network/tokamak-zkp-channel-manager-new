@@ -287,11 +287,13 @@ export function TransactionPage() {
       }
 
       // Step 3: Save metadata to DB using updateData
+      // Use Unix timestamp (Date.now()) instead of ISO string to avoid timezone issues
+      // The timestamp will be converted to local time when displayed
       const proofMetadata = {
         proofId: proofId,
         sequenceNumber: proofNumber,
         subNumber: subNumber,
-        submittedAt: new Date().toISOString(),
+        submittedAt: Date.now(), // Unix timestamp (milliseconds)
         submitter: address,
         timestamp: Date.now(),
         uploadStatus: "complete",

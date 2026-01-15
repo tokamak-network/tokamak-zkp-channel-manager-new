@@ -48,7 +48,7 @@ export async function setData(path: string, data: any): Promise<void> {
   const lastPart = pathParts[pathParts.length - 1];
   current[lastPart] = {
     ...data,
-    _updatedAt: new Date().toISOString(),
+    _updatedAt: Date.now(), // Unix timestamp (milliseconds) - avoids timezone issues
   };
 
   await db.write();
@@ -85,7 +85,7 @@ export async function pushData(path: string, data: any): Promise<string> {
   // Add data with timestamp
   current[lastPart][key] = {
     ...data,
-    _createdAt: new Date().toISOString(),
+    _createdAt: Date.now(), // Unix timestamp (milliseconds) - avoids timezone issues
   };
 
   await db.write();
@@ -111,7 +111,7 @@ export async function updateData(
   const updated = {
     ...existing,
     ...data,
-    _updatedAt: new Date().toISOString(),
+    _updatedAt: Date.now(), // Unix timestamp (milliseconds) - avoids timezone issues
   };
 
   await setData(path, updated);
