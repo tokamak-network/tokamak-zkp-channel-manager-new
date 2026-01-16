@@ -69,7 +69,7 @@ export default function StateExplorerLayout({
   useEffect(() => {
     if (channelLeader && address) {
       setIsLeader(
-        channelLeader.toLowerCase() === address.toLowerCase()
+        String(channelLeader).toLowerCase() === address.toLowerCase()
       );
     } else {
       setIsLeader(false);
@@ -121,16 +121,19 @@ export default function StateExplorerLayout({
     }
   }, [closeSuccess, refetchChannelState]);
 
-  // No auto-redirect needed - page.tsx handles conditional rendering
+  // Redirect to home if no channel selected
+  useEffect(() => {
+    if (!channelId) {
+      router.replace("/");
+    }
+  }, [channelId, router]);
 
+  // Show loading while redirecting
   if (!channelId) {
     return (
       <AppLayout>
-        <div className="text-center py-12 space-y-4">
-          <p className="text-gray-500">No channel selected</p>
-          <Button onClick={() => router.push("/join-channel")}>
-            Join a Channel
-          </Button>
+        <div className="text-center py-12">
+          <p className="text-gray-500">Redirecting...</p>
         </div>
       </AppLayout>
     );

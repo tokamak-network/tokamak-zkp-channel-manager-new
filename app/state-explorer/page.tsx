@@ -15,6 +15,7 @@ import { DepositPage } from "./deposit/page";
 import { TransactionPage } from "./transaction/page";
 import { WithdrawPage } from "./withdraw/page";
 import { State3Page } from "./state3/page";
+import { State0Page } from "./state0/page";
 
 // ChannelState enum from contract: 0=None, 1=Initialized, 2=Open, 3=Closing, 4=Closed
 type ContractChannelState = 0 | 1 | 2 | 3 | 4;
@@ -190,10 +191,10 @@ export default function StateExplorerPage() {
     };
   }, [refetchChannelState, refetchWithdrawable]);
 
-  // Redirect if no channel selected
+  // Redirect to home if no channel selected
   useEffect(() => {
     if (!currentChannelId) {
-      router.replace("/join-channel");
+      router.replace("/");
     }
   }, [currentChannelId, router]);
 
@@ -217,11 +218,15 @@ export default function StateExplorerPage() {
   return (
     <div className="space-y-6">
       {/* Main Content - Show appropriate component based on channel state */}
+      {/* state === 0 (None) without withdrawable: Channel doesn't exist or deleted */}
+      {/* state === 0 (None) with withdrawable: Show withdraw page (after cleanupChannel) */}
       {/* state === 1 (Initialized): Show deposit page */}
       {/* state === 2 (Open): Show transaction page */}
       {/* state === 3 (Closing): Show state3 page with close channel button */}
-      {/* state === 4 (Closed) OR state === 0 with withdrawable amount: Show withdraw page */}
-      {/* state === 0 (None) without withdrawable: Show deposit page (new channel) */}
+      {/* state === 4 (Closed): Show withdraw page */}
+
+      {/* State0 page: state 0 without withdrawable (channel doesn't exist or deleted) */}
+      {contractChannelState === 0 && !hasWithdrawableAmount && <State0Page />}
 
       {/* Withdraw page: state 4 OR state 0 with withdrawable amount (after cleanupChannel) */}
       {(contractChannelState === 4 ||
@@ -229,11 +234,8 @@ export default function StateExplorerPage() {
         <WithdrawPage />
       )}
 
-      {/* Deposit page: state 1 OR state 0 without withdrawable (new channel) */}
-      {(contractChannelState === 1 ||
-        (contractChannelState === 0 && !hasWithdrawableAmount)) && (
-        <DepositPage />
-      )}
+      {/* Deposit page: state 1 (Initialized - waiting for deposits) */}
+      {contractChannelState === 1 && <DepositPage />}
 
       {/* Transaction page: state 2 */}
       {contractChannelState === 2 && <TransactionPage />}
