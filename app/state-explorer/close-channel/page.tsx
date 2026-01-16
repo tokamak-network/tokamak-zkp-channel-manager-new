@@ -85,7 +85,7 @@ export default function CloseChannelPage() {
     },
   });
 
-  const { data: finalStateRoot } = useBridgeProofManagerRead({
+  const { data: finalStateRoot } = useBridgeCoreRead({
     functionName: "getChannelFinalStateRoot",
     args: channelId ? [channelId as `0x${string}`] : undefined,
     query: {
