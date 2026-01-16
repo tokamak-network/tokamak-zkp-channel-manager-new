@@ -3,6 +3,9 @@
  *
  * Shows when channel is in Closing state (state 3)
  * Displays close channel button that calls verifyFinalBalancesGroth16()
+ * 
+ * Design:
+ * - https://www.figma.com/design/0R11fVZOkNSTJjhTKvUjc7/Ooo?node-id=3168-50364
  */
 
 "use client";
@@ -10,8 +13,7 @@
 import { useState, useCallback, useEffect } from "react";
 import { useAccount, useConfig } from "wagmi";
 import { readContracts } from "@wagmi/core";
-import { Button, Card, CardContent } from "@tokamak/ui";
-import { AlertCircle, Loader2, CheckCircle } from "lucide-react";
+import { Loader2, CheckCircle, AlertCircle } from "lucide-react";
 import { useChannelFlowStore } from "@/stores/useChannelFlowStore";
 import { useVerifyFinalBalances } from "./_hooks";
 import { useBridgeCoreRead, useBridgeProofManagerRead, useBridgeCoreAddress, useBridgeCoreAbi } from "@/hooks/contract";
@@ -44,15 +46,6 @@ export function State3Page() {
     pC: [bigint, bigint, bigint, bigint];
   } | null>(null);
 
-  // Get channel state to verify it's in state 3
-  const { data: channelStateData } = useBridgeCoreRead({
-    functionName: "getChannelState",
-    args: currentChannelId ? [currentChannelId as `0x${string}`] : undefined,
-    query: {
-      enabled: !!currentChannelId && isConnected,
-    },
-  });
-
   // Get channel data for closing
   const { data: channelParticipants } = useBridgeCoreRead({
     functionName: "getChannelParticipants",
@@ -70,12 +63,7 @@ export function State3Page() {
     },
   });
 
-  const {
-    data: finalStateRoot,
-    isLoading: isFinalStateRootLoading,
-    isError: isFinalStateRootError,
-    error: finalStateRootError,
-  } = useBridgeCoreRead({
+  const { data: finalStateRoot } = useBridgeCoreRead({
     functionName: "getChannelFinalStateRoot",
     args: currentChannelId ? [currentChannelId as `0x${string}`] : undefined,
     query: {
@@ -83,27 +71,6 @@ export function State3Page() {
     },
   });
 
-  // Debug finalStateRoot fetching
-  useEffect(() => {
-    console.log("[State3Page] 🔍 Final State Root Debug:", {
-      currentChannelId,
-      isConnected,
-      enabled: !!currentChannelId && isConnected,
-      isFinalStateRootLoading,
-      isFinalStateRootError,
-      finalStateRootError: finalStateRootError?.message,
-      finalStateRoot,
-      finalStateRootType: typeof finalStateRoot,
-      finalStateRootString: finalStateRoot?.toString(),
-    });
-  }, [
-    currentChannelId,
-    isConnected,
-    isFinalStateRootLoading,
-    isFinalStateRootError,
-    finalStateRootError,
-    finalStateRoot,
-  ]);
 
   const { data: channelTargetContract } = useBridgeCoreRead({
     functionName: "getChannelTargetContract",
@@ -767,118 +734,18 @@ export function State3Page() {
     }
   };
 
-  // Debug: Log button state
-  useEffect(() => {
-    console.log("[State3Page] Button state:", {
-      isProcessing,
-      isVerifying,
-      isTransactionSuccess,
-      isConnected,
-      hasChannelParticipants: !!channelParticipants,
-      hasFinalStateRoot: !!finalStateRoot,
-      hasChannelTreeSize: !!channelTreeSize,
-      channelParticipants,
-      finalStateRoot,
-      channelTreeSize,
-    });
-  }, [
-    isProcessing,
-    isVerifying,
-    isTransactionSuccess,
-    isConnected,
-    channelParticipants,
-    finalStateRoot,
-    channelTreeSize,
-  ]);
+  // Mock token balances - TODO: Replace with actual balance fetching
+  const tokenBalances = [
+    { symbol: "TON", amount: "17.02", color: "#007AFF" },
+    { symbol: "USDC", amount: "2.00", color: "#2775CA" },
+    { symbol: "USDT", amount: "153.00", color: "#50AF95" },
+  ];
 
   return (
-    <Card className="max-w-2xl">
-      <CardContent className="space-y-6 pt-6">
-        <div>
-          <h3 className="text-xl font-semibold mb-2">Channel Closing</h3>
-          <p className="text-gray-600 text-sm">
-            Channel is in Closing state (state 3). Verify final balances to
-            close the channel and move to state 4 (Closed).
-          </p>
-        </div>
-
-        {/* Channel Info */}
-        {currentChannelId && (
-          <div className="p-4 bg-gray-50 rounded-lg">
-            <p className="text-sm text-gray-600 mb-1">Channel ID</p>
-            <p className="text-lg font-mono font-medium text-gray-900">
-              {currentChannelId}
-            </p>
-            {channelStateData !== undefined && (
-              <p className="text-sm text-gray-500 mt-2">
-                Current State: {Number(channelStateData)} (Closing)
-              </p>
-            )}
-          </div>
-        )}
-
-        {/* Debug Info */}
-        <div className="p-4 bg-yellow-50 border border-yellow-200 rounded text-xs">
-          <p className="font-semibold text-yellow-800 mb-2">Debug Info:</p>
-          <div className="space-y-1 text-yellow-700">
-            <p>Connected: {isConnected ? "✓" : "✗"}</p>
-            <p>
-              Channel Participants:{" "}
-              {channelParticipants ? `✓ (${(channelParticipants as unknown as `0x${string}`[]).length})` : "✗"}
-            </p>
-            <p>Final State Root: {finalStateRoot ? "✓" : "✗"}</p>
-            <p>
-              Channel Tree Size:{" "}
-              {channelTreeSize ? `✓ (${Number(channelTreeSize)})` : "✗"}
-            </p>
-            <p>Processing: {isProcessing ? "Yes" : "No"}</p>
-            <p>Verifying: {isVerifying ? "Yes" : "No"}</p>
-          </div>
-        </div>
-
-        {/* Status Messages */}
-        {status && (
-          <div className="p-4 bg-blue-50 border border-blue-200 rounded text-blue-700 flex items-center gap-2">
-            <Loader2 className="w-5 h-5 animate-spin" />
-            <span>{status}</span>
-          </div>
-        )}
-
-        {isTransactionSuccess && (
-          <div className="p-4 bg-green-50 border border-green-200 rounded text-green-700 flex items-center gap-2">
-            <CheckCircle className="w-5 h-5" />
-            <span>
-              Channel closed successfully! Channel state is now 4 (Closed). Redirecting to withdraw...
-            </span>
-          </div>
-        )}
-
-        {error && (
-          <div className="p-4 bg-red-50 border border-red-200 rounded text-red-700 flex items-start gap-2">
-            <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
-            <span>{error}</span>
-          </div>
-        )}
-
-        {/* Warning messages for missing data */}
-        {isConnected && !channelParticipants && (
-          <div className="p-3 bg-yellow-50 border border-yellow-200 rounded text-yellow-700 text-sm">
-            ⚠️ Loading channel participants...
-          </div>
-        )}
-        {isConnected && !finalStateRoot && (
-          <div className="p-3 bg-yellow-50 border border-yellow-200 rounded text-yellow-700 text-sm">
-            ⚠️ Loading final state root...
-          </div>
-        )}
-        {isConnected && !channelTreeSize && (
-          <div className="p-3 bg-yellow-50 border border-yellow-200 rounded text-yellow-700 text-sm">
-            ⚠️ Loading channel tree size...
-          </div>
-        )}
-
-        {/* Close Channel Button */}
-        <Button
+    <div className="font-mono" style={{ width: 544 }}>
+      {/* Close Channel Button */}
+      <div className="flex flex-col gap-12">
+        <button
           onClick={handleCloseChannel}
           disabled={
             isProcessing ||
@@ -889,26 +756,154 @@ export function State3Page() {
             !finalStateRoot ||
             !channelTreeSize
           }
-          className="w-full"
+          className="flex items-center justify-center font-mono font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          style={{
+            height: 40,
+            padding: "16px 24px",
+            borderRadius: 4,
+            border: "1px solid #111111",
+            backgroundColor: isProcessing || isVerifying ? "#BBBBBB" : "#0FBCBC",
+            color: "#FFFFFF",
+            fontSize: 18,
+            lineHeight: "1.3em",
+          }}
         >
           {isProcessing || isVerifying ? (
             <>
               <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              {status || "Verifying Final Balances..."}
+              {status || "Closing..."}
             </>
           ) : isTransactionSuccess ? (
-            "Channel Closed"
+            <>
+              <CheckCircle className="w-4 h-4 mr-2" />
+              Closed
+            </>
           ) : (
             "Close Channel"
           )}
-        </Button>
+        </button>
 
-        {!isConnected && (
-          <p className="text-sm text-gray-500 text-center">
-            Please connect your wallet to close the channel.
-          </p>
-        )}
-      </CardContent>
-    </Card>
+        {/* My Balance Section */}
+        <div className="flex flex-col gap-6">
+          <h2
+            className="font-medium text-[#111111]"
+            style={{ fontSize: 32, lineHeight: "1.3em" }}
+          >
+            My Balance
+          </h2>
+
+          {/* Token Balance Cards */}
+          <div className="flex flex-col gap-3">
+            {tokenBalances.map((token) => (
+              <div
+                key={token.symbol}
+                className="flex items-center justify-between"
+                style={{
+                  padding: "16px 24px",
+                  backgroundColor: "#F2F2F2",
+                  borderRadius: 4,
+                }}
+              >
+                {/* Amount */}
+                <span
+                  className="font-medium text-[#111111]"
+                  style={{ fontSize: 24, lineHeight: "1.67em" }}
+                >
+                  {token.amount}
+                </span>
+
+                {/* Token Pill */}
+                <div
+                  className="flex items-center gap-2"
+                  style={{
+                    height: 40,
+                    padding: "8px 12px",
+                    backgroundColor: "#DDDDDD",
+                    borderRadius: "46px 40px 40px 46px",
+                    border: "1px solid #9A9A9A",
+                  }}
+                >
+                  {/* Token Icon */}
+                  <div
+                    className="flex items-center justify-center rounded-full"
+                    style={{
+                      width: 24,
+                      height: 24,
+                      backgroundColor: token.color,
+                    }}
+                  >
+                    <span className="text-white text-xs font-bold">
+                      {token.symbol.charAt(0)}
+                    </span>
+                  </div>
+                  {/* Token Symbol */}
+                  <span
+                    className="text-[#111111]"
+                    style={{ fontSize: 18, lineHeight: "1.3em" }}
+                  >
+                    {token.symbol}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Status Messages */}
+      {status && !isProcessing && (
+        <div
+          className="mt-6 p-4 flex items-center gap-2"
+          style={{
+            backgroundColor: "#E8F4FD",
+            borderRadius: 4,
+            border: "1px solid #2A72E5",
+          }}
+        >
+          <Loader2 className="w-5 h-5 animate-spin text-[#2A72E5]" />
+          <span className="text-[#2A72E5]" style={{ fontSize: 14 }}>
+            {status}
+          </span>
+        </div>
+      )}
+
+      {isTransactionSuccess && (
+        <div
+          className="mt-6 p-4 flex items-center gap-2"
+          style={{
+            backgroundColor: "#E8F8E8",
+            borderRadius: 4,
+            border: "1px solid #22C55E",
+          }}
+        >
+          <CheckCircle className="w-5 h-5 text-[#22C55E]" />
+          <span className="text-[#22C55E]" style={{ fontSize: 14 }}>
+            Channel closed successfully! Redirecting to withdraw...
+          </span>
+        </div>
+      )}
+
+      {error && (
+        <div
+          className="mt-6 p-4 flex items-start gap-2"
+          style={{
+            backgroundColor: "#FEE2E2",
+            borderRadius: 4,
+            border: "1px solid #EF4444",
+          }}
+        >
+          <AlertCircle className="w-5 h-5 text-[#EF4444] flex-shrink-0 mt-0.5" />
+          <span className="text-[#EF4444]" style={{ fontSize: 14 }}>
+            {error}
+          </span>
+        </div>
+      )}
+
+      {!isConnected && (
+        <p className="mt-6 text-sm text-[#999999] text-center">
+          Please connect your wallet to close the channel.
+        </p>
+      )}
+    </div>
   );
 }
