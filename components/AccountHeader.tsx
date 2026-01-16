@@ -1,18 +1,25 @@
 /**
  * Account Header Component
- * 
+ *
  * Shows wallet address and network in the top right corner
  * Clickable to open AccountPanel
+ *
+ * Design:
+ * - https://www.figma.com/design/0R11fVZOkNSTJjhTKvUjc7/Ooo?node-id=3148-243139
  */
 
 "use client";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { useAccount, useChainId } from "wagmi";
 import { sepolia, mainnet } from "wagmi/chains";
 import { formatAddress } from "@/lib/utils/format";
 import { AccountPanel } from "./AccountPanel";
+
+// Floating home icon
+import FloatingHomeIcon from "@/assets/icons/FloatingHome.svg";
 
 export function AccountHeader() {
   const router = useRouter();
@@ -25,84 +32,97 @@ export function AccountHeader() {
     router.push("/");
   };
 
+  const networkName = chains.find((c) => c.id === chainId)?.name || "Unknown";
+
   return (
     <>
-      {/* Header with Account Info - Clickable */}
-      <div className="absolute top-8 right-8 z-30 flex flex-col gap-2">
+      {/* Header with Account Info - Top Right */}
+      <div className="absolute top-8 right-12 z-30">
         <button
           onClick={() => setIsPanelOpen(!isPanelOpen)}
-          className="flex items-center gap-4 px-4 py-2 bg-white/80 backdrop-blur-sm rounded-lg border border-gray-200 hover:bg-white hover:shadow-md transition-all cursor-pointer"
+          className="flex items-center font-mono bg-white hover:bg-[#F8F8F8] transition-colors cursor-pointer"
+          style={{
+            border: "1px solid #BBBBBB",
+            borderRadius: 4,
+            padding: "16px 0",
+          }}
         >
           {isConnected && address ? (
             <>
-              <div className="text-right">
-                <p className="text-xs text-gray-500">Connected</p>
-                <p className="font-mono text-sm">{formatAddress(address)}</p>
+              {/* Network */}
+              <div
+                className="flex items-center justify-center"
+                style={{
+                  width: 120,
+                  padding: "0 24px",
+                  borderRight: "1px solid #BBBBBB",
+                }}
+              >
+                <span
+                  className="font-medium text-[#111111]"
+                  style={{ fontSize: 20, lineHeight: "1.3em" }}
+                >
+                  {networkName}
+                </span>
               </div>
-              <div className="h-8 w-px bg-gray-200" />
-              <div className="text-right">
-                <p className="text-xs text-gray-500">Network</p>
-                <p className="text-sm font-semibold">
-                  {chains.find((c) => c.id === chainId)?.name || `Chain ${chainId}`}
-                </p>
+              {/* Address */}
+              <div
+                className="flex items-center justify-center"
+                style={{ padding: "0 24px" }}
+              >
+                <span
+                  className="text-[#111111]"
+                  style={{ fontSize: 20, lineHeight: "1.3em" }}
+                >
+                  {formatAddress(address)}
+                </span>
               </div>
             </>
           ) : (
-            <p className="text-sm text-gray-500">Not connected</p>
+            <div
+              className="flex items-center justify-center"
+              style={{ padding: "0 24px" }}
+            >
+              <span
+                className="text-[#999999]"
+                style={{ fontSize: 20, lineHeight: "1.3em" }}
+              >
+                Not connected
+              </span>
+            </div>
           )}
-        </button>
-
-        {/* Home Button */}
-        <button
-          onClick={handleGoHome}
-          className="flex items-center justify-center gap-2 px-4 py-2 bg-white/80 backdrop-blur-sm rounded-lg border border-gray-200 hover:bg-white hover:shadow-md transition-all cursor-pointer"
-        >
-          <svg
-            className="w-4 h-4"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
-            />
-          </svg>
-          <span className="text-sm font-medium">Home</span>
         </button>
       </div>
 
+      {/* Floating Home Button - Bottom Right */}
+      <button
+        onClick={handleGoHome}
+        className="fixed z-30 cursor-pointer hover:scale-105 transition-transform"
+        style={{
+          bottom: 32,
+          right: 48,
+        }}
+      >
+        <Image
+          src={FloatingHomeIcon}
+          alt="Home"
+          width={48}
+          height={48}
+          style={{
+            filter: "drop-shadow(0px 8px 8px rgba(0, 0, 0, 0.2))",
+          }}
+        />
+      </button>
+
       {/* Sliding Account Panel */}
       <div
-        className={`fixed top-0 right-0 h-full w-96 bg-white shadow-2xl z-40 transform transition-transform duration-300 ease-in-out ${
+        className={`fixed top-0 right-0 h-full bg-white shadow-2xl z-40 transform transition-transform duration-300 ease-in-out ${
           isPanelOpen ? "translate-x-0" : "translate-x-full"
         }`}
+        style={{ width: 400 }}
       >
-        <div className="p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-semibold">Account Details</h3>
-            <button
-              onClick={() => setIsPanelOpen(false)}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-            >
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M6 18L18 6M6 6l12 12"
-                />
-              </svg>
-            </button>
-          </div>
-          <AccountPanel />
+        <div style={{ padding: 20 }}>
+          <AccountPanel onClose={() => setIsPanelOpen(false)} />
         </div>
       </div>
 
