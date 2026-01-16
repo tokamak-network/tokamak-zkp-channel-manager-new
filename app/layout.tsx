@@ -11,9 +11,9 @@ const jersey10 = Jersey_10({
 });
 
 const ibmPlexMono = IBM_Plex_Mono({
-  weight: "400",
+  weight: ["400", "500"],
   subsets: ["latin"],
-  variable: "--font-ibm-plex-mono",
+  variable: "--font-mono",
   display: "swap",
 });
 

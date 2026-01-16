@@ -12,18 +12,11 @@ import { CreateChannelForm } from "./_components/CreateChannelForm";
 function CreateChannelPageContent() {
   return (
     <>
-      <div className="mb-8">
-        <h2 className="text-2xl font-semibold mb-2 text-[var(--foreground)]">
-          Create Channel
-        </h2>
-        <p className="text-[var(--muted-foreground)]">
-          Set up a new ZK-Rollup channel
-        </p>
-      </div>
+      <h1 className="text-[40px] font-medium font-mono text-[#111111] mb-8">
+        Create Channel
+      </h1>
 
-      <div className="mt-8">
-        <CreateChannelForm />
-      </div>
+      <CreateChannelForm />
     </>
   );
 }
@@ -32,11 +25,11 @@ export default function CreateChannelPage() {
   return (
     <Suspense
       fallback={
-        <div className="mb-8">
-          <h2 className="text-2xl font-semibold mb-2 text-[var(--foreground)]">
+        <div>
+          <h1 className="text-[40px] font-medium font-mono text-[#111111] mb-8">
             Create Channel
-          </h2>
-          <p className="text-[var(--muted-foreground)]">Loading...</p>
+          </h1>
+          <p className="text-[#999999] font-mono">Loading...</p>
         </div>
       }
     >
