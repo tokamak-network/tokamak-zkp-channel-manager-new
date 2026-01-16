@@ -385,29 +385,32 @@ export function TransactionPage() {
           >
             Proofs
           </h2>
-          {isLeader && (
-            <button
-              type="button"
-              onClick={() => proofActions?.openSubmitProofModal()}
-              disabled={!proofActions || proofActions.approvedProofsCount === 0 || proofActions.isLoadingProofs || proofActions.isSubmitting}
-              className="flex items-center justify-center font-mono font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              style={{
-                height: 40,
-                padding: "16px 24px",
-                borderRadius: 4,
-                border: "1px solid #111111",
-                backgroundColor: "#2A72E5",
-                color: "#FFFFFF",
-                fontSize: 18,
-              }}
-            >
-              {proofActions?.isLoadingProofs
-                ? "Loading..."
-                : proofActions?.isSubmitting
-                ? "Submitting..."
-                : "Submit Proof"}
-            </button>
-          )}
+          {isLeader && (() => {
+            const isDisabled = !proofActions || proofActions.approvedProofsCount === 0 || proofActions.isLoadingProofs || proofActions.isSubmitting;
+            return (
+              <button
+                type="button"
+                onClick={() => proofActions?.openSubmitProofModal()}
+                disabled={isDisabled}
+                className="flex items-center justify-center font-mono font-medium transition-colors disabled:cursor-not-allowed"
+                style={{
+                  height: 40,
+                  padding: "16px 24px",
+                  borderRadius: 4,
+                  border: "1px solid #111111",
+                  backgroundColor: isDisabled ? "#999999" : "#2A72E5",
+                  color: isDisabled ? "#DCDCDC" : "#FFFFFF",
+                  fontSize: 18,
+                }}
+              >
+                {proofActions?.isLoadingProofs
+                  ? "Loading..."
+                  : proofActions?.isSubmitting
+                  ? "Submitting..."
+                  : "Submit Proof"}
+              </button>
+            );
+          })()}
         </div>
 
         <ProofList 

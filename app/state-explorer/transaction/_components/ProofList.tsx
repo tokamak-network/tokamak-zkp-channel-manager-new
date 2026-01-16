@@ -800,6 +800,23 @@ export function ProofList({ onActionsReady }: ProofListProps) {
                      proofToVerify.status === "pending" ? "Pending" : "Rejected"}
                   </span>
                 </div>
+                {/* Verify Result - show after verification */}
+                {(verifyResult === "success" || verifyResult === "error") && (
+                  <div className="flex justify-between">
+                    <span className="text-[#666666]" style={{ fontSize: 14 }}>
+                      Verify Result
+                    </span>
+                    <span
+                      className="font-medium"
+                      style={{
+                        fontSize: 14,
+                        color: verifyResult === "success" ? "#3EB100" : "#CD0003",
+                      }}
+                    >
+                      {verifyResult === "success" ? "Success" : "Failed"}
+                    </span>
+                  </div>
+                )}
               </div>
 
               {/* Buttons */}

@@ -321,22 +321,6 @@ export function useProofActions({
       return;
     }
 
-    // First confirmation
-    if (!confirm(`Are you sure you want to delete ${proofToDelete.proofId}?`)) {
-      setShowDeleteConfirm(false);
-      setProofToDelete(null);
-      return;
-    }
-
-    // Second confirmation
-    if (
-      !confirm(`This action cannot be undone. Delete ${proofToDelete.proofId}?`)
-    ) {
-      setShowDeleteConfirm(false);
-      setProofToDelete(null);
-      return;
-    }
-
     setDeletingProofKey(proofToDelete.key);
     setShowDeleteConfirm(false);
 

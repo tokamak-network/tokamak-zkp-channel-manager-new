@@ -1,6 +1,6 @@
 /**
  * Network Configuration
- * 
+ *
  * Uses Wagmi chain definitions for consistency with Wagmi configuration.
  * RPC URLs default to wallet's connected RPC provider.
  */
@@ -24,7 +24,7 @@ import type { Abi } from "viem";
 
 /**
  * Supported Networks (Wagmi Chains)
- * 
+ *
  * Uses Wagmi's built-in chain definitions for consistency.
  * RPC URLs are handled by Wagmi transports, defaulting to wallet's RPC.
  */
@@ -96,7 +96,7 @@ export const CONTRACT_ABIS = {
  *
  * Uses auto-generated addresses from contracts/addresses.ts
  * Sepolia addresses are automatically synced from Tokamak-zk-EVM-contracts repository
- * 
+ *
  * Keyed by chain ID for Wagmi compatibility
  */
 export const CONTRACT_ADDRESSES = {
@@ -155,7 +155,7 @@ export type ContractName = keyof typeof CONTRACT_ABIS;
 
 /**
  * Get contract address
- * 
+ *
  * @param contract - Contract name
  * @param networkOrChainId - Network ID (e.g., 'sepolia') or chain ID (e.g., 11155111). Defaults to DEFAULT_NETWORK
  * @returns Contract address
@@ -168,22 +168,26 @@ export function getContractAddress(
   if (typeof networkOrChainId === "number") {
     const addresses = CONTRACT_ADDRESSES[networkOrChainId];
     if (!addresses) {
-      throw new Error(`No contract addresses found for chain ID: ${networkOrChainId}`);
+      throw new Error(
+        `No contract addresses found for chain ID: ${networkOrChainId}`
+      );
     }
     return addresses[contract];
   }
-  
+
   // Otherwise, treat it as network ID and get chain ID
   const chain = NETWORKS[networkOrChainId];
   if (!chain) {
     throw new Error(`Unknown network: ${networkOrChainId}`);
   }
-  
+
   const addresses = CONTRACT_ADDRESSES[chain.id];
   if (!addresses) {
-    throw new Error(`No contract addresses found for network: ${networkOrChainId}`);
+    throw new Error(
+      `No contract addresses found for network: ${networkOrChainId}`
+    );
   }
-  
+
   return addresses[contract];
 }
 

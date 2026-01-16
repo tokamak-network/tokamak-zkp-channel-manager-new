@@ -3,7 +3,7 @@
  *
  * Shows when channel is in Closing state (state 3)
  * Displays close channel button that calls verifyFinalBalancesGroth16()
- * 
+ *
  * Design:
  * - https://www.figma.com/design/0R11fVZOkNSTJjhTKvUjc7/Ooo?node-id=3168-50364
  */
@@ -15,23 +15,20 @@ import Image from "next/image";
 import { useAccount, useConfig } from "wagmi";
 import { readContracts } from "@wagmi/core";
 import { Loader2, CheckCircle, AlertCircle } from "lucide-react";
+import { formatUnits } from "viem";
 import { useChannelFlowStore } from "@/stores/useChannelFlowStore";
 import { useVerifyFinalBalances } from "./_hooks";
-import { useBridgeCoreRead, useBridgeProofManagerRead, useBridgeCoreAddress, useBridgeCoreAbi } from "@/hooks/contract";
+import {
+  useBridgeCoreRead,
+  useBridgeProofManagerRead,
+  useBridgeCoreAddress,
+  useBridgeCoreAbi,
+} from "@/hooks/contract";
 import { generateClientSideProof } from "@/lib/clientProofGeneration";
 import JSZip from "jszip";
 
 // Token symbol images
 import TONSymbol from "@/assets/symbols/TON.svg";
-import USDCSymbol from "@/assets/symbols/USDC.svg";
-import USDTSymbol from "@/assets/symbols/USDT.svg";
-
-// Token symbol to image mapping
-const TOKEN_SYMBOLS: Record<string, typeof TONSymbol> = {
-  TON: TONSymbol,
-  USDC: USDCSymbol,
-  USDT: USDTSymbol,
-};
 
 interface StateSnapshot {
   channelId: number;
@@ -84,7 +81,6 @@ export function State3Page() {
     },
   });
 
-
   const { data: channelTargetContract } = useBridgeCoreRead({
     functionName: "getChannelTargetContract",
     args: currentChannelId ? [currentChannelId as `0x${string}`] : undefined,
@@ -95,14 +91,172 @@ export function State3Page() {
 
   const { data: preAllocatedKeysData } = useBridgeCoreRead({
     functionName: "getPreAllocatedKeys",
-    args: channelTargetContract ? [channelTargetContract as `0x${string}`] : undefined,
+    args: channelTargetContract
+      ? [channelTargetContract as `0x${string}`]
+      : undefined,
     query: {
       enabled: !!channelTargetContract && isConnected,
     },
   });
-  
+
   // Cast preAllocatedKeys to the correct type
   const preAllocatedKeys = preAllocatedKeysData as `0x${string}`[] | undefined;
+
+  // State for user balance from latest verified proof
+  const [userBalanceFromSnapshot, setUserBalanceFromSnapshot] = useState<bigint>(BigInt(0));
+  const [isLoadingBalance, setIsLoadingBalance] = useState(false);
+
+  // Load user balance from latest verified proof's state_snapshot
+  useEffect(() => {
+    const loadUserBalance = async () => {
+      if (!currentChannelId || !address || !isConnected) {
+        return;
+      }
+
+      setIsLoadingBalance(true);
+
+      try {
+        const normalizedChannelId = currentChannelId.toLowerCase();
+        const encodedChannelId = encodeURIComponent(normalizedChannelId);
+
+        // Fetch verified proofs from DB
+        const proofsResponse = await fetch(
+          `/api/channels/${encodedChannelId}/proofs?type=verified`
+        );
+
+        if (!proofsResponse.ok) {
+          console.log("[State3Page] No verified proofs available");
+          return;
+        }
+
+        const proofsData = await proofsResponse.json();
+        if (!proofsData.success || !proofsData.data) {
+          return;
+        }
+
+        // Get proofs array and sort by sequence number
+        let proofsArray: Array<{ key: string; sequenceNumber: number }> = [];
+        if (Array.isArray(proofsData.data)) {
+          proofsArray = proofsData.data;
+        } else if (proofsData.data && typeof proofsData.data === "object") {
+          proofsArray = Object.entries(proofsData.data).map(
+            ([key, value]: [string, any]) => ({
+              key,
+              ...value,
+            })
+          );
+        }
+
+        proofsArray.sort(
+          (a, b) => (a.sequenceNumber || 0) - (b.sequenceNumber || 0)
+        );
+
+        if (proofsArray.length === 0) {
+          return;
+        }
+
+        // Get the latest (last) proof
+        const latestProof = proofsArray[proofsArray.length - 1];
+        const proofId = latestProof.key;
+
+        // Load the proof ZIP file
+        const zipApiUrl = `/api/get-proof-zip?channelId=${encodeURIComponent(
+          normalizedChannelId
+        )}&proofId=${encodeURIComponent(
+          proofId
+        )}&status=verifiedProofs&format=binary`;
+        const zipResponse = await fetch(zipApiUrl);
+
+        if (!zipResponse.ok) {
+          console.error("[State3Page] Failed to load proof ZIP");
+          return;
+        }
+
+        const zipBlob = await zipResponse.blob();
+        const zipArrayBuffer = await zipBlob.arrayBuffer();
+        const zip = await JSZip.loadAsync(zipArrayBuffer);
+
+        // Find and parse state_snapshot.json
+        let stateSnapshotJson: string | null = null;
+        const files = Object.keys(zip.files);
+        for (const filePath of files) {
+          const fileName = filePath.split("/").pop()?.toLowerCase();
+          if (fileName === "state_snapshot.json") {
+            const file = zip.file(filePath);
+            if (file) {
+              stateSnapshotJson = await file.async("string");
+              break;
+            }
+          }
+        }
+
+        if (!stateSnapshotJson) {
+          console.error("[State3Page] state_snapshot.json not found");
+          return;
+        }
+
+        const stateSnapshot = JSON.parse(stateSnapshotJson) as StateSnapshot;
+
+        // Get user's MPT key
+        const mptKeyResult = await readContracts(config, {
+          contracts: [
+            {
+              address: bridgeCoreAddress,
+              abi: bridgeCoreAbi,
+              functionName: "getL2MptKey" as const,
+              args: [currentChannelId as `0x${string}`, address as `0x${string}`],
+            },
+          ],
+        });
+
+        if (!mptKeyResult[0] || mptKeyResult[0].status !== "success") {
+          console.error("[State3Page] Failed to get user MPT key");
+          return;
+        }
+
+        const mptKey = mptKeyResult[0].result as bigint;
+        const mptKeyHex = `0x${mptKey.toString(16).padStart(64, "0")}`.toLowerCase();
+
+        // Create a map from storage entries
+        const storageValueMap = new Map<string, string>();
+        const storageEntries = stateSnapshot.storageEntries || [];
+        storageEntries.forEach((entry: { key: string; value: string }) => {
+          const normalizedKey = entry.key.toLowerCase().startsWith("0x")
+            ? entry.key.toLowerCase()
+            : `0x${entry.key.toLowerCase()}`;
+          storageValueMap.set(normalizedKey, entry.value);
+        });
+
+        // Get user balance from storage map
+        const balanceValue = storageValueMap.get(mptKeyHex) || "0";
+        let balance: bigint;
+        if (balanceValue === "0x" || balanceValue === "") {
+          balance = BigInt(0);
+        } else if (balanceValue.startsWith("0x")) {
+          balance = BigInt(balanceValue);
+        } else {
+          balance = BigInt(balanceValue);
+        }
+
+        console.log("[State3Page] User balance from snapshot:", {
+          mptKeyHex,
+          balanceValue,
+          balance: balance.toString(),
+        });
+
+        setUserBalanceFromSnapshot(balance);
+      } catch (error) {
+        console.error("[State3Page] Error loading user balance:", error);
+      } finally {
+        setIsLoadingBalance(false);
+      }
+    };
+
+    loadUserBalance();
+  }, [currentChannelId, address, isConnected, config, bridgeCoreAddress, bridgeCoreAbi]);
+
+  // Format user balance (assuming 18 decimals for ERC20 tokens)
+  const formattedUserBalance = formatUnits(userBalanceFromSnapshot, 18);
 
   // Hook for verifying final balances
   const {
@@ -127,8 +281,10 @@ export function State3Page() {
   // Dispatch event when transaction succeeds to trigger channel state refetch in parent
   useEffect(() => {
     if (isTransactionSuccess) {
-      console.log("[State3Page] ✅ Transaction success, dispatching channel-close-success event");
-      window.dispatchEvent(new CustomEvent('channel-close-success'));
+      console.log(
+        "[State3Page] ✅ Transaction success, dispatching channel-close-success event"
+      );
+      window.dispatchEvent(new CustomEvent("channel-close-success"));
     }
   }, [isTransactionSuccess]);
 
@@ -146,7 +302,9 @@ export function State3Page() {
       hasChannelTargetContract: !!channelTargetContract,
       channelTargetContract,
       hasPreAllocatedKeys: !!preAllocatedKeys,
-      preAllocatedKeysCount: preAllocatedKeys ? (preAllocatedKeys as any[]).length : 0,
+      preAllocatedKeysCount: preAllocatedKeys
+        ? (preAllocatedKeys as any[]).length
+        : 0,
     });
 
     if (!channelParticipants || !finalStateRoot || !channelTargetContract) {
@@ -174,7 +332,9 @@ export function State3Page() {
     );
 
     if (!proofsResponse.ok) {
-      throw new Error(`Failed to fetch verified proofs: HTTP ${proofsResponse.status}`);
+      throw new Error(
+        `Failed to fetch verified proofs: HTTP ${proofsResponse.status}`
+      );
     }
 
     const proofsData = await proofsResponse.json();
@@ -187,13 +347,17 @@ export function State3Page() {
     if (Array.isArray(proofsData.data)) {
       proofsArray = proofsData.data;
     } else if (proofsData.data && typeof proofsData.data === "object") {
-      proofsArray = Object.entries(proofsData.data).map(([key, value]: [string, any]) => ({
-        key,
-        ...value,
-      }));
+      proofsArray = Object.entries(proofsData.data).map(
+        ([key, value]: [string, any]) => ({
+          key,
+          ...value,
+        })
+      );
     }
 
-    proofsArray.sort((a, b) => (a.sequenceNumber || 0) - (b.sequenceNumber || 0));
+    proofsArray.sort(
+      (a, b) => (a.sequenceNumber || 0) - (b.sequenceNumber || 0)
+    );
 
     if (proofsArray.length === 0) {
       throw new Error("No verified proofs found");
@@ -202,13 +366,20 @@ export function State3Page() {
     // Get the latest (last) proof
     const latestProof = proofsArray[proofsArray.length - 1];
     const proofId = latestProof.key;
-    console.log("[State3Page] 📦 Latest verified proof for permutation:", { proofId, sequenceNumber: latestProof.sequenceNumber });
+    console.log("[State3Page] 📦 Latest verified proof for permutation:", {
+      proofId,
+      sequenceNumber: latestProof.sequenceNumber,
+    });
 
     // Load the proof ZIP file
     setStatus("Loading proof ZIP file...");
-    const zipApiUrl = `/api/get-proof-zip?channelId=${encodeURIComponent(normalizedChannelId)}&proofId=${encodeURIComponent(proofId)}&status=verifiedProofs&format=binary`;
+    const zipApiUrl = `/api/get-proof-zip?channelId=${encodeURIComponent(
+      normalizedChannelId
+    )}&proofId=${encodeURIComponent(
+      proofId
+    )}&status=verifiedProofs&format=binary`;
     const zipResponse = await fetch(zipApiUrl);
-    
+
     if (!zipResponse.ok) {
       let errorDetails = `HTTP ${zipResponse.status}`;
       try {
@@ -217,7 +388,9 @@ export function State3Page() {
       } catch {
         errorDetails = zipResponse.statusText || errorDetails;
       }
-      throw new Error(`Failed to load proof file: ${proofId} (${errorDetails})`);
+      throw new Error(
+        `Failed to load proof file: ${proofId} (${errorDetails})`
+      );
     }
 
     const zipBlob = await zipResponse.blob();
@@ -243,7 +416,10 @@ export function State3Page() {
     }
 
     const stateSnapshot = JSON.parse(stateSnapshotJson) as StateSnapshot;
-    console.log("[State3Page] 📦 State snapshot from verified proof (for permutation):", stateSnapshot);
+    console.log(
+      "[State3Page] 📦 State snapshot from verified proof (for permutation):",
+      stateSnapshot
+    );
 
     setStatus("Calculating permutation...");
 
@@ -252,8 +428,14 @@ export function State3Page() {
     const storageEntries = stateSnapshot.storageEntries || [];
     const snapshotPreAllocatedLeaves = stateSnapshot.preAllocatedLeaves || [];
 
-    console.log("[State3Page] 📦 Storage entries from verified proof:", storageEntries);
-    console.log("[State3Page] 🌿 PreAllocated leaves from snapshot:", snapshotPreAllocatedLeaves);
+    console.log(
+      "[State3Page] 📦 Storage entries from verified proof:",
+      storageEntries
+    );
+    console.log(
+      "[State3Page] 🌿 PreAllocated leaves from snapshot:",
+      snapshotPreAllocatedLeaves
+    );
 
     if (!channelTreeSize) {
       throw new Error("Channel tree size is required");
@@ -263,9 +445,12 @@ export function State3Page() {
     const preAllocatedCount = preAllocatedKeys ? preAllocatedKeys.length : 0;
     const participantsArray = channelParticipants as unknown as `0x${string}`[];
     const participantCount = participantsArray.length;
-    
+
     console.log("[State3Page] 🌳 Tree size:", treeSize);
-    console.log("[State3Page] 🌿 PreAllocated count from contract:", preAllocatedCount);
+    console.log(
+      "[State3Page] 🌿 PreAllocated count from contract:",
+      preAllocatedCount
+    );
     console.log("[State3Page] 👥 Participant count:", participantCount);
 
     // Create a map from normalized key to its index in registeredKeys (proof order)
@@ -286,19 +471,24 @@ export function State3Page() {
       storageValueMap.set(normalizedKey, entry.value);
     });
     // Add preAllocatedLeaves to the value map
-    snapshotPreAllocatedLeaves.forEach((entry: { key: string; value: string }) => {
-      const normalizedKey = entry.key.toLowerCase().startsWith("0x")
-        ? entry.key.toLowerCase()
-        : `0x${entry.key.toLowerCase()}`;
-      if (!storageValueMap.has(normalizedKey)) {
-        storageValueMap.set(normalizedKey, entry.value);
+    snapshotPreAllocatedLeaves.forEach(
+      (entry: { key: string; value: string }) => {
+        const normalizedKey = entry.key.toLowerCase().startsWith("0x")
+          ? entry.key.toLowerCase()
+          : `0x${entry.key.toLowerCase()}`;
+        if (!storageValueMap.has(normalizedKey)) {
+          storageValueMap.set(normalizedKey, entry.value);
+        }
       }
-    });
+    );
 
     // Contract expects permutation length = preAllocatedCount + participantCount
     // NOT treeSize!
     const expectedPermutationLength = preAllocatedCount + participantCount;
-    console.log("[State3Page] 📐 Expected permutation length:", expectedPermutationLength);
+    console.log(
+      "[State3Page] 📐 Expected permutation length:",
+      expectedPermutationLength
+    );
 
     const perm: bigint[] = [];
     const balances: bigint[] = [];
@@ -306,20 +496,27 @@ export function State3Page() {
     // Step 1: Add permutation entries for pre-allocated leaves FIRST
     // Contract iterates preAllocatedKeys from contract storage
     if (preAllocatedCount > 0 && preAllocatedKeys) {
-      console.log("[State3Page] 🌿 Processing pre-allocated keys from contract:", preAllocatedKeys);
-      
+      console.log(
+        "[State3Page] 🌿 Processing pre-allocated keys from contract:",
+        preAllocatedKeys
+      );
+
       for (let i = 0; i < preAllocatedKeys.length; i++) {
         const preAllocKey = preAllocatedKeys[i];
         const normalizedKey = preAllocKey.toLowerCase();
-        
+
         // Find where this key is in registeredKeys (proof order)
         const proofIndex = registeredKeyIndexMap.get(normalizedKey);
-        
+
         if (proofIndex !== undefined) {
           perm.push(BigInt(proofIndex));
-          console.log(`[State3Page] 🌿 PreAlloc[${i}]: key ${normalizedKey} -> proof index ${proofIndex}`);
+          console.log(
+            `[State3Page] 🌿 PreAlloc[${i}]: key ${normalizedKey} -> proof index ${proofIndex}`
+          );
         } else {
-          console.warn(`[State3Page] ⚠️ PreAlloc key ${normalizedKey} not found in registeredKeys, using 0`);
+          console.warn(
+            `[State3Page] ⚠️ PreAlloc key ${normalizedKey} not found in registeredKeys, using 0`
+          );
           perm.push(BigInt(0));
         }
       }
@@ -328,18 +525,22 @@ export function State3Page() {
     // Step 2: Add permutation entries for participants
     // Get MPT keys for each participant
     setStatus("Fetching participant MPT keys...");
-    const mptKeyContracts = participantsArray.map((participant: `0x${string}`) => ({
-      address: bridgeCoreAddress,
-      abi: bridgeCoreAbi,
-      functionName: "getL2MptKey" as const,
-      args: [currentChannelId as `0x${string}`, participant],
-    }));
+    const mptKeyContracts = participantsArray.map(
+      (participant: `0x${string}`) => ({
+        address: bridgeCoreAddress,
+        abi: bridgeCoreAbi,
+        functionName: "getL2MptKey" as const,
+        args: [currentChannelId as `0x${string}`, participant],
+      })
+    );
 
     const mptKeyResults = await readContracts(config, {
       contracts: mptKeyContracts,
     });
 
-    console.log("[State3Page] 👥 Processing participants for permutation and balances:");
+    console.log(
+      "[State3Page] 👥 Processing participants for permutation and balances:"
+    );
 
     for (let i = 0; i < participantsArray.length; i++) {
       const participant = participantsArray[i];
@@ -355,14 +556,16 @@ export function State3Page() {
       }
 
       const mptKey = mptKeyResult.result as bigint;
-      const mptKeyHex = `0x${mptKey.toString(16).padStart(64, "0")}`.toLowerCase();
+      const mptKeyHex = `0x${mptKey
+        .toString(16)
+        .padStart(64, "0")}`.toLowerCase();
 
       // Find where this MPT key is in registeredKeys (proof order)
       const proofIndex = registeredKeyIndexMap.get(mptKeyHex);
 
       if (proofIndex !== undefined) {
         perm.push(BigInt(proofIndex));
-        
+
         // Get balance from storageValueMap
         const balanceValue = storageValueMap.get(mptKeyHex) || "0";
         let balance: bigint;
@@ -374,7 +577,7 @@ export function State3Page() {
           balance = BigInt(balanceValue);
         }
         balances.push(balance);
-        
+
         console.log(
           `[State3Page] ✅ Participant ${i} (${participant}): MPT key ${mptKeyHex} -> proof index ${proofIndex}, balance = ${balance.toString()}`
         );
@@ -389,7 +592,9 @@ export function State3Page() {
 
     // Verify permutation length matches contract expectation
     if (perm.length !== expectedPermutationLength) {
-      console.error(`[State3Page] ❌ Permutation length mismatch! Expected ${expectedPermutationLength}, got ${perm.length}`);
+      console.error(
+        `[State3Page] ❌ Permutation length mismatch! Expected ${expectedPermutationLength}, got ${perm.length}`
+      );
     }
 
     console.log("[State3Page] 🔢 Final permutation array:", {
@@ -402,7 +607,7 @@ export function State3Page() {
       "[State3Page] 💰 Final balances (participant order):",
       balances.map((b) => b.toString())
     );
-    
+
     setPermutation(perm);
     setFinalBalances(balances);
 
@@ -457,7 +662,9 @@ export function State3Page() {
     );
 
     if (!proofsResponse.ok) {
-      throw new Error(`Failed to fetch verified proofs: HTTP ${proofsResponse.status}`);
+      throw new Error(
+        `Failed to fetch verified proofs: HTTP ${proofsResponse.status}`
+      );
     }
 
     const proofsData = await proofsResponse.json();
@@ -470,13 +677,17 @@ export function State3Page() {
     if (Array.isArray(proofsData.data)) {
       proofsArray = proofsData.data;
     } else if (proofsData.data && typeof proofsData.data === "object") {
-      proofsArray = Object.entries(proofsData.data).map(([key, value]: [string, any]) => ({
-        key,
-        ...value,
-      }));
+      proofsArray = Object.entries(proofsData.data).map(
+        ([key, value]: [string, any]) => ({
+          key,
+          ...value,
+        })
+      );
     }
 
-    proofsArray.sort((a, b) => (a.sequenceNumber || 0) - (b.sequenceNumber || 0));
+    proofsArray.sort(
+      (a, b) => (a.sequenceNumber || 0) - (b.sequenceNumber || 0)
+    );
 
     if (proofsArray.length === 0) {
       throw new Error("No verified proofs found");
@@ -485,13 +696,20 @@ export function State3Page() {
     // Get the latest (last) proof
     const latestProof = proofsArray[proofsArray.length - 1];
     const proofId = latestProof.key;
-    console.log("[State3Page] 📦 Latest verified proof:", { proofId, sequenceNumber: latestProof.sequenceNumber });
+    console.log("[State3Page] 📦 Latest verified proof:", {
+      proofId,
+      sequenceNumber: latestProof.sequenceNumber,
+    });
 
     // Load the proof ZIP file
     setStatus("Loading proof ZIP file...");
-    const zipApiUrl = `/api/get-proof-zip?channelId=${encodeURIComponent(normalizedChannelId)}&proofId=${encodeURIComponent(proofId)}&status=verifiedProofs&format=binary`;
+    const zipApiUrl = `/api/get-proof-zip?channelId=${encodeURIComponent(
+      normalizedChannelId
+    )}&proofId=${encodeURIComponent(
+      proofId
+    )}&status=verifiedProofs&format=binary`;
     const zipResponse = await fetch(zipApiUrl);
-    
+
     if (!zipResponse.ok) {
       let errorDetails = `HTTP ${zipResponse.status}`;
       try {
@@ -500,7 +718,9 @@ export function State3Page() {
       } catch {
         errorDetails = zipResponse.statusText || errorDetails;
       }
-      throw new Error(`Failed to load proof file: ${proofId} (${errorDetails})`);
+      throw new Error(
+        `Failed to load proof file: ${proofId} (${errorDetails})`
+      );
     }
 
     const zipBlob = await zipResponse.blob();
@@ -526,7 +746,10 @@ export function State3Page() {
     }
 
     const stateSnapshot = JSON.parse(stateSnapshotJson) as StateSnapshot;
-    console.log("[State3Page] 📦 State snapshot from verified proof:", stateSnapshot);
+    console.log(
+      "[State3Page] 📦 State snapshot from verified proof:",
+      stateSnapshot
+    );
 
     const treeSize = Number(channelTreeSize);
     if (![16, 32, 64, 128].includes(treeSize)) {
@@ -538,13 +761,22 @@ export function State3Page() {
     const storageEntries = stateSnapshot.storageEntries || [];
     const preAllocatedLeaves = stateSnapshot.preAllocatedLeaves || [];
 
-    console.log("[State3Page] 🔐 Proof generation - storage entries (from verified proof):", storageEntries);
-    console.log("[State3Page] 🔑 Registered keys (from verified proof):", registeredKeys);
-    console.log("[State3Page] 🌿 Pre-allocated leaves (from verified proof):", preAllocatedLeaves);
+    console.log(
+      "[State3Page] 🔐 Proof generation - storage entries (from verified proof):",
+      storageEntries
+    );
+    console.log(
+      "[State3Page] 🔑 Registered keys (from verified proof):",
+      registeredKeys
+    );
+    console.log(
+      "[State3Page] 🌿 Pre-allocated leaves (from verified proof):",
+      preAllocatedLeaves
+    );
 
     // Create a map of storage entry key to entry (including preAllocatedLeaves)
     const storageEntryMap = new Map<string, { key: string; value: string }>();
-    
+
     // Add storage entries
     storageEntries.forEach((entry: { key: string; value: string }) => {
       const normalizedKey = entry.key.toLowerCase().startsWith("0x")
@@ -573,7 +805,7 @@ export function State3Page() {
       const normalizedKey = registeredKey.toLowerCase().startsWith("0x")
         ? registeredKey.toLowerCase()
         : `0x${registeredKey.toLowerCase()}`;
-      
+
       const entry = storageEntryMap.get(normalizedKey);
       if (entry) {
         storageKeys.push(normalizedKey); // Use normalized key format
@@ -597,7 +829,9 @@ export function State3Page() {
         // Key not found in storageEntries, use zero
         storageKeys.push(normalizedKey);
         storageValues.push("0");
-        console.log(`[State3Page] ⚠️ Circuit input[${i}]: key ${normalizedKey} not found in storageEntries, using 0`);
+        console.log(
+          `[State3Page] ⚠️ Circuit input[${i}]: key ${normalizedKey} not found in storageEntries, using 0`
+        );
       }
     }
 
@@ -636,15 +870,28 @@ export function State3Page() {
       merkleRoot: proofResult.proof.merkleRoot,
       firstPublicSignal: proofResult.publicSignals[0],
     });
-    
+
     // Verify publicSignals length
     if (proofResult.publicSignals.length !== treeSize * 2 + 1) {
-      console.warn(`[State3Page] ⚠️ PublicSignals length mismatch! Expected ${treeSize * 2 + 1}, got ${proofResult.publicSignals.length}`);
+      console.warn(
+        `[State3Page] ⚠️ PublicSignals length mismatch! Expected ${
+          treeSize * 2 + 1
+        }, got ${proofResult.publicSignals.length}`
+      );
     }
 
     setGroth16Proof({
       pA: [...proofResult.proof.pA] as [bigint, bigint, bigint, bigint],
-      pB: [...proofResult.proof.pB] as [bigint, bigint, bigint, bigint, bigint, bigint, bigint, bigint],
+      pB: [...proofResult.proof.pB] as [
+        bigint,
+        bigint,
+        bigint,
+        bigint,
+        bigint,
+        bigint,
+        bigint,
+        bigint
+      ],
       pC: [...proofResult.proof.pC] as [bigint, bigint, bigint, bigint],
     });
 
@@ -726,7 +973,16 @@ export function State3Page() {
         permutation: permResult.permutation,
         proof: {
           pA: [...proofResult.proof.pA] as [bigint, bigint, bigint, bigint],
-          pB: [...proofResult.proof.pB] as [bigint, bigint, bigint, bigint, bigint, bigint, bigint, bigint],
+          pB: [...proofResult.proof.pB] as [
+            bigint,
+            bigint,
+            bigint,
+            bigint,
+            bigint,
+            bigint,
+            bigint,
+            bigint
+          ],
           pC: [...proofResult.proof.pC] as [bigint, bigint, bigint, bigint],
         },
       });
@@ -747,12 +1003,11 @@ export function State3Page() {
     }
   };
 
-  // Mock token balances - TODO: Replace with actual balance fetching
-  const tokenBalances = [
-    { symbol: "TON", amount: "17.02" },
-    { symbol: "USDC", amount: "2.00" },
-    { symbol: "USDT", amount: "153.00" },
-  ];
+  // Token balance from latest verified proof's state_snapshot
+  // Currently channels support single token (targetContract)
+  const tokenInfo = channelTargetContract
+    ? { symbol: "TON", amount: formattedUserBalance, isLoading: isLoadingBalance }
+    : null;
 
   return (
     <div className="font-mono" style={{ width: 544 }}>
@@ -775,7 +1030,8 @@ export function State3Page() {
             padding: "16px 24px",
             borderRadius: 4,
             border: "1px solid #111111",
-            backgroundColor: isProcessing || isVerifying ? "#BBBBBB" : "#0FBCBC",
+            backgroundColor:
+              isProcessing || isVerifying ? "#BBBBBB" : "#0FBCBC",
             color: "#FFFFFF",
             fontSize: 18,
             lineHeight: "1.3em",
@@ -796,76 +1052,66 @@ export function State3Page() {
           )}
         </button>
 
-        {/* My Balance Section */}
+        {/* My Assets Section */}
         <div className="flex flex-col gap-6">
           <h2
             className="font-medium text-[#111111]"
             style={{ fontSize: 32, lineHeight: "1.3em" }}
           >
-            My Balance
+            My Assets
           </h2>
 
-          {/* Token Balance Cards */}
-          <div className="flex flex-col gap-3">
-            {tokenBalances.map((token) => (
+          {/* Token Balance Card */}
+          {tokenInfo && (
+            <div
+              className="flex items-center justify-between"
+              style={{
+                padding: "16px 24px",
+                backgroundColor: "#F2F2F2",
+                borderRadius: 4,
+              }}
+            >
+              {/* Amount */}
+              <span
+                className="font-medium text-[#111111]"
+                style={{ fontSize: 24, lineHeight: "1.67em" }}
+              >
+                {tokenInfo.isLoading ? (
+                  <Loader2 className="w-6 h-6 animate-spin text-[#666666]" />
+                ) : (
+                  tokenInfo.amount
+                )}
+              </span>
+
+              {/* Token Pill */}
               <div
-                key={token.symbol}
-                className="flex items-center justify-between"
+                className="flex items-center gap-2"
                 style={{
-                  padding: "16px 24px",
-                  backgroundColor: "#F2F2F2",
-                  borderRadius: 4,
+                  height: 40,
+                  padding: "8px 12px",
+                  backgroundColor: "#DDDDDD",
+                  borderRadius: "46px 40px 40px 46px",
+                  border: "1px solid #9A9A9A",
                 }}
               >
-                {/* Amount */}
+                {/* Token Icon */}
+                <Image
+                  src={TONSymbol}
+                  alt={tokenInfo.symbol}
+                  width={24}
+                  height={24}
+                  className="rounded-full"
+                />
+                {/* Token Symbol */}
                 <span
-                  className="font-medium text-[#111111]"
-                  style={{ fontSize: 24, lineHeight: "1.67em" }}
+                  className="text-[#111111]"
+                  style={{ fontSize: 18, lineHeight: "1.3em" }}
                 >
-                  {token.amount}
+                  {tokenInfo.symbol}
                 </span>
-
-                {/* Token Pill */}
-                <div
-                  className="flex items-center gap-2"
-                  style={{
-                    height: 40,
-                    padding: "8px 12px",
-                    backgroundColor: "#DDDDDD",
-                    borderRadius: "46px 40px 40px 46px",
-                    border: "1px solid #9A9A9A",
-                  }}
-                >
-                  {/* Token Icon */}
-                  {TOKEN_SYMBOLS[token.symbol] ? (
-                    <Image
-                      src={TOKEN_SYMBOLS[token.symbol]}
-                      alt={token.symbol}
-                      width={24}
-                      height={24}
-                      className="rounded-full"
-                    />
-                  ) : (
-                    <div
-                      className="flex items-center justify-center rounded-full bg-[#007AFF]"
-                      style={{ width: 24, height: 24 }}
-                    >
-                      <span className="text-white text-xs font-bold">
-                        {token.symbol.charAt(0)}
-                      </span>
-                    </div>
-                  )}
-                  {/* Token Symbol */}
-                  <span
-                    className="text-[#111111]"
-                    style={{ fontSize: 18, lineHeight: "1.3em" }}
-                  >
-                    {token.symbol}
-                  </span>
-                </div>
               </div>
-            ))}
-          </div>
+            </div>
+          )}
         </div>
       </div>
 

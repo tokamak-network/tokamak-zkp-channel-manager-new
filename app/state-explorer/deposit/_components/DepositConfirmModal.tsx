@@ -2,19 +2,13 @@
  * Deposit Confirm Modal
  *
  * Modal for confirming and completing deposit transaction
- * Two states:
- * 1. Confirm Transaction: Before transaction execution
- * 2. Transaction Confirmed: After transaction completion
- *
- * Design:
- * - Confirm: https://www.figma.com/design/0R11fVZOkNSTJjhTKvUjc7/Ooo?node-id=3110-212007
- * - Confirmed: https://www.figma.com/design/0R11fVZOkNSTJjhTKvUjc7/Ooo?node-id=3110-212167
+ * States: confirm -> processing -> completed
  */
 
 "use client";
 
-import { useState } from "react";
-import { X, Copy } from "lucide-react";
+import { useState, useEffect } from "react";
+import { X, Loader2, CheckCircle2, Copy } from "lucide-react";
 import { Button } from "@/components/ui";
 
 interface DepositConfirmModalProps {
@@ -27,6 +21,8 @@ interface DepositConfirmModalProps {
   onClose: () => void;
 }
 
+type ModalState = "confirm" | "processing" | "completed";
+
 export function DepositConfirmModal({
   channelId,
   depositAmount,
@@ -36,14 +32,36 @@ export function DepositConfirmModal({
   txHash,
   onClose,
 }: DepositConfirmModalProps) {
+  const [modalState, setModalState] = useState<ModalState>("confirm");
   const [copiedChannelId, setCopiedChannelId] = useState(false);
   const [copiedTxHash, setCopiedTxHash] = useState(false);
 
-  // Transaction is confirmed when we have txHash and not processing anymore
-  const isTransactionConfirmed = !!txHash && !isProcessing;
+  // Update modal state based on props
+  useEffect(() => {
+    if (isProcessing) {
+      setModalState("processing");
+    } else if (txHash) {
+      setModalState("completed");
+    } else if (modalState === "processing") {
+      // If not processing anymore and no txHash, go back to confirm
+      setModalState("confirm");
+    }
+  }, [isProcessing, txHash, modalState]);
 
   const handleConfirm = async () => {
-    await onDeposit();
+    setModalState("processing");
+    try {
+      await onDeposit();
+    } catch (err) {
+      // If user rejected or error occurred, go back to confirm state
+      setModalState("confirm");
+    }
+  };
+
+  const handleClose = () => {
+    if (modalState !== "processing") {
+      onClose();
+    }
   };
 
   const handleCopyChannelId = async () => {
@@ -67,93 +85,202 @@ export function DepositConfirmModal({
     }
   };
 
+  // Truncate for display
+  const truncatedChannelId = channelId
+    ? `${channelId.slice(0, 10)}...${channelId.slice(-8)}`
+    : "";
+  const truncatedTxHash = txHash
+    ? `${txHash.slice(0, 10)}...${txHash.slice(-8)}`
+    : "";
+
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="w-[500px] bg-white rounded p-6 space-y-8 font-mono">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-medium text-[#111111]">
-            {isTransactionConfirmed ? "Transaction Confirmed" : "Confirm Transaction"}
-          </h2>
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      {/* Backdrop */}
+      <div
+        className="absolute inset-0 bg-black/50"
+        onClick={handleClose}
+      />
+
+      {/* Modal */}
+      <div
+        className="relative bg-white rounded-lg shadow-xl font-mono"
+        style={{ width: 480, padding: 32 }}
+      >
+        {/* Close button - only show when not processing */}
+        {modalState !== "processing" && (
           <button
             type="button"
-            onClick={onClose}
-            className="p-1 hover:bg-[#F2F2F2] rounded transition-colors"
+            onClick={handleClose}
+            className="absolute top-4 right-4 p-1 hover:bg-gray-100 rounded"
           >
-            <X className="w-6 h-6 text-[#666666]" />
+            <X className="w-5 h-5 text-[#666666]" />
           </button>
-        </div>
+        )}
 
-        {/* Content */}
-        <div className="space-y-4">
-          {/* Channel ID */}
-          <div className="space-y-2">
-            <p className="text-lg text-[#666666]">Channel ID</p>
-            <div className="flex items-center gap-10 py-3.5">
-              <p className="text-lg font-medium text-[#111111] break-all flex-1">
-                {channelId}
-              </p>
-              <button
-                type="button"
-                onClick={handleCopyChannelId}
-                className="flex-shrink-0 p-1 hover:bg-[#F2F2F2] rounded transition-colors"
-                title={copiedChannelId ? "Copied!" : "Copy to clipboard"}
+        {/* Confirm State */}
+        {modalState === "confirm" && (
+          <div className="flex flex-col gap-6">
+            <div className="text-center">
+              <h3
+                className="font-medium text-[#111111] mb-2"
+                style={{ fontSize: 24 }}
               >
-                <Copy
-                  className={`w-6 h-6 ${copiedChannelId ? "text-[#3EB100]" : "text-[#666666]"}`}
-                />
-              </button>
+                Confirm Deposit
+              </h3>
+              <p className="text-[#666666]" style={{ fontSize: 14 }}>
+                Please confirm the deposit details below
+              </p>
+            </div>
+
+            {/* Transaction Details */}
+            <div className="w-full space-y-3 pt-4 border-t border-[#EEEEEE]">
+              <div className="flex justify-between items-center">
+                <span className="text-[#666666]" style={{ fontSize: 14 }}>
+                  Channel ID
+                </span>
+                <div className="flex items-center gap-2">
+                  <span className="text-[#111111] font-medium" style={{ fontSize: 14 }}>
+                    {truncatedChannelId}
+                  </span>
+                  <button
+                    onClick={handleCopyChannelId}
+                    className="p-1 hover:bg-[#F2F2F2] rounded"
+                    title={copiedChannelId ? "Copied!" : "Copy"}
+                  >
+                    <Copy className={`w-4 h-4 ${copiedChannelId ? "text-[#3EB100]" : "text-[#666666]"}`} />
+                  </button>
+                </div>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-[#666666]" style={{ fontSize: 14 }}>
+                  Amount
+                </span>
+                <span className="text-[#111111] font-medium" style={{ fontSize: 14 }}>
+                  {depositAmount} {tokenSymbol}
+                </span>
+              </div>
+            </div>
+
+            <Button
+              variant="primary"
+              size="full"
+              onClick={handleConfirm}
+            >
+              Confirm
+            </Button>
+          </div>
+        )}
+
+        {/* Processing State */}
+        {modalState === "processing" && (
+          <div className="flex flex-col items-center gap-6">
+            <Loader2 className="w-16 h-16 text-[#2A72E5] animate-spin" />
+            <div className="text-center">
+              <h3
+                className="font-medium text-[#111111] mb-2"
+                style={{ fontSize: 24 }}
+              >
+                Processing Deposit
+              </h3>
+              <p className="text-[#666666]" style={{ fontSize: 14 }}>
+                Please wait while your deposit is being processed...
+              </p>
+            </div>
+
+            {/* Transaction Details */}
+            <div className="w-full space-y-3 pt-4 border-t border-[#EEEEEE]">
+              <div className="flex justify-between">
+                <span className="text-[#666666]" style={{ fontSize: 14 }}>
+                  Channel ID
+                </span>
+                <span className="text-[#111111] font-medium" style={{ fontSize: 14 }}>
+                  {truncatedChannelId}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-[#666666]" style={{ fontSize: 14 }}>
+                  Amount
+                </span>
+                <span className="text-[#111111] font-medium" style={{ fontSize: 14 }}>
+                  {depositAmount} {tokenSymbol}
+                </span>
+              </div>
             </div>
           </div>
+        )}
 
-          {/* Transaction Hash - Only show after confirmed */}
-          {isTransactionConfirmed && txHash && (
-            <div className="space-y-2 pt-4 border-t border-[#BBBBBB]">
-              <p className="text-lg text-[#666666]">Transaction Hash</p>
-              <div className="flex items-center gap-10 py-3.5">
-                <p className="text-lg font-medium text-[#111111] break-all flex-1">
-                  {txHash}
-                </p>
-                <button
-                  type="button"
-                  onClick={handleCopyTxHash}
-                  className="flex-shrink-0 p-1 hover:bg-[#F2F2F2] rounded transition-colors"
-                  title={copiedTxHash ? "Copied!" : "Copy to clipboard"}
-                >
-                  <Copy
-                    className={`w-6 h-6 ${copiedTxHash ? "text-[#3EB100]" : "text-[#666666]"}`}
-                  />
-                </button>
-              </div>
+        {/* Completed State */}
+        {modalState === "completed" && (
+          <div className="flex flex-col items-center gap-6">
+            <CheckCircle2 className="w-16 h-16 text-[#3EB100]" />
+            <div className="text-center">
+              <h3
+                className="font-medium text-[#111111] mb-2"
+                style={{ fontSize: 24 }}
+              >
+                Deposit Completed
+              </h3>
+              <p className="text-[#666666]" style={{ fontSize: 14 }}>
+                Your deposit has been successfully completed.
+              </p>
             </div>
-          )}
 
-          {/* Deposit Amount - Only show before confirmed */}
-          {!isTransactionConfirmed && (
-            <div className="space-y-2">
-              <p className="text-lg text-[#666666]">Deposit Amount</p>
-              <div className="flex items-center justify-between py-3.5">
-                <p className="text-lg font-medium text-[#111111]">
-                  {depositAmount}
-                </p>
-                <p className="text-lg font-medium text-[#111111]">
-                  {tokenSymbol}
-                </p>
+            {/* Transaction Details */}
+            <div className="w-full space-y-3 pt-4 border-t border-[#EEEEEE]">
+              <div className="flex justify-between items-center">
+                <span className="text-[#666666]" style={{ fontSize: 14 }}>
+                  Channel ID
+                </span>
+                <div className="flex items-center gap-2">
+                  <span className="text-[#111111] font-medium" style={{ fontSize: 14 }}>
+                    {truncatedChannelId}
+                  </span>
+                  <button
+                    onClick={handleCopyChannelId}
+                    className="p-1 hover:bg-[#F2F2F2] rounded"
+                    title={copiedChannelId ? "Copied!" : "Copy"}
+                  >
+                    <Copy className={`w-4 h-4 ${copiedChannelId ? "text-[#3EB100]" : "text-[#666666]"}`} />
+                  </button>
+                </div>
               </div>
+              <div className="flex justify-between">
+                <span className="text-[#666666]" style={{ fontSize: 14 }}>
+                  Amount
+                </span>
+                <span className="text-[#111111] font-medium" style={{ fontSize: 14 }}>
+                  {depositAmount} {tokenSymbol}
+                </span>
+              </div>
+              {txHash && (
+                <div className="flex justify-between items-center">
+                  <span className="text-[#666666]" style={{ fontSize: 14 }}>
+                    Tx Hash
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[#111111] font-medium" style={{ fontSize: 14 }}>
+                      {truncatedTxHash}
+                    </span>
+                    <button
+                      onClick={handleCopyTxHash}
+                      className="p-1 hover:bg-[#F2F2F2] rounded"
+                      title={copiedTxHash ? "Copied!" : "Copy"}
+                    >
+                      <Copy className={`w-4 h-4 ${copiedTxHash ? "text-[#3EB100]" : "text-[#666666]"}`} />
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
-          )}
-        </div>
 
-        {/* Action Button - Only show before confirmed */}
-        {!isTransactionConfirmed && (
-          <Button
-            variant="primary"
-            size="full"
-            onClick={handleConfirm}
-            disabled={isProcessing}
-          >
-            {isProcessing ? "Confirming..." : "Confirmed"}
-          </Button>
+            <Button
+              variant="primary"
+              size="full"
+              onClick={handleClose}
+            >
+              Close
+            </Button>
+          </div>
         )}
       </div>
     </div>

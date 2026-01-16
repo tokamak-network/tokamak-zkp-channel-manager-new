@@ -191,7 +191,7 @@ export function AccountPanel({ onClose }: AccountPanelProps) {
                 className="text-[#111111]"
                 style={{ fontSize: 18, lineHeight: "1.3em" }}
               >
-                {parseFloat(balance.formatted).toFixed(4)}
+                {parseFloat(balance.formatted).toFixed(2)}
               </span>
               <span
                 className="text-[#111111]"
@@ -211,7 +211,7 @@ export function AccountPanel({ onClose }: AccountPanelProps) {
                 className="text-[#111111]"
                 style={{ fontSize: 18, lineHeight: "1.3em" }}
               >
-                {parseFloat(formatUnits(tonBalance, 18)).toFixed(4)}
+                {parseFloat(formatUnits(tonBalance, 18)).toFixed(2)}
               </span>
               <span
                 className="text-[#111111]"
