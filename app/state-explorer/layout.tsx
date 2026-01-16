@@ -15,6 +15,7 @@ import { AppLayout } from "@/components/AppLayout";
 import { formatAddress } from "@/lib/utils/format";
 import { useInitializeState } from "./_hooks/useInitializeState";
 import { InitializeStateConfirmModal } from "./_components/InitializeStateConfirmModal";
+import { CloseChannelConfirmModal } from "./_components/CloseChannelConfirmModal";
 import { useCloseChannel } from "./_hooks/useCloseChannel";
 import { useBridgeCoreRead } from "@/hooks/contract";
 import { Copy, Check } from "lucide-react";
@@ -105,6 +106,7 @@ export default function StateExplorerLayout({
 
   // Modal state
   const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [showCloseChannelModal, setShowCloseChannelModal] = useState(false);
 
   // Refetch channel state when close succeeds
   useEffect(() => {
@@ -148,31 +150,34 @@ export default function StateExplorerLayout({
     await refetchChannelState();
   };
 
+  const handleOpenCloseChannelModal = () => {
+    if (!channelId) return;
+    setShowCloseChannelModal(true);
+  };
+
   const handleCloseChannel = async () => {
     if (!channelId) return;
 
-    // TODO: For now, show an error message that final balances, permutation, and proof are required
-    // In the future, this should open a modal or navigate to a page where the user can:
-    // 1. Upload final state snapshot
-    // 2. Generate final balances from snapshot
-    // 3. Generate permutation
-    // 4. Generate Groth16 proof
-    // 5. Submit the close channel transaction
+    // TODO: Implement actual close channel logic
+    // This should:
+    // 1. Get final balances from state snapshot
+    // 2. Generate permutation
+    // 3. Generate Groth16 proof
+    // 4. Call closeChannel with proper params
     
-    alert(
-      "Close Channel functionality requires:\n" +
-      "- Final balances for all participants\n" +
-      "- Permutation array\n" +
-      "- Groth16 proof\n\n" +
-      "This feature will be implemented in a future update."
-    );
-    
-    // Uncomment when ready to use:
+    // For now, just show a placeholder
     // await closeChannel({
     //   finalBalances: [...],
     //   permutation: [...],
     //   proof: { pA: [...], pB: [...], pC: [...] }
     // });
+  };
+
+  const handleCloseChannelModalClose = async () => {
+    setShowCloseChannelModal(false);
+    if (closeSuccess) {
+      await refetchChannelState();
+    }
   };
 
   const handleCopyChannelId = async () => {
@@ -238,8 +243,7 @@ export default function StateExplorerLayout({
             {contractChannelState === 2 && (
               <button
                 type="button"
-                onClick={handleCloseChannel}
-                disabled={isClosingChannel}
+                onClick={handleOpenCloseChannelModal}
                 className="flex-1 flex items-center justify-center font-mono font-medium transition-colors"
                 style={{
                   height: 40,
@@ -249,16 +253,10 @@ export default function StateExplorerLayout({
                   backgroundColor: "#999999",
                   color: "#DCDCDC",
                   fontSize: 18,
-                  cursor: isClosingChannel ? "not-allowed" : "pointer",
+                  cursor: "pointer",
                 }}
               >
-                {isClosingChannel
-                  ? isWritingClose
-                    ? "Signing..."
-                    : isWaitingClose
-                    ? "Confirming..."
-                    : "Processing..."
-                  : "Close Channel"}
+                Close Channel
               </button>
             )}
             {/* state === 3 (Closing) or state === 4 (Closed): No buttons during withdraw phase */}
@@ -277,6 +275,17 @@ export default function StateExplorerLayout({
           isProcessing={isProcessing}
           txHash={initializeTxHash ?? null}
           onClose={handleCloseModal}
+        />
+      )}
+
+      {/* Close Channel Confirm Modal */}
+      {showCloseChannelModal && channelId && (
+        <CloseChannelConfirmModal
+          channelId={channelId}
+          onCloseChannel={handleCloseChannel}
+          isProcessing={isClosingChannel}
+          txHash={closeTxHash ?? null}
+          onClose={handleCloseChannelModalClose}
         />
       )}
     </AppLayout>

@@ -3,31 +3,26 @@
  *
  * Component for creating and viewing transactions
  * Shows when channel is active (initialized)
+ *
+ * Design:
+ * - https://www.figma.com/design/0R11fVZOkNSTJjhTKvUjc7/Ooo?node-id=3138-232280
  */
 
 "use client";
 
 import { useState } from "react";
 import { useAccount, useSignMessage } from "wagmi";
-import { Button, Input, Label, Card, CardContent } from "@tokamak/ui";
 import JSZip from "jszip";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
-import { Key, Wallet, Coins, CheckCircle, Download, AlertCircle } from "lucide-react";
+import { HelpCircle, Download, Upload } from "lucide-react";
 import { useChannelFlowStore } from "@/stores/useChannelFlowStore";
 import { usePreviousStateSnapshot } from "@/app/state-explorer/_hooks/usePreviousStateSnapshot";
 import { useSynthesizer } from "@/app/state-explorer/_hooks/useSynthesizer";
 import { L2_PRV_KEY_MESSAGE } from "@/lib/l2KeyMessage";
 import { addHexPrefix } from "@ethereumjs/util";
 import { ProofList } from "./_components/ProofList";
-
-type Step = "input" | "confirm";
+import { Button, AmountInput } from "@/components/ui";
+import { TransactionConfirmModal } from "./_components/TransactionConfirmModal";
 
 export function TransactionPage() {
   const { address, isConnected } = useAccount();
@@ -35,7 +30,6 @@ export function TransactionPage() {
   const { currentChannelId } = useChannelFlowStore();
 
   // Form state
-  const [step, setStep] = useState<Step>("input");
   const [keySeed, setKeySeed] = useState<`0x${string}` | null>(null);
   const [recipient, setRecipient] = useState<`0x${string}` | null>(null);
   const [tokenAmount, setTokenAmount] = useState<string>("");
@@ -51,6 +45,7 @@ export function TransactionPage() {
   const [generatedZipBlob, setGeneratedZipBlob] = useState<Blob | null>(null);
   const [proofGenerated, setProofGenerated] = useState(false);
   const [proofListRefreshKey, setProofListRefreshKey] = useState(0);
+  const [submitTxHash, setSubmitTxHash] = useState<string | null>(null);
 
   // Hook to fetch previous state snapshot
   const { fetchSnapshot } = usePreviousStateSnapshot({
@@ -67,8 +62,8 @@ export function TransactionPage() {
     includeProof,
   });
 
-  // Generate key seed using MetaMask
-  const generateKeySeed = async () => {
+  // Generate key seed using MetaMask (Sign action)
+  const handleSign = async () => {
     if (!isConnected || !address) {
       setError("Please connect your wallet first");
       return;
@@ -102,8 +97,8 @@ export function TransactionPage() {
     }
   };
 
-  // Handle continue to confirmation
-  const handleContinue = () => {
+  // Handle confirm button click (opens modal)
+  const handleConfirm = () => {
     if (validateForm()) {
       setShowConfirmModal(true);
       setError(null);
@@ -112,7 +107,7 @@ export function TransactionPage() {
     }
   };
 
-  // Handle synthesize and download
+  // Handle synthesize and generate proof
   const handleSynthesize = async () => {
     if (!currentChannelId) {
       setError("No channel selected");
@@ -124,19 +119,13 @@ export function TransactionPage() {
       return;
     }
 
-    // Keep modal open to show loading state
     setIsDownloading(true);
     setError(null);
 
     try {
-      // Get initialization transaction hash
-      // Normalize channelId to lowercase for consistent DB lookup
-      // (DB stores channelId in lowercase format)
       const normalizedChannelId = currentChannelId?.toLowerCase() || currentChannelId;
       const encodedChannelId = normalizedChannelId ? encodeURIComponent(normalizedChannelId) : currentChannelId;
       
-      console.log("[TransactionPage] Fetching channel data for:", currentChannelId, "(normalized:", normalizedChannelId + ")");
-      // Always fetch fresh data (no cache) to ensure we have the latest initializationTxHash
       const response = await fetch(`/api/channels/${encodedChannelId}`, {
         cache: 'no-store',
         headers: {
@@ -144,19 +133,15 @@ export function TransactionPage() {
         },
       });
       const responseData = await response.json();
-      console.log("[TransactionPage] API response:", responseData);
       
       const initTxHash = responseData.data?.initializationTxHash;
-      console.log("[TransactionPage] Extracted initTxHash:", initTxHash);
 
       if (!initTxHash) {
-        console.error("[TransactionPage] Channel data:", responseData.data);
         throw new Error(
           "Could not find initialization transaction hash for this channel"
         );
       }
 
-      // Get state snapshot using hook
       const previousStateSnapshot = await fetchSnapshot();
 
       if (!previousStateSnapshot) {
@@ -165,10 +150,8 @@ export function TransactionPage() {
         );
       }
 
-      // Call synthesizer API
       const zipBlob = await synthesize(initTxHash, previousStateSnapshot);
       
-      // Store the generated ZIP blob for later submission
       setGeneratedZipBlob(zipBlob);
       setProofGenerated(true);
     } catch (err) {
@@ -192,17 +175,13 @@ export function TransactionPage() {
     const zip = new JSZip();
     const originalZip = await JSZip.loadAsync(originalZipBlob);
 
-    // New folder name: <channelId>-<proof#sequence>
     const newFolderName = `${channelId.toLowerCase()}-proof#${proofNumber}`;
 
-    // Process all files in the original ZIP
     for (const [filePath, file] of Object.entries(originalZip.files)) {
       if (file.dir) continue;
 
-      // Extract file name
       const fileName = filePath.split("/").pop() || filePath;
 
-      // Determine which folder this file belongs to
       let targetFolder = "";
       if (
         fileName === "proof.json" ||
@@ -223,16 +202,13 @@ export function TransactionPage() {
       ) {
         targetFolder = `${newFolderName}/synthesizer/`;
       } else {
-        // Skip preprocess files and other files
         continue;
       }
 
-      // Read file content and add to new ZIP
       const content = await file.async("uint8array");
       zip.file(`${targetFolder}${fileName}`, content);
     }
 
-    // Generate new ZIP blob
     return await zip.generateAsync({ type: "blob" });
   };
 
@@ -247,7 +223,6 @@ export function TransactionPage() {
     setError(null);
 
     try {
-      // Step 1: Get next proof number atomically from backend
       const proofNumberResponse = await fetch("/api/get-next-proof-number", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -262,14 +237,12 @@ export function TransactionPage() {
       const { proofNumber, subNumber, proofId, storageProofId } =
         await proofNumberResponse.json();
 
-      // Step 2: Reconstruct ZIP with new folder structure
       const reconstructedZipBlob = await reconstructZip(
         generatedZipBlob,
         currentChannelId,
         proofNumber
       );
 
-      // Step 3: Upload ZIP file
       const formData = new FormData();
       formData.append(
         "file",
@@ -292,14 +265,11 @@ export function TransactionPage() {
         );
       }
 
-      // Step 3: Save metadata to DB using updateData
-      // Use Unix timestamp (Date.now()) instead of ISO string to avoid timezone issues
-      // The timestamp will be converted to local time when displayed
       const proofMetadata = {
         proofId: proofId,
         sequenceNumber: proofNumber,
         subNumber: subNumber,
-        submittedAt: Date.now(), // Unix timestamp (milliseconds)
+        submittedAt: Date.now(),
         submitter: address,
         timestamp: Date.now(),
         uploadStatus: "complete",
@@ -322,7 +292,7 @@ export function TransactionPage() {
         throw new Error(errorData.error || "Failed to save proof metadata");
       }
 
-      // Step 4: Download the reconstructed ZIP file
+      // Download the reconstructed ZIP file
       const url = URL.createObjectURL(reconstructedZipBlob);
       const link = document.createElement("a");
       link.href = url;
@@ -332,17 +302,11 @@ export function TransactionPage() {
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
 
+      // Set txHash for modal display (using proofId as reference)
+      setSubmitTxHash(proofId);
+
       // Refresh proof list
       setProofListRefreshKey((prev) => prev + 1);
-
-      // Close modal and reset form after successful submission and download
-      setShowConfirmModal(false);
-      setKeySeed(null);
-      setRecipient(null);
-      setTokenAmount("");
-      setGeneratedZipBlob(null);
-      setProofGenerated(false);
-      setError(null);
     } catch (err) {
       console.error("Failed to submit proof:", err);
       setError(
@@ -355,291 +319,146 @@ export function TransactionPage() {
     }
   };
 
+  const handleCloseModal = () => {
+    setShowConfirmModal(false);
+    // Reset form after closing if transaction was completed
+    if (submitTxHash) {
+      setKeySeed(null);
+      setRecipient(null);
+      setTokenAmount("");
+      setGeneratedZipBlob(null);
+      setProofGenerated(false);
+      setSubmitTxHash(null);
+    }
+  };
+
+  // Form is valid only when signed and form fields are filled
+  const isFormValid = keySeed && recipient && tokenAmount && validateForm();
+
   return (
-    <div className="space-y-6">
-      <Card className="max-w-2xl">
-        <CardContent className="space-y-6 pt-6">
-          <div>
-            <h3 className="text-xl font-semibold mb-2">Create Transaction</h3>
-            <p className="text-gray-600 text-sm">
-              Sign with MetaMask and enter transaction details
-            </p>
+    <div className="font-mono" style={{ width: 544 }}>
+      {/* Transaction Section */}
+      <div className="flex flex-col gap-6">
+        {/* Title */}
+        <h2
+          className="font-medium text-[#111111]"
+          style={{ fontSize: 32, lineHeight: "1.3em" }}
+        >
+          Transaction
+        </h2>
+
+        {/* Recipient L2 Address */}
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center gap-2">
+            <label
+              className="font-medium text-[#111111]"
+              style={{ fontSize: 18, lineHeight: "1.3em" }}
+            >
+              Recipient L2 Address
+            </label>
+            <HelpCircle className="w-5 h-5 text-[#999999]" />
           </div>
+          <input
+            type="text"
+            placeholder="Enter Recipient L2 Address"
+            value={recipient ?? ""}
+            onChange={(e) => {
+              const value = e.target.value;
+              if (value === "") {
+                setRecipient(null);
+              } else if (value.startsWith("0x")) {
+                setRecipient(value as `0x${string}`);
+              } else {
+                setRecipient(addHexPrefix(value) as `0x${string}`);
+              }
+            }}
+            className="w-full px-4 py-3.5 border border-[#BBBBBB] rounded text-lg font-mono"
+            style={{
+              fontSize: 18,
+              color: recipient ? "#111111" : "#999999",
+            }}
+          />
+        </div>
 
-          {/* Error Message */}
-          {error && (
-            <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
-              <AlertCircle className="w-4 h-4 flex-shrink-0" />
-              {error}
-            </div>
-          )}
+        {/* Amount */}
+        <AmountInput
+          label="Amount"
+          value={tokenAmount}
+          onChange={setTokenAmount}
+          balance="448"
+          tokenSymbol="TON"
+          onMaxClick={() => setTokenAmount("448")}
+        />
 
-          {/* Sign with MetaMask */}
-          <div>
-            <Label>Sign with MetaMask</Label>
-            <div className="mt-2 border border-gray-200 rounded-md p-4 bg-gray-50">
-              {keySeed ? (
-                <div className="flex items-center gap-2 text-green-600">
-                  <CheckCircle className="w-5 h-5" />
-                  <span className="text-sm font-medium">Signed successfully</span>
-                </div>
-              ) : (
-                <Button
-                  onClick={generateKeySeed}
-                  disabled={isSigning || !isConnected}
-                  variant="outline"
-                  className="w-full"
-                >
-                  {isSigning ? (
-                    <>
-                      <LoadingSpinner size="sm" className="mr-2" />
-                      Signing...
-                    </>
-                  ) : (
-                    <>
-                      <Key className="w-4 h-4 mr-2" />
-                      Sign with MetaMask
-                    </>
-                  )}
-                </Button>
-              )}
-            </div>
-          </div>
-
-          {/* Recipient L2 Address */}
-          <div>
-            <Label required>Recipient L2 Address</Label>
-            <Input
-              type="text"
-              placeholder="0x..."
-              value={recipient ?? ""}
-              onChange={(e) => {
-                const value = e.target.value;
-                // If empty, set to null
-                if (value === "") {
-                  setRecipient(null);
-                }
-                // If starts with "0x", use as is
-                else if (value.startsWith("0x")) {
-                  setRecipient(value as `0x${string}`);
-                }
-                // If doesn't start with "0x", add it
-                else {
-                  setRecipient(addHexPrefix(value) as `0x${string}`);
-                }
-              }}
-              onKeyDown={(e) => {
-                // Allow backspace to delete "0x" if cursor is at the end
-                if (e.key === "Backspace" && recipient === "0x") {
-                  e.preventDefault();
-                  setRecipient(null);
-                }
-              }}
-              className="mt-2 font-mono"
-            />
-          </div>
-
-          {/* Token Amount */}
-          <div>
-            <Label required>Amount</Label>
-            <Input
-              type="text"
-              inputMode="decimal"
-              placeholder="0.0"
-              value={tokenAmount}
-              onChange={(e) => {
-                const value = e.target.value;
-                // Allow only numbers and decimal point
-                if (value === "" || /^\d*\.?\d*$/.test(value)) {
-                  setTokenAmount(value);
-                }
-              }}
-              className="mt-2"
-            />
-          </div>
-
-          {/* ZK Proof Info */}
-          <div className="p-4 border border-gray-200 rounded-lg bg-blue-50">
-            <div className="flex items-start gap-2">
-              <CheckCircle className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
-              <div>
-                <p className="text-sm font-medium text-gray-900">
-                  ZK Proof will be generated
-                </p>
-                <p className="text-xs text-gray-600 mt-0.5">
-                  proof.json will be included in the download (takes longer to process)
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Continue Button */}
+        {/* Sign or Confirm Button - Only one visible at a time */}
+        {!keySeed ? (
           <Button
             variant="primary"
-            color="blue"
-            onClick={handleContinue}
-            disabled={!validateForm() || isDownloading}
-            className="w-full"
+            size="full"
+            onClick={handleSign}
+            disabled={isSigning || !isConnected}
           >
-            Continue
+            {isSigning ? "Signing..." : "Sign"}
           </Button>
-        </CardContent>
-      </Card>
+        ) : (
+          <Button
+            variant="primary"
+            size="full"
+            onClick={handleConfirm}
+            disabled={!isFormValid}
+          >
+            Confirm
+          </Button>
+        )}
+      </div>
 
-      {/* Confirmation Modal */}
-      <Dialog open={showConfirmModal} onOpenChange={(open) => {
-        if (!isDownloading) {
-          setShowConfirmModal(open);
-        }
-      }}>
-        <DialogContent className="sm:max-w-lg bg-white border-gray-200">
-          {isDownloading ? (
-            // Loading State
-            <div className="flex flex-col items-center justify-center py-12 space-y-4">
-              <LoadingSpinner size="lg" />
-              <div className="text-center space-y-2">
-                <p className="text-lg font-semibold text-gray-900">
-                  Generating ZK Proof...
-                </p>
-                <p className="text-sm text-gray-600">
-                  This may take a few minutes. Please wait.
-                </p>
-              </div>
-            </div>
-          ) : (
-            // Normal Content
-            <>
-              <DialogHeader>
-                <DialogTitle className="flex items-center gap-2 text-gray-900">
-                  <div className="bg-blue-100 p-1.5 rounded">
-                    <CheckCircle className="h-4 w-4 text-blue-600" />
-                  </div>
-                  Transaction Summary
-                </DialogTitle>
-                <DialogDescription className="text-gray-600">
-                  Review your transaction details before synthesizing
-                </DialogDescription>
-              </DialogHeader>
-
-              <div className="space-y-4 py-4">
-                {/* Error Message in Modal */}
-                {error && (
-                  <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
-                    <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                    {error}
-                  </div>
-                )}
-
-                <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-3">
-                  <div className="flex items-center justify-between py-2 border-b border-gray-200">
-                    <span className="text-gray-600 text-sm">Signed</span>
-                    <div className="flex items-center gap-2 text-green-600">
-                      <CheckCircle className="w-4 h-4" />
-                      <span className="text-sm font-medium">Yes</span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between py-2 border-b border-gray-200">
-                    <span className="text-gray-600 text-sm flex items-center gap-2">
-                      <Wallet className="w-4 h-4" />
-                      To Address
-                    </span>
-                    <span className="text-gray-900 font-mono text-sm">
-                      {(recipient ?? "").slice(0, 6)}...
-                      {(recipient ?? "").slice(-4)}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center justify-between py-2">
-                    <span className="text-gray-600 text-sm flex items-center gap-2">
-                      <CheckCircle className="w-4 h-4" />
-                      Generate ZK Proof
-                    </span>
-                    <span className="font-medium text-green-600">
-                      Yes
-                    </span>
-                  </div>
-                </div>
-
-                <div className="flex flex-col gap-3">
-                  {!proofGenerated ? (
-                    <>
-                      <Button
-                        variant="primary"
-                        color="blue"
-                        onClick={handleSynthesize}
-                        disabled={isDownloading}
-                        className="w-full"
-                      >
-                        {isDownloading ? (
-                          <>
-                            <LoadingSpinner size="sm" className="mr-2" />
-                            Generating ZK Proof...
-                          </>
-                        ) : (
-                          <>
-                            <Download className="w-4 h-4 mr-2" />
-                            Generate ZK Proof
-                          </>
-                        )}
-                      </Button>
-                      <Button
-                        variant="outline"
-                        color="gray"
-                        onClick={() => setShowConfirmModal(false)}
-                        className="w-full"
-                        disabled={isDownloading}
-                      >
-                        Back
-                      </Button>
-                    </>
-                  ) : (
-                    <>
-                      <div className="p-3 bg-green-50 border border-green-200 rounded text-green-700 text-sm mb-2">
-                        ✓ ZK Proof generated successfully!
-                      </div>
-                      <Button
-                        variant="primary"
-                        color="green"
-                        onClick={handleSubmitAndDownload}
-                        disabled={isSubmitting}
-                        className="w-full"
-                      >
-                        {isSubmitting ? (
-                          <>
-                            <LoadingSpinner size="sm" className="mr-2" />
-                            Submitting & Downloading...
-                          </>
-                        ) : (
-                          <>
-                            <Download className="w-4 h-4 mr-2" />
-                            Submit & Download
-                          </>
-                        )}
-                      </Button>
-                      <Button
-                        variant="outline"
-                        color="gray"
-                        onClick={() => setShowConfirmModal(false)}
-                        className="w-full"
-                        disabled={isSubmitting}
-                      >
-                        Close
-                      </Button>
-                    </>
-                  )}
-                </div>
-              </div>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      {/* Proof List */}
-      <div className="mt-8">
-        <h2 className="text-2xl font-bold mb-4">Proofs</h2>
+      {/* Proofs Section */}
+      <div className="mt-12">
+        <div className="flex items-center justify-between mb-4">
+          <h2
+            className="font-medium text-[#111111]"
+            style={{ fontSize: 32, lineHeight: "1.3em" }}
+          >
+            Proofs
+          </h2>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              className="flex items-center gap-2 px-4 py-2 border border-[#111111] rounded bg-white"
+              style={{ fontSize: 18 }}
+            >
+              <Download className="w-5 h-5" />
+              Download
+            </button>
+            <button
+              type="button"
+              className="flex items-center gap-2 px-4 py-2 border border-[#111111] rounded bg-white"
+              style={{ fontSize: 18 }}
+            >
+              <Upload className="w-5 h-5" />
+              Upload
+            </button>
+          </div>
+        </div>
         <ProofList key={proofListRefreshKey} />
       </div>
+
+      {/* Transaction Confirm Modal */}
+      {showConfirmModal && currentChannelId && (
+        <TransactionConfirmModal
+          channelId={currentChannelId}
+          recipient={recipient || ""}
+          amount={tokenAmount}
+          tokenSymbol="TON"
+          onGenerateProof={handleSynthesize}
+          onSubmitAndDownload={handleSubmitAndDownload}
+          isGenerating={isDownloading}
+          isSubmitting={isSubmitting}
+          proofGenerated={proofGenerated}
+          txHash={submitTxHash}
+          onClose={handleCloseModal}
+        />
+      )}
     </div>
   );
 }
