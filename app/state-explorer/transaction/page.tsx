@@ -136,7 +136,13 @@ export function TransactionPage() {
       const encodedChannelId = normalizedChannelId ? encodeURIComponent(normalizedChannelId) : currentChannelId;
       
       console.log("[TransactionPage] Fetching channel data for:", currentChannelId, "(normalized:", normalizedChannelId + ")");
-      const response = await fetch(`/api/channels/${encodedChannelId}`);
+      // Always fetch fresh data (no cache) to ensure we have the latest initializationTxHash
+      const response = await fetch(`/api/channels/${encodedChannelId}`, {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache',
+        },
+      });
       const responseData = await response.json();
       console.log("[TransactionPage] API response:", responseData);
       

@@ -149,12 +149,13 @@ export function TransactionBundleModal({
     }
   }, [isOpen, defaultChannelId]);
 
-  // Fetch bundle data when channel is selected
+  // Fetch bundle data when channel is selected or modal opens
+  // Always fetch fresh data when modal opens to ensure we have the latest initializationTxHash
   useEffect(() => {
-    if (selectedChannelId) {
+    if (selectedChannelId && isOpen) {
       fetchBundleData(selectedChannelId);
     }
-  }, [selectedChannelId]);
+  }, [selectedChannelId, isOpen]);
 
   const fetchBundleData = async (channelId: string) => {
     setIsLoading(true);
@@ -181,9 +182,15 @@ export function TransactionBundleModal({
         try {
           // Fetch participants from contract using API
           // Normalize channelId to lowercase for consistent DB lookup
+          // Always fetch fresh data (no cache) to ensure we have the latest data
           const normalizedChannelId = channelId?.toLowerCase() || channelId;
           const encodedChannelId = normalizedChannelId ? encodeURIComponent(normalizedChannelId) : channelId;
-          const response = await fetch(`/api/channels/${encodedChannelId}`);
+          const response = await fetch(`/api/channels/${encodedChannelId}`, {
+            cache: 'no-store',
+            headers: {
+              'Cache-Control': 'no-cache',
+            },
+          });
           if (response.ok) {
             const data = await response.json();
             if (data.data?.participants) {
@@ -347,19 +354,29 @@ export function TransactionBundleModal({
 
     try {
       // Get initialization transaction hash
+      // Always fetch from API to ensure we have the latest data
+      // (bundleData might be stale after initializeState succeeds)
       // Normalize channelId to lowercase for consistent DB lookup
       // (DB stores channelId in lowercase format)
       const normalizedChannelId = selectedChannelId?.toLowerCase() || selectedChannelId;
       const encodedChannelId = normalizedChannelId ? encodeURIComponent(normalizedChannelId) : selectedChannelId;
       
-      const initTxHash = bundleData?.channel?.initializationTxHash
-        ? bundleData.channel.initializationTxHash
-        : await fetch(`/api/channels/${encodedChannelId}`)
-            .then((res) => res.json())
-            .then((data) => data.data?.initializationTxHash)
-            .catch(() => null);
+      console.log("[TransactionBundleModal] Fetching latest channel data for:", selectedChannelId, "(normalized:", normalizedChannelId + ")");
+      // Always fetch fresh data (no cache) to ensure we have the latest initializationTxHash
+      const response = await fetch(`/api/channels/${encodedChannelId}`, {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache',
+        },
+      });
+      const responseData = await response.json();
+      console.log("[TransactionBundleModal] API response:", responseData);
+      
+      const initTxHash = responseData.data?.initializationTxHash;
+      console.log("[TransactionBundleModal] Extracted initTxHash:", initTxHash);
 
       if (!initTxHash) {
+        console.error("[TransactionBundleModal] Channel data:", responseData.data);
         throw new Error(
           "Could not find initialization transaction hash for this channel"
         );
@@ -525,6 +542,7 @@ export function TransactionBundleModal({
   };
 
   return (
+    <>
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-lg bg-gradient-to-b from-[#1a2347] to-[#0a1930] border-[#4fc3f7] text-white">
         <DialogHeader>
@@ -971,7 +989,7 @@ export function TransactionBundleModal({
         </DialogHeader>
 
         <div className="flex-1 overflow-hidden flex flex-col gap-4">
-          {stateSnapshot ? (
+            {stateSnapshot ? (
             <>
               <div className="flex gap-2">
                 <Button
@@ -1002,20 +1020,20 @@ export function TransactionBundleModal({
                   <div>
                     <span className="text-[#4fc3f7]">State Root:</span>{" "}
                     <span className="font-mono text-xs">
-                      {stateSnapshot.stateRoot?.slice(0, 20) || "N/A"}...
+                      {stateSnapshot?.stateRoot?.slice(0, 20) || "N/A"}...
                     </span>
                   </div>
                   <div>
                     <span className="text-[#4fc3f7]">Registered Keys:</span>{" "}
-                    {stateSnapshot.registeredKeys?.length || 0}
+                    {stateSnapshot?.registeredKeys?.length || 0}
                   </div>
                   <div>
                     <span className="text-[#4fc3f7]">Storage Entries:</span>{" "}
-                    {stateSnapshot.storageEntries?.length || 0}
+                    {stateSnapshot?.storageEntries?.length || 0}
                   </div>
                   <div>
                     <span className="text-[#4fc3f7]">Pre-allocated Leaves:</span>{" "}
-                    {stateSnapshot.preAllocatedLeaves?.length || 0}
+                    {stateSnapshot?.preAllocatedLeaves?.length || 0}
                   </div>
                 </div>
               </div>
