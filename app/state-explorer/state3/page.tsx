@@ -11,6 +11,7 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
+import Image from "next/image";
 import { useAccount, useConfig } from "wagmi";
 import { readContracts } from "@wagmi/core";
 import { Loader2, CheckCircle, AlertCircle } from "lucide-react";
@@ -19,6 +20,18 @@ import { useVerifyFinalBalances } from "./_hooks";
 import { useBridgeCoreRead, useBridgeProofManagerRead, useBridgeCoreAddress, useBridgeCoreAbi } from "@/hooks/contract";
 import { generateClientSideProof } from "@/lib/clientProofGeneration";
 import JSZip from "jszip";
+
+// Token symbol images
+import TONSymbol from "@/assets/symbols/TON.svg";
+import USDCSymbol from "@/assets/symbols/USDC.svg";
+import USDTSymbol from "@/assets/symbols/USDT.svg";
+
+// Token symbol to image mapping
+const TOKEN_SYMBOLS: Record<string, typeof TONSymbol> = {
+  TON: TONSymbol,
+  USDC: USDCSymbol,
+  USDT: USDTSymbol,
+};
 
 interface StateSnapshot {
   channelId: number;
@@ -736,9 +749,9 @@ export function State3Page() {
 
   // Mock token balances - TODO: Replace with actual balance fetching
   const tokenBalances = [
-    { symbol: "TON", amount: "17.02", color: "#007AFF" },
-    { symbol: "USDC", amount: "2.00", color: "#2775CA" },
-    { symbol: "USDT", amount: "153.00", color: "#50AF95" },
+    { symbol: "TON", amount: "17.02" },
+    { symbol: "USDC", amount: "2.00" },
+    { symbol: "USDT", amount: "153.00" },
   ];
 
   return (
@@ -824,18 +837,24 @@ export function State3Page() {
                   }}
                 >
                   {/* Token Icon */}
-                  <div
-                    className="flex items-center justify-center rounded-full"
-                    style={{
-                      width: 24,
-                      height: 24,
-                      backgroundColor: token.color,
-                    }}
-                  >
-                    <span className="text-white text-xs font-bold">
-                      {token.symbol.charAt(0)}
-                    </span>
-                  </div>
+                  {TOKEN_SYMBOLS[token.symbol] ? (
+                    <Image
+                      src={TOKEN_SYMBOLS[token.symbol]}
+                      alt={token.symbol}
+                      width={24}
+                      height={24}
+                      className="rounded-full"
+                    />
+                  ) : (
+                    <div
+                      className="flex items-center justify-center rounded-full bg-[#007AFF]"
+                      style={{ width: 24, height: 24 }}
+                    >
+                      <span className="text-white text-xs font-bold">
+                        {token.symbol.charAt(0)}
+                      </span>
+                    </div>
+                  )}
                   {/* Token Symbol */}
                   <span
                     className="text-[#111111]"

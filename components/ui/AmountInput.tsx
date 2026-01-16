@@ -8,7 +8,20 @@
 "use client";
 
 import { forwardRef, InputHTMLAttributes } from "react";
+import Image from "next/image";
 import { ChevronDown } from "lucide-react";
+
+// Token symbol images
+import TONSymbol from "@/assets/symbols/TON.svg";
+import USDCSymbol from "@/assets/symbols/USDC.svg";
+import USDTSymbol from "@/assets/symbols/USDT.svg";
+
+// Token symbol to image mapping
+const TOKEN_SYMBOLS: Record<string, typeof TONSymbol> = {
+  TON: TONSymbol,
+  USDC: USDCSymbol,
+  USDT: USDTSymbol,
+};
 
 export interface AmountInputProps
   extends Omit<InputHTMLAttributes<HTMLInputElement>, "onChange"> {
@@ -92,12 +105,24 @@ const AmountInput = forwardRef<HTMLInputElement, AmountInputProps>(
                 height: 40,
               }}
             >
-              <div
-                className="flex items-center justify-center bg-white rounded-full"
-                style={{ width: 24, height: 24 }}
-              >
-                <span className="text-[#2A72E5] font-bold text-xs">T</span>
-              </div>
+              {TOKEN_SYMBOLS[tokenSymbol] ? (
+                <Image
+                  src={TOKEN_SYMBOLS[tokenSymbol]}
+                  alt={tokenSymbol}
+                  width={24}
+                  height={24}
+                  className="rounded-full"
+                />
+              ) : (
+                <div
+                  className="flex items-center justify-center bg-white rounded-full"
+                  style={{ width: 24, height: 24 }}
+                >
+                  <span className="text-[#2A72E5] font-bold text-xs">
+                    {tokenSymbol.charAt(0)}
+                  </span>
+                </div>
+              )}
               <span
                 className="text-[#111111]"
                 style={{ fontSize: 18, lineHeight: "1.3em" }}

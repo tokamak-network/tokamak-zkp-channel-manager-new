@@ -10,10 +10,14 @@
 
 "use client";
 
-import { Loader2, CheckCircle, AlertCircle } from "lucide-react";
+import Image from "next/image";
+import { Loader2, CheckCircle } from "lucide-react";
 import { useChannelFlowStore } from "@/stores/useChannelFlowStore";
 import { useWithdraw } from "./_hooks";
 import { formatUnits } from "viem";
+
+// Token symbol images
+import TONSymbol from "@/assets/symbols/TON.svg";
 
 export function WithdrawPage() {
   const { currentChannelId } = useChannelFlowStore();
@@ -21,19 +25,18 @@ export function WithdrawPage() {
     handleWithdraw,
     isWithdrawing,
     withdrawSuccess,
-    error,
     withdrawableAmount,
+    channelTargetContract,
   } = useWithdraw({ channelId: currentChannelId });
 
   // Format withdrawable amount (assuming 18 decimals for ERC20 tokens)
   const formattedAmount = formatUnits(withdrawableAmount, 18);
 
-  // Mock token balances - TODO: Replace with actual multi-token balance fetching
-  const tokenBalances = [
-    { symbol: "TON", amount: formattedAmount, color: "#007AFF" },
-    { symbol: "USDC", amount: "2.00", color: "#2775CA" },
-    { symbol: "USDT", amount: "153.00", color: "#50AF95" },
-  ];
+  // Token info for the channel's target contract
+  // Currently channels support single token (targetContract)
+  const tokenInfo = channelTargetContract
+    ? { symbol: "TON", amount: formattedAmount }
+    : null;
 
   return (
     <div className="font-mono" style={{ width: 544 }}>
@@ -55,65 +58,57 @@ export function WithdrawPage() {
             Amount
           </span>
 
-          {/* Token Balance Cards */}
-          <div className="flex flex-col gap-3">
-            {tokenBalances.map((token) => (
-              <div
-                key={token.symbol}
-                className="flex items-center justify-between"
+          {/* Token Balance Card */}
+          {tokenInfo && (
+            <div
+              className="flex items-center justify-between"
+              style={{
+                padding: "16px 24px",
+                borderRadius: 4,
+                border: "1px solid #5F5F5F",
+              }}
+            >
+              {/* Amount */}
+              <span
+                className="font-medium"
                 style={{
-                  padding: "16px 24px",
-                  borderRadius: 4,
-                  border: "1px solid #5F5F5F",
+                  fontSize: 24,
+                  lineHeight: "1.3em",
+                  color: "#2A72E5",
                 }}
               >
-                {/* Amount */}
-                <span
-                  className="font-medium"
-                  style={{
-                    fontSize: 24,
-                    lineHeight: "1.3em",
-                    color: "#2A72E5",
-                  }}
-                >
-                  {token.amount}
-                </span>
+                {tokenInfo.amount}
+              </span>
 
-                {/* Token Pill */}
-                <div
-                  className="flex items-center gap-2"
-                  style={{
-                    height: 40,
-                    padding: "8px 12px",
-                    backgroundColor: "#DDDDDD",
-                    borderRadius: "46px 40px 40px 46px",
-                    border: "1px solid #9A9A9A",
-                  }}
+              {/* Token Pill */}
+              <div
+                className="flex items-center gap-2"
+                style={{
+                  height: 40,
+                  padding: "8px 12px",
+                  backgroundColor: "#DDDDDD",
+                  borderRadius: "46px 40px 40px 46px",
+                  border: "1px solid #9A9A9A",
+                }}
+              >
+                {/* Token Icon */}
+                <Image
+                  src={TONSymbol}
+                  alt={tokenInfo.symbol}
+                  width={24}
+                  height={24}
+                  className="rounded-full"
+                />
+                {/* Token Symbol */}
+                <span
+                  className="text-[#111111]"
+                  style={{ fontSize: 18, lineHeight: "1.3em" }}
                 >
-                  {/* Token Icon */}
-                  <div
-                    className="flex items-center justify-center rounded-full"
-                    style={{
-                      width: 24,
-                      height: 24,
-                      backgroundColor: token.color,
-                    }}
-                  >
-                    <span className="text-white text-xs font-bold">
-                      {token.symbol.charAt(0)}
-                    </span>
-                  </div>
-                  {/* Token Symbol */}
-                  <span
-                    className="text-[#111111]"
-                    style={{ fontSize: 18, lineHeight: "1.3em" }}
-                  >
-                    {token.symbol}
-                  </span>
-                </div>
+                  {tokenInfo.symbol}
+                </span>
               </div>
-            ))}
-          </div>
+            </div>
+          )}
         </div>
 
         {/* Confirm Button */}
@@ -148,39 +143,6 @@ export function WithdrawPage() {
         </button>
       </div>
 
-      {/* Success Message */}
-      {withdrawSuccess && (
-        <div
-          className="mt-6 p-4 flex items-center gap-2"
-          style={{
-            backgroundColor: "#E8F8E8",
-            borderRadius: 4,
-            border: "1px solid #22C55E",
-          }}
-        >
-          <CheckCircle className="w-5 h-5 text-[#22C55E]" />
-          <span className="text-[#22C55E]" style={{ fontSize: 14 }}>
-            Tokens have been withdrawn successfully
-          </span>
-        </div>
-      )}
-
-      {/* Error Message */}
-      {error && (
-        <div
-          className="mt-6 p-4 flex items-start gap-2"
-          style={{
-            backgroundColor: "#FEE2E2",
-            borderRadius: 4,
-            border: "1px solid #EF4444",
-          }}
-        >
-          <AlertCircle className="w-5 h-5 text-[#EF4444] flex-shrink-0 mt-0.5" />
-          <span className="text-[#EF4444]" style={{ fontSize: 14 }}>
-            {error}
-          </span>
-        </div>
-      )}
     </div>
   );
 }
