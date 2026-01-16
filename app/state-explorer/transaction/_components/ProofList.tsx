@@ -227,48 +227,147 @@ export function ProofList({ onActionsReady }: ProofListProps) {
     <div className="space-y-6 font-mono">
       {/* Summary Statistics */}
       <div
-        className="flex border border-[#000000] rounded"
-        style={{ backgroundColor: "#BDBDBD" }}
+        className="flex rounded"
+        style={{ border: "1px solid #000000", gap: 20 }}
       >
         {/* Total Proofs */}
-        <div className="flex-1 p-4 flex flex-col justify-between border-r border-[#000000]">
+        <div
+          className="flex-1 flex flex-col justify-between"
+          style={{
+            padding: 16,
+            gap: 16,
+            backgroundColor: "#BDBDBD",
+            borderRight: "1px solid #000000",
+          }}
+        >
           <span
-            className="text-xs font-medium uppercase px-2 py-1 rounded inline-block"
-            style={{ backgroundColor: "#0F2058", color: "#FFFFFF" }}
+            className="uppercase inline-block"
+            style={{
+              backgroundColor: "#0F2058",
+              color: "#FFFFFF",
+              padding: "3px 8px 4px",
+              borderRadius: 4,
+              fontFamily: "IBM Plex Mono, monospace",
+              fontSize: 12,
+              fontWeight: 500,
+            }}
           >
             Total Proofs
           </span>
-          <span className="text-2xl font-normal text-black mt-4">{stats.total}</span>
+          <span
+            style={{
+              fontFamily: "Space Mono, monospace",
+              fontSize: 26,
+              fontWeight: 400,
+              color: "#000000",
+            }}
+          >
+            {stats.total}
+          </span>
         </div>
         {/* Approved */}
-        <div className="flex-1 p-4 flex flex-col justify-between border-r border-[#000000]">
+        <div
+          className="flex-1 flex flex-col justify-between"
+          style={{
+            padding: 16,
+            gap: 16,
+            backgroundColor: "#BDBDBD",
+            borderRight: "1px solid #000000",
+          }}
+        >
           <span
-            className="text-xs font-medium uppercase px-2 py-1 rounded inline-block"
-            style={{ backgroundColor: "#3EB100", color: "#FFFFFF" }}
+            className="uppercase inline-block"
+            style={{
+              backgroundColor: "#3EB100",
+              color: "#FFFFFF",
+              padding: "3px 8px 4px",
+              borderRadius: 4,
+              fontFamily: "IBM Plex Mono, monospace",
+              fontSize: 12,
+              fontWeight: 500,
+            }}
           >
             Approved
           </span>
-          <span className="text-2xl font-normal text-black mt-4">{stats.approved}</span>
+          <span
+            style={{
+              fontFamily: "Space Mono, monospace",
+              fontSize: 26,
+              fontWeight: 400,
+              color: "#000000",
+            }}
+          >
+            {stats.approved}
+          </span>
         </div>
         {/* Pending */}
-        <div className="flex-1 p-4 flex flex-col justify-between border-r border-[#000000]">
+        <div
+          className="flex-1 flex flex-col justify-between"
+          style={{
+            padding: 16,
+            gap: 16,
+            backgroundColor: "#BDBDBD",
+            borderRight: "1px solid #000000",
+          }}
+        >
           <span
-            className="text-xs font-medium uppercase px-2 py-1 rounded inline-block"
-            style={{ backgroundColor: "#AA6C00", color: "#FFFFFF" }}
+            className="uppercase inline-block"
+            style={{
+              backgroundColor: "#AA6C00",
+              color: "#FFFFFF",
+              padding: "3px 8px 4px",
+              borderRadius: 4,
+              fontFamily: "IBM Plex Mono, monospace",
+              fontSize: 12,
+              fontWeight: 500,
+            }}
           >
             Pending
           </span>
-          <span className="text-2xl font-normal text-black mt-4">{stats.pending}</span>
+          <span
+            style={{
+              fontFamily: "Space Mono, monospace",
+              fontSize: 26,
+              fontWeight: 400,
+              color: "#000000",
+            }}
+          >
+            {stats.pending}
+          </span>
         </div>
         {/* Rejected */}
-        <div className="flex-1 p-4 flex flex-col justify-between">
+        <div
+          className="flex-1 flex flex-col justify-between"
+          style={{
+            padding: 16,
+            gap: 16,
+            backgroundColor: "#BDBDBD",
+          }}
+        >
           <span
-            className="text-xs font-medium uppercase px-2 py-1 rounded inline-block"
-            style={{ backgroundColor: "#CD0003", color: "#FFFFFF" }}
+            className="uppercase inline-block"
+            style={{
+              backgroundColor: "#CD0003",
+              color: "#FFFFFF",
+              padding: "3px 8px 4px",
+              borderRadius: 4,
+              fontFamily: "IBM Plex Mono, monospace",
+              fontSize: 12,
+              fontWeight: 500,
+            }}
           >
             Rejected
           </span>
-          <span className="text-2xl font-normal text-black mt-4">{stats.rejected}</span>
+          <span
+            style={{
+              fontFamily: "Space Mono, monospace",
+              fontSize: 26,
+              fontWeight: 400,
+              color: "#000000",
+            }}
+          >
+            {stats.rejected}
+          </span>
         </div>
       </div>
 
