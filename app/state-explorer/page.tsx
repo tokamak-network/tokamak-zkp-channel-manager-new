@@ -6,7 +6,7 @@
 
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useAccount } from "wagmi";
 import { useChannelFlowStore } from "@/stores/useChannelFlowStore";
@@ -27,8 +27,10 @@ export default function StateExplorerPage() {
     useState<ContractChannelState | null>(null);
   const [hasWithdrawableAmount, setHasWithdrawableAmount] = useState(false);
 
-  console.log("contractChannelState", contractChannelState);
-  console.log("hasWithdrawableAmount", hasWithdrawableAmount);
+  // Store targetContract from API (persists even after cleanupChannel)
+  const [targetContractFromApi, setTargetContractFromApi] = useState<
+    string | null
+  >(null);
 
   // Get channel state from contract
   const {
@@ -43,8 +45,8 @@ export default function StateExplorerPage() {
     },
   });
 
-  // Get target contract for the channel
-  const { data: targetContract } = useBridgeCoreRead({
+  // Get target contract from contract (may be 0x0 after cleanupChannel)
+  const { data: targetContractFromContract } = useBridgeCoreRead({
     functionName: "getChannelTargetContract",
     args: currentChannelId ? [currentChannelId as `0x${string}`] : undefined,
     query: {
@@ -52,29 +54,64 @@ export default function StateExplorerPage() {
     },
   });
 
+  // Fetch targetContract from API as fallback (stored in DB, persists after cleanupChannel)
+  const fetchTargetContractFromApi = useCallback(async () => {
+    if (!currentChannelId) return;
+
+    try {
+      const response = await fetch(
+        `/api/channels/${encodeURIComponent(currentChannelId)}`
+      );
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.data?.targetContract) {
+          setTargetContractFromApi(data.data.targetContract);
+        }
+      }
+    } catch (error) {
+      console.error(
+        "[StateExplorerPage] Failed to fetch channel from API:",
+        error
+      );
+    }
+  }, [currentChannelId]);
+
+  // Fetch targetContract from API on mount or when channelId changes
+  useEffect(() => {
+    fetchTargetContractFromApi();
+  }, [fetchTargetContractFromApi]);
+
+  // Use contract targetContract if valid, otherwise use API fallback
+  const targetContract =
+    targetContractFromContract &&
+    targetContractFromContract !== "0x0000000000000000000000000000000000000000"
+      ? (targetContractFromContract as string)
+      : targetContractFromApi;
+
   // Get withdrawable amount for current user
   // After cleanupChannel, channel state becomes 0 but withdrawable amounts remain
-  const { data: withdrawableAmount, refetch: refetchWithdrawable } = useBridgeCoreRead({
-    functionName: "getWithdrawableAmount",
-    args:
-      currentChannelId && address && targetContract
-        ? [
-            currentChannelId as `0x${string}`,
-            address as `0x${string}`,
-            targetContract as `0x${string}`,
-          ]
-        : undefined,
-    query: {
-      enabled: !!currentChannelId && !!address && !!targetContract && isConnected,
-    },
-  });
+  const { data: withdrawableAmount, refetch: refetchWithdrawable } =
+    useBridgeCoreRead({
+      functionName: "getWithdrawableAmount",
+      args:
+        currentChannelId && address && targetContract
+          ? [
+              currentChannelId as `0x${string}`,
+              address as `0x${string}`,
+              targetContract as `0x${string}`,
+            ]
+          : undefined,
+      query: {
+        enabled:
+          !!currentChannelId && !!address && !!targetContract && isConnected,
+      },
+    });
 
   // Update hasWithdrawableAmount when withdrawableAmount changes
   useEffect(() => {
     if (withdrawableAmount !== undefined) {
       const amount = BigInt(withdrawableAmount.toString());
       setHasWithdrawableAmount(amount > BigInt(0));
-      console.log("[StateExplorerPage] Withdrawable amount:", amount.toString());
     }
   }, [withdrawableAmount]);
 
@@ -90,16 +127,10 @@ export default function StateExplorerPage() {
   // Listen for submit proof success events to refetch channel state
   useEffect(() => {
     const handleProofSubmitSuccess = () => {
-      console.log(
-        "[StateExplorerPage] Proof submit success detected, refetching channel state..."
-      );
       refetchWithRetry(3); // Expect state 3 (Closing)
     };
 
     const handleChannelCloseSuccess = () => {
-      console.log(
-        "[StateExplorerPage] Channel close success detected, refetching channel state and withdrawable amount..."
-      );
       // After verifyFinalBalancesGroth16, cleanupChannel is called which sets state to 0
       // but withdrawable amounts are preserved. So we need to check withdrawable amount.
       refetchWithdrawable();
@@ -116,17 +147,10 @@ export default function StateExplorerPage() {
           async () => {
             try {
               const result = await refetchChannelState();
-              console.log(
-                "[StateExplorerPage] Channel state refetched:",
-                result
-              );
 
               if (result.data !== undefined) {
                 const newState = Number(result.data) as ContractChannelState;
                 if (newState === expectedState) {
-                  console.log(
-                    `[StateExplorerPage] Channel state changed to ${expectedState}`
-                  );
                   return; // Success, stop retrying
                 }
               }
@@ -136,11 +160,7 @@ export default function StateExplorerPage() {
                 retryCount++;
                 attemptRefetch();
               }
-            } catch (error) {
-              console.error(
-                "[StateExplorerPage] Failed to refetch channel state:",
-                error
-              );
+            } catch {
               if (retryCount < maxRetries) {
                 retryCount++;
                 attemptRefetch();
@@ -202,20 +222,22 @@ export default function StateExplorerPage() {
       {/* state === 3 (Closing): Show state3 page with close channel button */}
       {/* state === 4 (Closed) OR state === 0 with withdrawable amount: Show withdraw page */}
       {/* state === 0 (None) without withdrawable: Show deposit page (new channel) */}
-      
+
       {/* Withdraw page: state 4 OR state 0 with withdrawable amount (after cleanupChannel) */}
-      {(contractChannelState === 4 || (contractChannelState === 0 && hasWithdrawableAmount)) && (
+      {(contractChannelState === 4 ||
+        (contractChannelState === 0 && hasWithdrawableAmount)) && (
         <WithdrawPage />
       )}
-      
+
       {/* Deposit page: state 1 OR state 0 without withdrawable (new channel) */}
-      {(contractChannelState === 1 || (contractChannelState === 0 && !hasWithdrawableAmount)) && (
+      {(contractChannelState === 1 ||
+        (contractChannelState === 0 && !hasWithdrawableAmount)) && (
         <DepositPage />
       )}
-      
+
       {/* Transaction page: state 2 */}
       {contractChannelState === 2 && <TransactionPage />}
-      
+
       {/* State3 page: state 3 */}
       {contractChannelState === 3 && <State3Page />}
 

@@ -10,6 +10,7 @@
 import { Button, Card, CardContent } from "@tokamak/ui";
 import { useChannelFlowStore } from "@/stores/useChannelFlowStore";
 import { useWithdraw } from "./_hooks";
+import { formatUnits } from "viem";
 
 export function WithdrawPage() {
   const { currentChannelId } = useChannelFlowStore();
@@ -18,10 +19,11 @@ export function WithdrawPage() {
     isWithdrawing,
     withdrawSuccess,
     error,
+    withdrawableAmount,
   } = useWithdraw({ channelId: currentChannelId });
 
-  // TODO: Get from contract
-  const withdrawableAmount = "10.5";
+  // Format withdrawable amount (assuming 18 decimals for ERC20 tokens)
+  const formattedAmount = formatUnits(withdrawableAmount, 18);
   const tokenSymbol = "TON";
 
   return (
@@ -38,7 +40,7 @@ export function WithdrawPage() {
         <div className="p-6 bg-gray-50 rounded-lg">
           <p className="text-sm text-gray-600 mb-2">Available to Withdraw</p>
           <p className="text-3xl font-bold text-gray-900">
-            {withdrawableAmount} {tokenSymbol}
+            {formattedAmount} {tokenSymbol}
           </p>
         </div>
 

@@ -24,13 +24,58 @@ export function useWithdraw({ channelId }: UseWithdrawParams) {
   const { address, isConnected } = useAccount();
   const [isWithdrawing, setIsWithdrawing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [targetContractFromApi, setTargetContractFromApi] = useState<string | null>(null);
 
-  // Get targetContract from channel info
-  const { data: channelTargetContract } = useBridgeCoreRead({
+  // Get targetContract from contract (may be 0x0 after cleanupChannel)
+  const { data: targetContractFromContract } = useBridgeCoreRead({
     functionName: "getChannelTargetContract",
     args: channelId ? [toBytes32(channelId) as `0x${string}`] : undefined,
     query: {
       enabled: !!channelId && isConnected,
+    },
+  });
+
+  // Fetch targetContract from API as fallback (stored in DB, persists after cleanupChannel)
+  useEffect(() => {
+    const fetchTargetContract = async () => {
+      if (!channelId) return;
+      
+      try {
+        const response = await fetch(`/api/channels/${encodeURIComponent(channelId)}`);
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.data?.targetContract) {
+            setTargetContractFromApi(data.data.targetContract);
+          }
+        }
+      } catch (error) {
+        console.error("[useWithdraw] Failed to fetch channel from API:", error);
+      }
+    };
+
+    fetchTargetContract();
+  }, [channelId]);
+
+  // Use contract targetContract if valid, otherwise use API fallback
+  const channelTargetContract =
+    targetContractFromContract &&
+    targetContractFromContract !== "0x0000000000000000000000000000000000000000"
+      ? (targetContractFromContract as `0x${string}`)
+      : (targetContractFromApi as `0x${string}` | null);
+
+  // Get withdrawable amount
+  const { data: withdrawableAmount } = useBridgeCoreRead({
+    functionName: "getWithdrawableAmount",
+    args:
+      channelId && address && channelTargetContract
+        ? [
+            toBytes32(channelId) as `0x${string}`,
+            address as `0x${string}`,
+            channelTargetContract as `0x${string}`,
+          ]
+        : undefined,
+    query: {
+      enabled: !!channelId && !!address && !!channelTargetContract && isConnected,
     },
   });
 
@@ -149,5 +194,6 @@ export function useWithdraw({ channelId }: UseWithdrawParams) {
     withdrawSuccess,
     error: error || writeError?.message || withdrawTxError?.message || null,
     channelTargetContract,
+    withdrawableAmount: withdrawableAmount ? BigInt(withdrawableAmount.toString()) : BigInt(0),
   };
 }
