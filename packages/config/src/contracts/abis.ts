@@ -3048,6 +3048,26 @@ export const BRIDGEPROOFMANAGER_ABI = [
             "name": "selfbalance",
             "type": "uint256",
             "internalType": "uint256"
+          },
+          {
+            "name": "blockHash1",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "blockHash2",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "blockHash3",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "blockHash4",
+            "type": "uint256",
+            "internalType": "uint256"
           }
         ]
       }
@@ -3637,170 +3657,6 @@ export const TOKAMAKVERIFIER_ABI = [
         "name": "final_result",
         "type": "bool",
         "internalType": "bool"
-      }
-    ],
-    "stateMutability": "view"
-  }
-] as const satisfies Abi;
-
-export const ZECFROST_ABI = [
-  {
-    "type": "function",
-    "name": "isValidPublicKey",
-    "inputs": [
-      {
-        "name": "x",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "y",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "result",
-        "type": "bool",
-        "internalType": "bool"
-      }
-    ],
-    "stateMutability": "pure"
-  },
-  {
-    "type": "function",
-    "name": "measureVerify",
-    "inputs": [
-      {
-        "name": "message",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      },
-      {
-        "name": "px",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "py",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "rx",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "ry",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "z",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "cold",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "warm",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "verify",
-    "inputs": [
-      {
-        "name": "message",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      },
-      {
-        "name": "px",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "py",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "rx",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "ry",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "z",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "signer",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "verifyBytes",
-    "inputs": [
-      {
-        "name": "message",
-        "type": "bytes",
-        "internalType": "bytes"
-      },
-      {
-        "name": "px",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "py",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "rx",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "ry",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "z",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "signer",
-        "type": "address",
-        "internalType": "address"
       }
     ],
     "stateMutability": "view"
