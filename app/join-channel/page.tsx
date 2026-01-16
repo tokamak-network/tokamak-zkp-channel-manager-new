@@ -151,35 +151,6 @@ export default function JoinChannelPage() {
           </div>
         </div>
 
-        {/* Status Messages */}
-        {hasInput && !isFormatValid && (
-          <p className="font-mono text-sm text-red-500 -mt-12">
-            Channel ID must be a valid bytes32 format (0x + 64 hex characters)
-          </p>
-        )}
-        {isFormatValid && isCheckingParticipant && (
-          <p className="font-mono text-sm text-[#2A72E5] -mt-12">
-            Checking participant status...
-          </p>
-        )}
-        {isFormatValid && !isCheckingParticipant && isParticipant === false && (
-          <p className="font-mono text-sm text-red-500 -mt-12">
-            Your wallet address is not registered as a participant in this channel
-          </p>
-        )}
-        {participantError && isParticipant !== false && (
-          <p className="font-mono text-sm text-red-500 -mt-12">
-            {participantError}
-          </p>
-        )}
-        {error && (
-          <p className="font-mono text-sm text-red-500 -mt-12">{error}</p>
-        )}
-        {!isConnected && (
-          <p className="font-mono text-sm text-yellow-600 -mt-12">
-            Please connect your wallet to join a channel
-          </p>
-        )}
       </div>
     </div>
   );

@@ -10,7 +10,6 @@
 import { useRouter } from "next/navigation";
 import { useAccount } from "wagmi";
 import { useState, useEffect } from "react";
-import { Button } from "@tokamak/ui";
 import { useChannelFlowStore } from "@/stores/useChannelFlowStore";
 import { AppLayout } from "@/components/AppLayout";
 import { formatAddress } from "@/lib/utils/format";
@@ -107,13 +106,6 @@ export default function StateExplorerLayout({
   // Modal state
   const [showConfirmModal, setShowConfirmModal] = useState(false);
 
-  // Show modal when initialization succeeds
-  useEffect(() => {
-    if (initializeSuccess && initializeTxHash) {
-      setShowConfirmModal(true);
-    }
-  }, [initializeSuccess, initializeTxHash]);
-
   // Refetch channel state when close succeeds
   useEffect(() => {
     if (closeSuccess) {
@@ -139,12 +131,17 @@ export default function StateExplorerLayout({
     );
   }
 
+  const handleOpenInitializeModal = () => {
+    if (!channelId) return;
+    setShowConfirmModal(true);
+  };
+
   const handleInitializeState = async () => {
     if (!channelId) return;
     await initializeState();
   };
 
-  const handleConfirmModal = async () => {
+  const handleCloseModal = async () => {
     setShowConfirmModal(false);
     // Refetch channel state to check if it's now active
     // The page will automatically show transaction component when state changes
@@ -192,93 +189,94 @@ export default function StateExplorerLayout({
 
   return (
     <AppLayout>
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <h1 className="text-3xl font-bold">Channel #{formatAddress(channelId)}</h1>
-            <button
-              onClick={handleCopyChannelId}
-              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors"
-              title={copied ? "Copied!" : "Copy channel ID"}
-            >
-              {copied ? (
-                <Check className="w-5 h-5 text-green-600 dark:text-green-400" />
-              ) : (
-                <Copy className="w-5 h-5 text-gray-500 dark:text-gray-400" />
-              )}
-            </button>
-          </div>
+      <div className="space-y-12">
+        {/* Header - Channel ID */}
+        <div className="flex items-center gap-8">
+          <h1
+            className="font-mono font-medium text-[#111111]"
+            style={{ fontSize: 40, lineHeight: "1.3em" }}
+          >
+            Channel {formatAddress(channelId)}
+          </h1>
+          <button
+            onClick={handleCopyChannelId}
+            className="hover:opacity-70 transition-opacity"
+            title={copied ? "Copied!" : "Copy channel ID"}
+          >
+            {copied ? (
+              <Check className="text-[#3EB100]" style={{ width: 40, height: 40 }} />
+            ) : (
+              <Copy className="text-[#666666]" style={{ width: 40, height: 40 }} />
+            )}
+          </button>
         </div>
 
         {/* Leader Actions */}
         {isLeader && contractChannelState !== null && (
-          <div className="flex gap-3">
+          <div className="flex gap-6" style={{ width: 544 }}>
             {/* state === 1 (Initialized): Show Initialize State button during deposit phase */}
             {contractChannelState === 1 && (
-              <Button
-                onClick={handleInitializeState}
-                disabled={isProcessing}
+              <button
+                type="button"
+                onClick={handleOpenInitializeModal}
+                className="flex-1 flex items-center justify-center font-mono font-medium transition-colors"
+                style={{
+                  height: 40,
+                  padding: "16px 24px",
+                  borderRadius: 4,
+                  border: "1px solid #111111",
+                  backgroundColor: "#0FBCBC",
+                  color: "#FFFFFF",
+                  fontSize: 18,
+                  cursor: "pointer",
+                }}
               >
-                {isProcessing
-                  ? isGeneratingProof
-                    ? `Generating Proof... ${proofStatus || ""}`
-                    : isWriting
-                    ? "Signing Transaction..."
-                    : isWaiting
-                    ? "Waiting for Confirmation..."
-                    : "Processing..."
-                  : "Initialize State"}
-              </Button>
+                Initialize State
+              </button>
             )}
             {/* state === 2 (Open): Show Close Channel button during transaction phase */}
             {contractChannelState === 2 && (
-              <Button
+              <button
+                type="button"
                 onClick={handleCloseChannel}
                 disabled={isClosingChannel}
-                variant="outline"
+                className="flex-1 flex items-center justify-center font-mono font-medium transition-colors"
+                style={{
+                  height: 40,
+                  padding: "16px 24px",
+                  borderRadius: 4,
+                  border: "1px solid #111111",
+                  backgroundColor: "#999999",
+                  color: "#DCDCDC",
+                  fontSize: 18,
+                  cursor: isClosingChannel ? "not-allowed" : "pointer",
+                }}
               >
                 {isClosingChannel
                   ? isWritingClose
-                    ? "Signing Transaction..."
+                    ? "Signing..."
                     : isWaitingClose
-                    ? "Waiting for Confirmation..."
+                    ? "Confirming..."
                     : "Processing..."
                   : "Close Channel"}
-              </Button>
+              </button>
             )}
             {/* state === 3 (Closing) or state === 4 (Closed): No buttons during withdraw phase */}
           </div>
         )}
 
-        {/* Error Messages */}
-        {initializeError && (
-          <div className="p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
-            {initializeError}
-          </div>
-        )}
-        {closeError && (
-          <div className="p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
-            Close Channel Error: {closeError}
-          </div>
-        )}
-        {closeSuccess && closeTxHash && (
-          <div className="p-3 bg-green-50 border border-green-200 rounded text-green-700 text-sm">
-            Channel closed successfully! Transaction: {closeTxHash}
-          </div>
-        )}
-
         {/* Page Content */}
-        <div className="mt-8">{children}</div>
+        <div>{children}</div>
       </div>
 
       {/* Initialize State Confirm Modal */}
-      {showConfirmModal && initializeTxHash && channelId && (
+      {showConfirmModal && channelId && (
         <InitializeStateConfirmModal
           channelId={channelId}
-          txHash={initializeTxHash}
-          onClose={() => setShowConfirmModal(false)}
-          onConfirm={handleConfirmModal}
+          onInitialize={handleInitializeState}
+          isProcessing={isProcessing}
+          txHash={initializeTxHash ?? null}
+          onClose={handleCloseModal}
         />
       )}
     </AppLayout>

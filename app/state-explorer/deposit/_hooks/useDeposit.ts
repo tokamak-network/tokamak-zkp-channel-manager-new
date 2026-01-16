@@ -47,6 +47,7 @@ export function useDeposit({
     writeContract: writeDeposit,
     data: depositTxHash,
     isPending: isDepositPending,
+    error: depositWriteError,
   } = useBridgeDepositManagerWrite();
 
   const {
@@ -97,14 +98,25 @@ export function useDeposit({
     setDepositing,
   ]);
 
-  // Handle deposit error
+  // Handle deposit write error (e.g., user rejected in MetaMask)
+  useEffect(() => {
+    if (depositWriteError) {
+      setDepositError(
+        depositWriteError.message || "Deposit transaction rejected"
+      );
+      setDepositing(false);
+      console.error("❌ Deposit write error:", depositWriteError);
+    }
+  }, [depositWriteError, setDepositError, setDepositing]);
+
+  // Handle deposit transaction error (after submission)
   useEffect(() => {
     if (depositTxError) {
       setDepositError(
         depositTxError.message || "Deposit transaction failed"
       );
       setDepositing(false);
-      console.error("❌ Deposit error:", depositTxError);
+      console.error("❌ Deposit tx error:", depositTxError);
     }
   }, [depositTxError, setDepositError, setDepositing]);
 

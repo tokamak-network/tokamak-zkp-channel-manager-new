@@ -287,19 +287,6 @@ export function CreateChannelForm() {
           </div>
         </div>
 
-        {/* Error Messages */}
-        {createError && (
-          <div className="p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm font-mono">
-            {createError}
-          </div>
-        )}
-
-        {!isConnected && (
-          <div className="p-3 bg-yellow-50 border border-yellow-200 rounded text-yellow-700 text-sm font-mono">
-            Please connect your wallet to create a channel
-          </div>
-        )}
-
         {/* Create Channel Button */}
         <Button size="full" onClick={handleOpenConfirmModal} disabled={!isFormValid}>
           Create Channel

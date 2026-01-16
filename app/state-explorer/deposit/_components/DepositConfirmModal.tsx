@@ -1,14 +1,14 @@
 /**
- * Initialize State Confirm Modal
+ * Deposit Confirm Modal
  *
- * Modal for confirming and completing state initialization
+ * Modal for confirming and completing deposit transaction
  * Two states:
- * 1. Confirm State Initialize: Before transaction execution
- * 2. State Initialized: After transaction completion
+ * 1. Confirm Transaction: Before transaction execution
+ * 2. Transaction Confirmed: After transaction completion
  *
  * Design:
- * - Before: https://www.figma.com/design/0R11fVZOkNSTJjhTKvUjc7/Ooo?node-id=3110-212731
- * - After: https://www.figma.com/design/0R11fVZOkNSTJjhTKvUjc7/Ooo?node-id=3110-212753
+ * - Confirm: https://www.figma.com/design/0R11fVZOkNSTJjhTKvUjc7/Ooo?node-id=3110-212007
+ * - Confirmed: https://www.figma.com/design/0R11fVZOkNSTJjhTKvUjc7/Ooo?node-id=3110-212167
  */
 
 "use client";
@@ -17,21 +17,25 @@ import { useState } from "react";
 import { X, Copy } from "lucide-react";
 import { Button } from "@/components/ui";
 
-interface InitializeStateConfirmModalProps {
+interface DepositConfirmModalProps {
   channelId: string;
-  onInitialize: () => Promise<void>;
+  depositAmount: string;
+  tokenSymbol?: string;
+  onDeposit: () => Promise<void>;
   isProcessing: boolean;
   txHash: string | null;
   onClose: () => void;
 }
 
-export function InitializeStateConfirmModal({
+export function DepositConfirmModal({
   channelId,
-  onInitialize,
+  depositAmount,
+  tokenSymbol = "TON",
+  onDeposit,
   isProcessing,
   txHash,
   onClose,
-}: InitializeStateConfirmModalProps) {
+}: DepositConfirmModalProps) {
   const [copiedChannelId, setCopiedChannelId] = useState(false);
   const [copiedTxHash, setCopiedTxHash] = useState(false);
 
@@ -39,7 +43,7 @@ export function InitializeStateConfirmModal({
   const isTransactionConfirmed = !!txHash && !isProcessing;
 
   const handleConfirm = async () => {
-    await onInitialize();
+    await onDeposit();
   };
 
   const handleCopyChannelId = async () => {
@@ -69,7 +73,7 @@ export function InitializeStateConfirmModal({
         {/* Header */}
         <div className="flex items-center justify-between">
           <h2 className="text-2xl font-medium text-[#111111]">
-            {isTransactionConfirmed ? "State Initialized" : "Confirm State Initialize"}
+            {isTransactionConfirmed ? "Transaction Confirmed" : "Confirm Transaction"}
           </h2>
           <button
             type="button"
@@ -120,6 +124,21 @@ export function InitializeStateConfirmModal({
                     className={`w-6 h-6 ${copiedTxHash ? "text-[#3EB100]" : "text-[#666666]"}`}
                   />
                 </button>
+              </div>
+            </div>
+          )}
+
+          {/* Deposit Amount - Only show before confirmed */}
+          {!isTransactionConfirmed && (
+            <div className="space-y-2">
+              <p className="text-lg text-[#666666]">Deposit Amount</p>
+              <div className="flex items-center justify-between py-3.5">
+                <p className="text-lg font-medium text-[#111111]">
+                  {depositAmount}
+                </p>
+                <p className="text-lg font-medium text-[#111111]">
+                  {tokenSymbol}
+                </p>
               </div>
             </div>
           )}

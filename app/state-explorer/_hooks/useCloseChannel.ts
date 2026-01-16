@@ -71,7 +71,7 @@ export function useCloseChannel({
     setIsProcessing(isWriting || isWaiting);
   }, [isWriting, isWaiting]);
 
-  // Handle errors
+  // Handle errors and reset processing state
   useEffect(() => {
     if (writeError) {
       const errorMessage =
@@ -79,6 +79,7 @@ export function useCloseChannel({
           ? writeError.message
           : "Failed to submit close channel transaction";
       setError(errorMessage);
+      setIsProcessing(false);
       console.error("❌ Close channel write error:", writeError);
     }
   }, [writeError]);
@@ -90,6 +91,7 @@ export function useCloseChannel({
           ? waitError.message
           : "Close channel transaction failed";
       setError(errorMessage);
+      setIsProcessing(false);
       console.error("❌ Close channel wait error:", waitError);
     }
   }, [waitError]);

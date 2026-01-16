@@ -3,12 +3,12 @@
  *
  * Component for depositing tokens to channel
  * Shows when channel is not initialized
+ * Design based on Figma: https://www.figma.com/design/0R11fVZOkNSTJjhTKvUjc7/Ooo?node-id=3110-210864
  */
 
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { Button, Input, Label, Card, CardContent } from "@tokamak/ui";
 import { useChannelFlowStore } from "@/stores/useChannelFlowStore";
 import { useDepositStore } from "@/stores/useDepositStore";
 import { useApprove, useDeposit } from "./_hooks";
@@ -17,6 +17,9 @@ import { useChannelInfo } from "@/hooks/useChannelInfo";
 import { useTokenBalance } from "@/hooks/useTokenBalance";
 import { FIXED_TARGET_CONTRACT } from "@tokamak/config";
 import { formatUnits } from "viem";
+import { RefreshCw, Copy } from "lucide-react";
+import { Button, AmountInput } from "@/components/ui";
+import { DepositConfirmModal } from "./_components/DepositConfirmModal";
 
 export function DepositPage() {
   const { currentChannelId } = useChannelFlowStore();
@@ -111,151 +114,167 @@ export function DepositPage() {
     await generate();
   };
 
+  const handleMaxClick = () => {
+    if (userTokenBalance !== undefined) {
+      setDepositAmount(formatUnits(userTokenBalance, tokenDecimals));
+    }
+  };
+
+  // Format balance for display
+  const formattedBalance = useMemo(() => {
+    if (userTokenBalance === undefined) return "0";
+    return formatUnits(userTokenBalance, tokenDecimals);
+  }, [userTokenBalance, tokenDecimals]);
+
+  const isFormValid =
+    currentUserMPTKey &&
+    depositAmount &&
+    !isDepositing &&
+    !isInsufficientBalance &&
+    (!needsApproval || approvalSuccess);
+
+  // Modal state
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+
+  const handleOpenConfirmModal = () => {
+    if (isFormValid) {
+      setShowConfirmModal(true);
+    }
+  };
+
+  const handleCloseModal = () => {
+    setShowConfirmModal(false);
+  };
+
   return (
-    <Card className="max-w-2xl">
-      <CardContent className="space-y-6 pt-6">
-        <div>
-          <h3 className="text-xl font-semibold mb-4">Deposit Tokens</h3>
-          <p className="text-gray-600 text-sm">
-            Generate your L2 MPT Key and deposit tokens to the channel
-          </p>
-        </div>
+    <div className="font-mono" style={{ width: 544 }}>
+      {/* Deposit Section */}
+      <div className="flex flex-col gap-6">
+        {/* Title */}
+        <h2
+          className="font-medium text-[#111111]"
+          style={{ fontSize: 32, lineHeight: "1.3em" }}
+        >
+          Deposit
+        </h2>
 
         {/* L2 MPT Key */}
-        <div>
-          <Label>L2 MPT Key</Label>
-          <div className="flex gap-2 mt-2">
-            <Input
-              value={currentUserMPTKey || ""}
-              placeholder="Generate your L2 MPT Key"
-              readOnly
-              className="flex-1 font-mono text-sm"
-            />
-            <Button
-              onClick={handleGenerateKey}
-              disabled={isGenerating || !currentChannelId}
-              variant="outline"
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center justify-between w-full">
+            <label
+              className="font-medium text-[#111111]"
+              style={{ fontSize: 18, lineHeight: "1.3em" }}
             >
-              {isGenerating
-                ? "Signing & Generating..."
-                : currentUserMPTKey
-                ? "Regenerate"
-                : "Generate & Sign"}
-            </Button>
-          </div>
-          {mptKeyError && (
-            <p className="text-sm text-red-500 mt-1">{mptKeyError}</p>
-          )}
-          {!mptKeyError && !currentUserMPTKey && (
-            <p className="text-sm text-gray-500 mt-1">
-              Click "Generate & Sign" to sign a message and generate your unique
-              MPT key for this channel
-            </p>
-          )}
-          {!mptKeyError && currentUserMPTKey && (
-            <p className="text-sm text-green-600 mt-1">
-              ✓ MPT Key generated. You can regenerate if needed.
-            </p>
-          )}
-        </div>
-
-        {/* Deposit Amount */}
-        <div>
-          <Label required>Deposit Amount</Label>
-          <Input
-            type="number"
-            value={depositAmount}
-            onChange={(e) => setDepositAmount(e.target.value)}
-            placeholder="Enter amount to deposit"
-            className={`mt-2 ${
-              isInsufficientBalance
-                ? "border-red-500 focus:border-red-500 focus:ring-red-500"
-                : ""
-            }`}
-          />
-          {userTokenBalance !== undefined && (
-            <p className="text-sm text-gray-500 mt-1">
-              Your balance:{" "}
-              <span className="font-semibold">
-                {formatUnits(userTokenBalance, tokenDecimals)} {tokenSymbol}
-              </span>
-            </p>
-          )}
-          {/* Only show insufficient balance message when deposit button is visible (not when approve button is shown) */}
-          {isInsufficientBalance && (!needsApproval || approvalSuccess) && (
-            <p className="text-sm text-red-500 mt-1">
-              Insufficient balance. You cannot deposit more than your current
-              balance.
-            </p>
-          )}
-          {!isInsufficientBalance && userTokenBalance === undefined && (
-            <p className="text-sm text-gray-500 mt-1">
-              Enter the amount of {tokenSymbol} to deposit
-            </p>
-          )}
-        </div>
-
-        {/* Approve Error */}
-        {approveError && (
-          <div className="p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
-            {approveError.message || "Failed to approve tokens"}
-          </div>
-        )}
-
-        {/* Deposit Error */}
-        {(depositError || depositTxError) && (
-          <div className="p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
-            {depositError ||
-              depositTxError?.message ||
-              "Failed to deposit tokens"}
-          </div>
-        )}
-
-        {/* Success Messages */}
-        {approvalSuccess && !depositTxHash && (
-          <div className="p-3 bg-green-50 border border-green-200 rounded text-green-700 text-sm">
-            ✓ Tokens approved successfully
-          </div>
-        )}
-        {depositTxHash && (
-          <div className="p-3 bg-blue-50 border border-blue-200 rounded text-blue-700 text-sm">
-            <p className="font-semibold mb-1">Transaction Submitted</p>
-            <p className="text-xs font-mono break-all">{depositTxHash}</p>
-            {isDepositing && (
-              <p className="text-xs mt-1">Waiting for confirmation...</p>
+              L2 MPT Key
+            </label>
+            {currentUserMPTKey ? (
+              <button
+                type="button"
+                onClick={handleGenerateKey}
+                disabled={isGenerating || !currentChannelId}
+                className="p-1 hover:bg-[#F2F2F2] rounded transition-colors"
+                title="Regenerate MPT Key"
+              >
+                <RefreshCw className="w-6 h-6 text-[#2A72E5]" />
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={handleGenerateKey}
+                disabled={isGenerating || !currentChannelId}
+                className="flex items-center justify-center font-medium text-white transition-colors"
+                style={{
+                  width: 120,
+                  height: 40,
+                  borderRadius: 4,
+                  border: "1px solid #111111",
+                  backgroundColor: isGenerating ? "#999999" : "#2A72E5",
+                  fontSize: 18,
+                  cursor: isGenerating || !currentChannelId ? "not-allowed" : "pointer",
+                }}
+              >
+                {isGenerating ? "Generating..." : "Generate"}
+              </button>
             )}
           </div>
-        )}
+          <div
+            className="w-full flex items-center justify-between"
+            style={{
+              backgroundColor: "#F2F2F2",
+              borderRadius: 4,
+              padding: "14px 16px",
+              fontSize: 18,
+              minHeight: 52,
+            }}
+          >
+            <span
+              className={`truncate ${currentUserMPTKey ? "text-[#111111]" : "text-[#999999]"}`}
+              style={{ maxWidth: currentUserMPTKey ? "calc(100% - 32px)" : "100%" }}
+            >
+              {currentUserMPTKey
+                ? `${currentUserMPTKey.slice(0, 42)}...`
+                : "Click Generate to create your L2 MPT Key"}
+            </span>
+            {currentUserMPTKey && (
+              <button
+                type="button"
+                onClick={() => navigator.clipboard.writeText(currentUserMPTKey)}
+                className="flex-shrink-0 p-1 hover:bg-[#E5E5E5] rounded transition-colors"
+                title="Copy MPT Key"
+              >
+                <Copy className="w-6 h-6 text-[#666666]" />
+              </button>
+            )}
+          </div>
+        </div>
 
-        {/* Approve Button - Shows when approval is needed */}
-        {/* Note: Approve button is not disabled by balance check - users can approve even without sufficient balance */}
+        {/* Amount */}
+        <AmountInput
+          value={depositAmount}
+          onChange={setDepositAmount}
+          balance={formattedBalance}
+          tokenSymbol={tokenSymbol}
+          onMaxClick={handleMaxClick}
+          error={isInsufficientBalance}
+        />
+
+        {/* Approve Button */}
         {needsApproval && !approvalSuccess && (
           <Button
+            variant="primary"
+            size="full"
             onClick={handleApprove}
             disabled={!depositAmount || isApproving}
-            className="w-full"
-            variant="outline"
           >
-            {isApproving ? "Approving..." : "Approve Tokens"}
+            {isApproving ? "Approving..." : "Approve"}
           </Button>
         )}
 
-        {/* Deposit Button - Shows when no approval needed or approval successful */}
+        {/* Confirm Button */}
         {(!needsApproval || approvalSuccess) && (
           <Button
-            onClick={handleDeposit}
-            disabled={
-              !currentUserMPTKey ||
-              !depositAmount ||
-              isDepositing ||
-              isInsufficientBalance
-            }
-            className="w-full"
+            variant="primary"
+            size="full"
+            onClick={handleOpenConfirmModal}
+            disabled={!isFormValid}
           >
-            {isDepositing ? "Depositing..." : "Deposit"}
+            Confirm
           </Button>
         )}
-      </CardContent>
-    </Card>
+      </div>
+
+      {/* Deposit Confirm Modal */}
+      {showConfirmModal && currentChannelId && (
+        <DepositConfirmModal
+          channelId={currentChannelId}
+          depositAmount={depositAmount}
+          tokenSymbol={tokenSymbol}
+          onDeposit={handleDeposit}
+          isProcessing={isDepositing}
+          txHash={depositTxHash ?? null}
+          onClose={handleCloseModal}
+        />
+      )}
+    </div>
   );
 }

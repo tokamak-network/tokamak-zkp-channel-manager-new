@@ -45,14 +45,17 @@ export function useInitializeState({ channelId }: UseInitializeStateParams) {
     },
   });
 
-  // Update error state
+  // Update error state and reset processing on error
   useEffect(() => {
     if (proofError) {
       setError(proofError);
+      setIsProcessing(false);
     } else if (writeError) {
       setError(writeError.message);
+      setIsProcessing(false);
     } else if (waitError) {
       setError(waitError.message);
+      setIsProcessing(false);
     } else {
       setError(null);
     }
