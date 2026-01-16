@@ -22,11 +22,27 @@ import { addHexPrefix } from "@ethereumjs/util";
 import { ProofList } from "./_components/ProofList";
 import { ProofGenerationModal } from "./_components/ProofGenerationModal";
 import { Button, AmountInput } from "@/components/ui";
+import { useBridgeCoreRead } from "@/hooks/contract";
 
 export function TransactionPage() {
   const { address, isConnected } = useAccount();
   const { signMessageAsync } = useSignMessage();
   const { currentChannelId } = useChannelFlowStore();
+
+  // Get channel leader
+  const { data: channelLeader } = useBridgeCoreRead({
+    functionName: "getChannelLeader",
+    args: currentChannelId ? [currentChannelId as `0x${string}`] : undefined,
+    query: {
+      enabled: !!currentChannelId && !!address,
+    },
+  });
+
+  // Check if current user is leader
+  const isLeader =
+    channelLeader && address
+      ? String(channelLeader).toLowerCase() === String(address).toLowerCase()
+      : false;
 
   // Form state
   const [keySeed, setKeySeed] = useState<`0x${string}` | null>(null);
@@ -361,7 +377,7 @@ export function TransactionPage() {
 
       {/* Proofs Section */}
       <div className="mt-12">
-        {/* Header: Title + Submit Proof Button */}
+        {/* Header: Title + Submit Proof Button (Leader only) */}
         <div className="flex items-center justify-between mb-6">
           <h2
             className="font-medium text-[#111111]"
@@ -369,27 +385,29 @@ export function TransactionPage() {
           >
             Proofs
           </h2>
-          <button
-            type="button"
-            onClick={() => proofActions?.openSubmitProofModal()}
-            disabled={!proofActions || proofActions.approvedProofsCount === 0 || proofActions.isLoadingProofs || proofActions.isSubmitting}
-            className="flex items-center justify-center font-mono font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            style={{
-              height: 40,
-              padding: "16px 24px",
-              borderRadius: 4,
-              border: "1px solid #111111",
-              backgroundColor: "#2A72E5",
-              color: "#FFFFFF",
-              fontSize: 18,
-            }}
-          >
-            {proofActions?.isLoadingProofs
-              ? "Loading..."
-              : proofActions?.isSubmitting
-              ? "Submitting..."
-              : "Submit Proof"}
-          </button>
+          {isLeader && (
+            <button
+              type="button"
+              onClick={() => proofActions?.openSubmitProofModal()}
+              disabled={!proofActions || proofActions.approvedProofsCount === 0 || proofActions.isLoadingProofs || proofActions.isSubmitting}
+              className="flex items-center justify-center font-mono font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{
+                height: 40,
+                padding: "16px 24px",
+                borderRadius: 4,
+                border: "1px solid #111111",
+                backgroundColor: "#2A72E5",
+                color: "#FFFFFF",
+                fontSize: 18,
+              }}
+            >
+              {proofActions?.isLoadingProofs
+                ? "Loading..."
+                : proofActions?.isSubmitting
+                ? "Submitting..."
+                : "Submit Proof"}
+            </button>
+          )}
         </div>
 
         <ProofList 

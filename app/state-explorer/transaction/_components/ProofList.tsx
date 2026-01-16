@@ -16,19 +16,10 @@ import {
   Upload,
   Trash2,
   FileCheck,
-  AlertTriangle,
-  CheckCircle2,
   ChevronLeft,
   ChevronRight,
+  X,
 } from "lucide-react";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { Button } from "@tokamak/ui";
 import { useChannelFlowStore } from "@/stores/useChannelFlowStore";
 import { useBridgeCoreRead } from "@/hooks/contract";
@@ -109,6 +100,11 @@ export function ProofList({ onActionsReady }: ProofListProps) {
   const [isSubmitProofModalOpen, setIsSubmitProofModalOpen] = useState(false);
   const [isSubmitProofConfirmModalOpen, setIsSubmitProofConfirmModalOpen] = useState(false);
 
+  // Verify modal state
+  const [showVerifyModal, setShowVerifyModal] = useState(false);
+  const [proofToVerify, setProofToVerify] = useState<Proof | null>(null);
+  const [verifyResult, setVerifyResult] = useState<"idle" | "verifying" | "success" | "error">("idle");
+
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 10;
@@ -154,6 +150,26 @@ export function ProofList({ onActionsReady }: ProofListProps) {
   const approvedProofsCount = proofs.filter(
     (p) => p.status === "verified"
   ).length;
+
+  // Handle verify button click - opens modal
+  const handleVerifyClick = (proof: Proof) => {
+    setProofToVerify(proof);
+    setVerifyResult("idle");
+    setShowVerifyModal(true);
+  };
+
+  // Handle verify confirmation
+  const handleVerifyConfirm = async () => {
+    if (!proofToVerify) return;
+    
+    setVerifyResult("verifying");
+    try {
+      await handleVerifyProof(proofToVerify);
+      setVerifyResult("success");
+    } catch {
+      setVerifyResult("error");
+    }
+  };
 
   // Handle submit proof button click
   const handleSubmitProofClick = async () => {
@@ -245,14 +261,13 @@ export function ProofList({ onActionsReady }: ProofListProps) {
       {/* Summary Statistics */}
       <div
         className="flex rounded"
-        style={{ border: "1px solid #000000" }}
+        style={{ border: "1px solid #000000", height: 80 }}
       >
         {/* Total Proofs */}
         <div
           className="flex-1 flex flex-col justify-between"
           style={{
-            padding: 16,
-            gap: 16,
+            padding: "12px 16px",
             backgroundColor: "#FFFFFF",
             borderRight: "1px solid #000000",
           }}
@@ -274,7 +289,7 @@ export function ProofList({ onActionsReady }: ProofListProps) {
           <span
             style={{
               fontFamily: "Space Mono, monospace",
-              fontSize: 26,
+              fontSize: 20,
               fontWeight: 400,
               color: "#000000",
             }}
@@ -286,8 +301,7 @@ export function ProofList({ onActionsReady }: ProofListProps) {
         <div
           className="flex-1 flex flex-col justify-between"
           style={{
-            padding: 16,
-            gap: 16,
+            padding: "12px 16px",
             backgroundColor: "#FFFFFF",
             borderRight: "1px solid #000000",
           }}
@@ -309,7 +323,7 @@ export function ProofList({ onActionsReady }: ProofListProps) {
           <span
             style={{
               fontFamily: "Space Mono, monospace",
-              fontSize: 26,
+              fontSize: 20,
               fontWeight: 400,
               color: "#000000",
             }}
@@ -321,8 +335,7 @@ export function ProofList({ onActionsReady }: ProofListProps) {
         <div
           className="flex-1 flex flex-col justify-between"
           style={{
-            padding: 16,
-            gap: 16,
+            padding: "12px 16px",
             backgroundColor: "#FFFFFF",
             borderRight: "1px solid #000000",
           }}
@@ -344,7 +357,7 @@ export function ProofList({ onActionsReady }: ProofListProps) {
           <span
             style={{
               fontFamily: "Space Mono, monospace",
-              fontSize: 26,
+              fontSize: 20,
               fontWeight: 400,
               color: "#000000",
             }}
@@ -356,8 +369,7 @@ export function ProofList({ onActionsReady }: ProofListProps) {
         <div
           className="flex-1 flex flex-col justify-between"
           style={{
-            padding: 16,
-            gap: 16,
+            padding: "12px 16px",
             backgroundColor: "#FFFFFF",
           }}
         >
@@ -378,7 +390,7 @@ export function ProofList({ onActionsReady }: ProofListProps) {
           <span
             style={{
               fontFamily: "Space Mono, monospace",
-              fontSize: 26,
+              fontSize: 20,
               fontWeight: 400,
               color: "#000000",
             }}
@@ -389,25 +401,43 @@ export function ProofList({ onActionsReady }: ProofListProps) {
       </div>
 
       {/* Download/Upload Buttons */}
-      <div className="flex justify-end gap-3">
+      <div className="flex justify-end gap-2">
         <button
           type="button"
           onClick={handleDownloadAllApprovedProofs}
           disabled={isDownloadingAllApproved || approvedProofsCount === 0}
-          className="flex items-center gap-1.5 px-3 py-2 border border-[#111111] rounded bg-white disabled:opacity-50 disabled:cursor-not-allowed"
-          style={{ fontSize: 18, height: 40 }}
+          className="flex items-center justify-center rounded bg-white disabled:opacity-50 disabled:cursor-not-allowed"
+          style={{
+            gap: 6,
+            padding: "6px 12px",
+            border: "1px solid #BBBBBB",
+            borderRadius: 4,
+            fontFamily: "IBM Plex Mono, monospace",
+            fontSize: 14,
+            fontWeight: 500,
+            color: "#111111",
+          }}
         >
           <Download className="w-4 h-4" />
-          {isDownloadingAllApproved ? "Downloading..." : "Download"}
+          {isDownloadingAllApproved ? "Downloading..." : "Download Proofs"}
         </button>
         <button
           type="button"
           onClick={() => setIsSubmitProofModalOpen(true)}
-          className="flex items-center gap-1.5 px-3 py-2 border border-[#111111] rounded bg-white"
-          style={{ fontSize: 18, height: 40 }}
+          className="flex items-center justify-center rounded bg-white"
+          style={{
+            gap: 6,
+            padding: "6px 12px",
+            border: "1px solid #BBBBBB",
+            borderRadius: 4,
+            fontFamily: "IBM Plex Mono, monospace",
+            fontSize: 14,
+            fontWeight: 500,
+            color: "#111111",
+          }}
         >
           <Upload className="w-4 h-4" />
-          Upload
+          Upload Proofs
         </button>
       </div>
 
@@ -428,7 +458,14 @@ export function ProofList({ onActionsReady }: ProofListProps) {
                 }`}
               >
                 {/* Radio button for pending proofs (leader only) */}
-                <div className="w-[34px] flex items-center justify-center px-2">
+                <div 
+                  className="w-[34px] flex items-center justify-center px-2 cursor-pointer"
+                  onClick={() => {
+                    if (proof.status === "pending" && isLeader) {
+                      setSelectedProofForApproval(proof.key);
+                    }
+                  }}
+                >
                   {proof.status === "pending" && isLeader && (
                     <input
                       type="radio"
@@ -436,7 +473,7 @@ export function ProofList({ onActionsReady }: ProofListProps) {
                       value={proof.key}
                       checked={selectedProofForApproval === proof.key}
                       onChange={(e) => setSelectedProofForApproval(e.target.value)}
-                      className="w-[18px] h-[18px] cursor-pointer"
+                      className="w-[18px] h-[18px] cursor-pointer accent-[#2A72E5]"
                     />
                   )}
                 </div>
@@ -467,7 +504,7 @@ export function ProofList({ onActionsReady }: ProofListProps) {
                 <div className="flex items-center gap-2 px-2">
                   <button
                     type="button"
-                    onClick={() => handleVerifyProof(proof)}
+                    onClick={() => handleVerifyClick(proof)}
                     disabled={isVerifying}
                     className="p-1.5 hover:bg-[#F2F2F2] rounded transition-colors disabled:opacity-50"
                     title="Verify Proof"
@@ -505,23 +542,25 @@ export function ProofList({ onActionsReady }: ProofListProps) {
       <div className="flex items-center justify-between">
         {/* Approve Selected Proof Button */}
         {showApproveButton ? (
-          <button
-            type="button"
-            onClick={handleApproveSelected}
-            disabled={!selectedProofForApproval || isVerifying}
-            className="flex items-center justify-center font-mono font-medium transition-colors disabled:opacity-50"
-            style={{
-              height: 40,
-              padding: "16px 24px",
-              borderRadius: 4,
-              border: "1px solid #111111",
-              backgroundColor: "#2A72E5",
-              color: "#FFFFFF",
-              fontSize: 18,
-            }}
-          >
-            {isVerifying ? "Processing..." : "Approve Selected Proof"}
-          </button>
+          (() => {
+            const isDisabled = !selectedProofForApproval || isVerifying;
+            return (
+              <button
+                type="button"
+                onClick={handleApproveSelected}
+                disabled={isDisabled}
+                className="font-mono font-medium rounded border transition-colors flex items-center justify-center h-12 px-6 text-lg"
+                style={{
+                  backgroundColor: isDisabled ? "#999999" : "#2A72E5",
+                  color: isDisabled ? "#DCDCDC" : "#FFFFFF",
+                  borderColor: "#111111",
+                  cursor: isDisabled ? "not-allowed" : "pointer",
+                }}
+              >
+                {isVerifying ? "Processing..." : "Approve Selected Proof"}
+              </button>
+            );
+          })()
         ) : (
           <div />
         )}
@@ -570,67 +609,247 @@ export function ProofList({ onActionsReady }: ProofListProps) {
       </div>
 
       {/* Delete Confirmation Modal */}
-      <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
-        <DialogContent className="sm:max-w-md bg-white border-gray-200">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-red-600">
-              <AlertTriangle className="h-5 w-5" />
-              Delete Proof
-            </DialogTitle>
-            <DialogDescription className="text-gray-600">
-              Are you sure you want to delete this proof? This action cannot be
-              undone.
-            </DialogDescription>
-          </DialogHeader>
-
-          {proofToDelete && (
-            <div className="py-4">
-              <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
-                <div className="text-sm text-gray-600 mb-1">Proof ID</div>
-                <div className="font-mono font-medium text-gray-900">
-                  {proofToDelete.proofId}
-                </div>
-                <div className="text-sm text-gray-600 mt-2 mb-1">Date</div>
-                <div className="text-sm text-gray-900">
-                  {formatDate(proofToDelete.submittedAt)}
-                </div>
-              </div>
-            </div>
-          )}
-
-          <DialogFooter className="gap-2">
-            <Button
-              variant="outline"
-              color="gray"
-              onClick={() => {
+      {showDeleteConfirm && proofToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/50"
+            onClick={() => {
+              if (deletingProofKey === null) {
                 setShowDeleteConfirm(false);
                 setProofToDelete(null);
-              }}
-              disabled={deletingProofKey !== null}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="primary"
-              color="red"
-              onClick={handleDeleteConfirm}
-              disabled={deletingProofKey !== null}
-            >
-              {deletingProofKey ? (
-                <>
-                  <LoadingSpinner size="sm" className="mr-2" />
-                  Deleting...
-                </>
-              ) : (
-                <>
-                  <Trash2 className="w-4 h-4 mr-2" />
-                  Delete
-                </>
+              }
+            }}
+          />
+
+          {/* Modal */}
+          <div
+            className="relative bg-white rounded-lg shadow-xl font-mono"
+            style={{ width: 480, padding: 32 }}
+          >
+            {/* Close button */}
+            {deletingProofKey === null && (
+              <button
+                type="button"
+                onClick={() => {
+                  setShowDeleteConfirm(false);
+                  setProofToDelete(null);
+                }}
+                className="absolute top-4 right-4 p-1 hover:bg-gray-100 rounded"
+              >
+                <X className="w-5 h-5 text-[#666666]" />
+              </button>
+            )}
+
+            <div className="flex flex-col gap-6">
+              {/* Header */}
+              <div className="text-center">
+                <h3
+                  className="font-medium text-[#111111] mb-2"
+                  style={{ fontSize: 24 }}
+                >
+                  Delete Proof
+                </h3>
+                <p className="text-[#666666]" style={{ fontSize: 14 }}>
+                  Are you sure you want to delete this proof? This action cannot be undone.
+                </p>
+              </div>
+
+              {/* Proof Details */}
+              <div className="w-full space-y-3 pt-4 border-t border-[#EEEEEE]">
+                <div className="flex justify-between">
+                  <span className="text-[#666666]" style={{ fontSize: 14 }}>
+                    Proof ID
+                  </span>
+                  <span className="text-[#111111] font-medium" style={{ fontSize: 14 }}>
+                    {proofToDelete.status === "verified"
+                      ? `Proof#${proofToDelete.sequenceNumber}`
+                      : `Proof#${proofToDelete.sequenceNumber}-${proofToDelete.subNumber}`}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-[#666666]" style={{ fontSize: 14 }}>
+                    Date
+                  </span>
+                  <span className="text-[#111111] font-medium" style={{ fontSize: 14 }}>
+                    {formatDate(proofToDelete.submittedAt)}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-[#666666]" style={{ fontSize: 14 }}>
+                    Status
+                  </span>
+                  <span className="text-[#111111] font-medium" style={{ fontSize: 14 }}>
+                    {proofToDelete.status === "verified" ? "Approved" : 
+                     proofToDelete.status === "pending" ? "Pending" : "Rejected"}
+                  </span>
+                </div>
+              </div>
+
+              {/* Buttons */}
+              <div className="flex gap-3">
+                <Button
+                  variant="outline"
+                  size="md"
+                  className="flex-1"
+                  onClick={() => {
+                    setShowDeleteConfirm(false);
+                    setProofToDelete(null);
+                  }}
+                  disabled={deletingProofKey !== null}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="danger"
+                  size="md"
+                  className="flex-1"
+                  onClick={handleDeleteConfirm}
+                  disabled={deletingProofKey !== null}
+                >
+                  {deletingProofKey ? "Deleting..." : "Delete"}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Verify Confirmation Modal */}
+      {showVerifyModal && proofToVerify && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/50"
+            onClick={() => {
+              if (verifyResult !== "verifying") {
+                setShowVerifyModal(false);
+                setProofToVerify(null);
+                setVerifyResult("idle");
+              }
+            }}
+          />
+
+          {/* Modal */}
+          <div
+            className="relative bg-white rounded-lg shadow-xl font-mono"
+            style={{ width: 480, padding: 32 }}
+          >
+            {/* Close button */}
+            {verifyResult !== "verifying" && (
+              <button
+                type="button"
+                onClick={() => {
+                  setShowVerifyModal(false);
+                  setProofToVerify(null);
+                  setVerifyResult("idle");
+                }}
+                className="absolute top-4 right-4 p-1 hover:bg-gray-100 rounded"
+              >
+                <X className="w-5 h-5 text-[#666666]" />
+              </button>
+            )}
+
+            <div className="flex flex-col gap-6">
+              {/* Header */}
+              <div className="text-center">
+                <h3
+                  className="font-medium text-[#111111] mb-2"
+                  style={{ fontSize: 24 }}
+                >
+                  {verifyResult === "success" ? "Verification Complete" : 
+                   verifyResult === "error" ? "Verification Failed" : "Verify Proof"}
+                </h3>
+                <p className="text-[#666666]" style={{ fontSize: 14 }}>
+                  {verifyResult === "success" 
+                    ? "The proof has been verified successfully."
+                    : verifyResult === "error"
+                    ? "Failed to verify the proof. Please try again."
+                    : verifyResult === "verifying"
+                    ? "Verifying proof..."
+                    : "Verify the proof details below"}
+                </p>
+              </div>
+
+              {/* Proof Details */}
+              <div className="w-full space-y-3 pt-4 border-t border-[#EEEEEE]">
+                <div className="flex justify-between">
+                  <span className="text-[#666666]" style={{ fontSize: 14 }}>
+                    Proof ID
+                  </span>
+                  <span className="text-[#111111] font-medium" style={{ fontSize: 14 }}>
+                    {proofToVerify.status === "verified"
+                      ? `Proof#${proofToVerify.sequenceNumber}`
+                      : `Proof#${proofToVerify.sequenceNumber}-${proofToVerify.subNumber}`}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-[#666666]" style={{ fontSize: 14 }}>
+                    Date
+                  </span>
+                  <span className="text-[#111111] font-medium" style={{ fontSize: 14 }}>
+                    {formatDate(proofToVerify.submittedAt)}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-[#666666]" style={{ fontSize: 14 }}>
+                    Status
+                  </span>
+                  <span className="text-[#111111] font-medium" style={{ fontSize: 14 }}>
+                    {proofToVerify.status === "verified" ? "Approved" : 
+                     proofToVerify.status === "pending" ? "Pending" : "Rejected"}
+                  </span>
+                </div>
+              </div>
+
+              {/* Buttons */}
+              {verifyResult === "idle" && (
+                <div className="flex gap-3">
+                  <Button
+                    variant="outline"
+                    size="md"
+                    className="flex-1"
+                    onClick={() => {
+                      setShowVerifyModal(false);
+                      setProofToVerify(null);
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    variant="primary"
+                    size="md"
+                    className="flex-1"
+                    onClick={handleVerifyConfirm}
+                  >
+                    Verify
+                  </Button>
+                </div>
               )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+
+              {verifyResult === "verifying" && (
+                <div className="flex justify-center">
+                  <LoadingSpinner size="lg" />
+                </div>
+              )}
+
+              {(verifyResult === "success" || verifyResult === "error") && (
+                <Button
+                  variant="primary"
+                  size="md"
+                  onClick={() => {
+                    setShowVerifyModal(false);
+                    setProofToVerify(null);
+                    setVerifyResult("idle");
+                  }}
+                >
+                  Close
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Submit Proof Modal (Upload) */}
       {currentChannelId && (

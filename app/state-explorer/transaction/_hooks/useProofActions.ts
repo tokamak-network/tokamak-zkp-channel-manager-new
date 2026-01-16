@@ -236,33 +236,27 @@ export function useProofActions({
 
   // Handle proof verification (test/check only - doesn't persist to DB)
   // This is for testing purposes and doesn't permanently change proof status
+  // Returns a promise that resolves on success, rejects on error
   const handleVerifyProof = useCallback(async (proof: Proof) => {
     if (!proof.key || !address) {
-      return;
+      throw new Error("Missing proof key or address");
     }
 
     setIsVerifying(true);
 
     try {
-      // For testing: Just show a success message without persisting to DB
+      // For testing: Simulate verification without persisting to DB
       // The proof status will remain as "pending" after page refresh
       console.log("Verifying proof (test mode):", proof.proofId);
 
       // Simulate verification delay
       await new Promise((resolve) => setTimeout(resolve, 1000));
 
-      // Show success message
-      alert(`Proof ${proof.proofId} verified successfully.`);
-
       // Note: We don't call the API or refresh the proof list
       // This allows users to test verify functionality without permanent changes
     } catch (error) {
       console.error("Error verifying proof:", error);
-      alert(
-        `Failed to verify proof: ${
-          error instanceof Error ? error.message : "Unknown error"
-        }`
-      );
+      throw error;
     } finally {
       setIsVerifying(false);
     }
