@@ -144,6 +144,14 @@ export function State3Page() {
     }
   }, [hookError]);
 
+  // Dispatch event when transaction succeeds to trigger channel state refetch in parent
+  useEffect(() => {
+    if (isTransactionSuccess) {
+      console.log("[State3Page] ✅ Transaction success, dispatching channel-close-success event");
+      window.dispatchEvent(new CustomEvent('channel-close-success'));
+    }
+  }, [isTransactionSuccess]);
+
   // Build permutation array based on BridgeProofManager.sol contract logic
   // Contract expects: permutation.length == preAllocatedCount + participants.length
   // permutation[i] = index in registeredKeys (publicSignals) where i-th entry should be placed
@@ -840,7 +848,7 @@ export function State3Page() {
           <div className="p-4 bg-green-50 border border-green-200 rounded text-green-700 flex items-center gap-2">
             <CheckCircle className="w-5 h-5" />
             <span>
-              Channel closed successfully! Channel state is now 4 (Closed).
+              Channel closed successfully! Channel state is now 4 (Closed). Redirecting to withdraw...
             </span>
           </div>
         )}

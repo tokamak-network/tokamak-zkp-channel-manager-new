@@ -49,8 +49,16 @@ export default function StateExplorerPage() {
   useEffect(() => {
     const handleProofSubmitSuccess = () => {
       console.log("[StateExplorerPage] Proof submit success detected, refetching channel state...");
-      // Refetch channel state with retry logic
-      // First attempt after 1 second, then retry every 2 seconds up to 3 times
+      refetchWithRetry(3); // Expect state 3 (Closing)
+    };
+
+    const handleChannelCloseSuccess = () => {
+      console.log("[StateExplorerPage] Channel close success detected, refetching channel state...");
+      refetchWithRetry(4); // Expect state 4 (Closed)
+    };
+
+    // Refetch channel state with retry logic
+    const refetchWithRetry = (expectedState: ContractChannelState) => {
       let retryCount = 0;
       const maxRetries = 3;
       
@@ -60,11 +68,10 @@ export default function StateExplorerPage() {
             const result = await refetchChannelState();
             console.log("[StateExplorerPage] Channel state refetched:", result);
             
-            // Check if state changed to 3 (Closing)
             if (result.data !== undefined) {
               const newState = Number(result.data) as ContractChannelState;
-              if (newState === 3) {
-                console.log("[StateExplorerPage] Channel state changed to 3 (Closing)");
+              if (newState === expectedState) {
+                console.log(`[StateExplorerPage] Channel state changed to ${expectedState}`);
                 return; // Success, stop retrying
               }
             }
@@ -87,11 +94,13 @@ export default function StateExplorerPage() {
       attemptRefetch();
     };
 
-    // Listen for custom event from ProofList component
+    // Listen for custom events
     window.addEventListener('proof-submit-success', handleProofSubmitSuccess);
+    window.addEventListener('channel-close-success', handleChannelCloseSuccess);
 
     return () => {
       window.removeEventListener('proof-submit-success', handleProofSubmitSuccess);
+      window.removeEventListener('channel-close-success', handleChannelCloseSuccess);
     };
   }, [refetchChannelState]);
 
