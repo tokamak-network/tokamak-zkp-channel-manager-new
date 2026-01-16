@@ -16,7 +16,6 @@ import {
   FileCheck,
   AlertTriangle,
   CheckCircle2,
-  Upload,
 } from "lucide-react";
 import {
   Dialog,
@@ -38,9 +37,15 @@ import { SubmitProofConfirmModal } from "./SubmitProofConfirmModal";
 
 interface ProofListProps {
   onRefresh?: () => void;
+  onActionsReady?: (actions: {
+    downloadAllApproved: () => void;
+    openUploadModal: () => void;
+    isDownloadingAllApproved: boolean;
+    approvedProofsCount: number;
+  }) => void;
 }
 
-export function ProofList({}: ProofListProps) {
+export function ProofList({ onActionsReady }: ProofListProps) {
   const { address } = useAccount();
   const { currentChannelId } = useChannelFlowStore();
 
@@ -136,6 +141,18 @@ export function ProofList({}: ProofListProps) {
     (p) => p.status === "verified"
   ).length;
 
+  // Expose actions to parent component
+  useEffect(() => {
+    if (onActionsReady) {
+      onActionsReady({
+        downloadAllApproved: handleDownloadAllApprovedProofs,
+        openUploadModal: () => setIsSubmitProofModalOpen(true),
+        isDownloadingAllApproved,
+        approvedProofsCount,
+      });
+    }
+  }, [onActionsReady, handleDownloadAllApprovedProofs, isDownloadingAllApproved, approvedProofsCount]);
+
   // Handle submit proof button click
   const handleSubmitProofClick = async () => {
     if (!currentChannelId || approvedProofsCount === 0) {
@@ -228,36 +245,6 @@ export function ProofList({}: ProofListProps) {
 
   return (
     <div className="space-y-6">
-      {/* Action Buttons */}
-      <div className="flex justify-between items-center">
-        <Button
-          variant="primary"
-          color="green"
-          onClick={handleDownloadAllApprovedProofs}
-          disabled={isDownloadingAllApproved || approvedProofsCount === 0}
-        >
-          {isDownloadingAllApproved ? (
-            <>
-              <LoadingSpinner size="sm" className="mr-2" />
-              Downloading...
-            </>
-          ) : (
-            <>
-              <Download className="w-4 h-4 mr-2" />
-              All Approved Proof Download ({approvedProofsCount})
-            </>
-          )}
-        </Button>
-        <Button
-          variant="primary"
-          color="blue"
-          onClick={() => setIsSubmitProofModalOpen(true)}
-        >
-          <Upload className="w-4 h-4 mr-2" />
-          Upload Proof
-        </Button>
-      </div>
-
       {/* Summary Statistics */}
       <div className="grid grid-cols-4 gap-4">
         <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">

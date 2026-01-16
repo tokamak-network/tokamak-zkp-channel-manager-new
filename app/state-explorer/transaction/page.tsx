@@ -47,6 +47,14 @@ export function TransactionPage() {
   const [proofListRefreshKey, setProofListRefreshKey] = useState(0);
   const [submitTxHash, setSubmitTxHash] = useState<string | null>(null);
 
+  // Proof actions from ProofList
+  const [proofActions, setProofActions] = useState<{
+    downloadAllApproved: () => void;
+    openUploadModal: () => void;
+    isDownloadingAllApproved: boolean;
+    approvedProofsCount: number;
+  } | null>(null);
+
   // Hook to fetch previous state snapshot
   const { fetchSnapshot } = usePreviousStateSnapshot({
     channelId: currentChannelId || null,
@@ -424,15 +432,19 @@ export function TransactionPage() {
           <div className="flex gap-2">
             <button
               type="button"
-              className="flex items-center gap-2 px-4 py-2 border border-[#111111] rounded bg-white"
+              onClick={() => proofActions?.downloadAllApproved()}
+              disabled={!proofActions || proofActions.isDownloadingAllApproved || proofActions.approvedProofsCount === 0}
+              className="flex items-center gap-2 px-4 py-2 border border-[#111111] rounded bg-white disabled:opacity-50 disabled:cursor-not-allowed"
               style={{ fontSize: 18 }}
             >
               <Download className="w-5 h-5" />
-              Download
+              {proofActions?.isDownloadingAllApproved ? "Downloading..." : "Download"}
             </button>
             <button
               type="button"
-              className="flex items-center gap-2 px-4 py-2 border border-[#111111] rounded bg-white"
+              onClick={() => proofActions?.openUploadModal()}
+              disabled={!proofActions}
+              className="flex items-center gap-2 px-4 py-2 border border-[#111111] rounded bg-white disabled:opacity-50 disabled:cursor-not-allowed"
               style={{ fontSize: 18 }}
             >
               <Upload className="w-5 h-5" />
@@ -440,7 +452,10 @@ export function TransactionPage() {
             </button>
           </div>
         </div>
-        <ProofList key={proofListRefreshKey} />
+        <ProofList 
+          key={proofListRefreshKey}
+          onActionsReady={setProofActions}
+        />
       </div>
 
       {/* Transaction Confirm Modal */}
