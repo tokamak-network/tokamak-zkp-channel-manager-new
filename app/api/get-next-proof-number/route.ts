@@ -22,7 +22,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const channelIdStr = String(channelId);
+    // Normalize channelId to lowercase for consistent DB lookup
+    const channelIdStr = String(channelId).toLowerCase();
 
     // Get verified proofs count to determine next sequence number
     // This is the source of truth for sequence numbers

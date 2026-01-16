@@ -10,15 +10,18 @@ export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
     const file = formData.get("file") as File;
-    const channelId = formData.get("channelId") as string;
+    const rawChannelId = formData.get("channelId") as string;
     const proofId = formData.get("proofId") as string;
 
-    if (!file || !channelId || !proofId) {
+    if (!file || !rawChannelId || !proofId) {
       return NextResponse.json(
         { error: "Missing required fields: file, channelId, or proofId" },
         { status: 400 }
       );
     }
+
+    // Normalize channelId to lowercase for consistent DB storage
+    const channelId = rawChannelId.toLowerCase();
 
     // Check file size
     const MAX_FILE_SIZE = 500 * 1024 * 1024; // 500MB limit

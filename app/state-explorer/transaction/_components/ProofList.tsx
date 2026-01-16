@@ -109,6 +109,10 @@ export function ProofList({ onActionsReady }: ProofListProps) {
   const [isSubmitProofModalOpen, setIsSubmitProofModalOpen] = useState(false);
   const [isSubmitProofConfirmModalOpen, setIsSubmitProofConfirmModalOpen] = useState(false);
 
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
+
   // Submit proof hook
   const {
     loadAndFormatProofs,
@@ -128,6 +132,19 @@ export function ProofList({ onActionsReady }: ProofListProps) {
     pending: proofs.filter((p) => p.status === "pending").length,
     rejected: proofs.filter((p) => p.status === "rejected").length,
   };
+
+  // Pagination calculations
+  const totalPages = Math.max(1, Math.ceil(proofs.length / ITEMS_PER_PAGE));
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const endIndex = startIndex + ITEMS_PER_PAGE;
+  const paginatedProofs = proofs.slice(startIndex, endIndex);
+
+  // Reset to page 1 if current page is out of bounds
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(1);
+    }
+  }, [currentPage, totalPages]);
 
   // Get pending proofs for leader approval
   const pendingProofs = proofs.filter((p) => p.status === "pending");
@@ -228,7 +245,7 @@ export function ProofList({ onActionsReady }: ProofListProps) {
       {/* Summary Statistics */}
       <div
         className="flex rounded"
-        style={{ border: "1px solid #000000", gap: 20 }}
+        style={{ border: "1px solid #000000" }}
       >
         {/* Total Proofs */}
         <div
@@ -236,7 +253,7 @@ export function ProofList({ onActionsReady }: ProofListProps) {
           style={{
             padding: 16,
             gap: 16,
-            backgroundColor: "#BDBDBD",
+            backgroundColor: "#FFFFFF",
             borderRight: "1px solid #000000",
           }}
         >
@@ -271,7 +288,7 @@ export function ProofList({ onActionsReady }: ProofListProps) {
           style={{
             padding: 16,
             gap: 16,
-            backgroundColor: "#BDBDBD",
+            backgroundColor: "#FFFFFF",
             borderRight: "1px solid #000000",
           }}
         >
@@ -306,7 +323,7 @@ export function ProofList({ onActionsReady }: ProofListProps) {
           style={{
             padding: 16,
             gap: 16,
-            backgroundColor: "#BDBDBD",
+            backgroundColor: "#FFFFFF",
             borderRight: "1px solid #000000",
           }}
         >
@@ -341,7 +358,7 @@ export function ProofList({ onActionsReady }: ProofListProps) {
           style={{
             padding: 16,
             gap: 16,
-            backgroundColor: "#BDBDBD",
+            backgroundColor: "#FFFFFF",
           }}
         >
           <span
@@ -401,13 +418,13 @@ export function ProofList({ onActionsReady }: ProofListProps) {
             No proofs found for this channel
           </div>
         ) : (
-          proofs.map((proof, index) => {
+          paginatedProofs.map((proof, index) => {
             const statusStyle = getStatusBadgeStyle(proof.status);
             return (
               <div
                 key={proof.key}
                 className={`flex items-center py-2.5 ${
-                  index < proofs.length - 1 ? "border-b border-[#DDDDDD]" : ""
+                  index < paginatedProofs.length - 1 ? "border-b border-[#DDDDDD]" : ""
                 }`}
               >
                 {/* Radio button for pending proofs (leader only) */}
@@ -509,41 +526,47 @@ export function ProofList({ onActionsReady }: ProofListProps) {
           <div />
         )}
 
-        {/* Pagination */}
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            disabled
-            className="w-5 h-5 flex items-center justify-center text-sm text-[#A8A8A8]"
-          >
-            <ChevronLeft className="w-4 h-4" />
-          </button>
-          <button
-            type="button"
-            className="w-5 h-6 flex items-center justify-center text-sm text-white rounded"
-            style={{ backgroundColor: "#04008A" }}
-          >
-            1
-          </button>
-          <button
-            type="button"
-            className="w-5 h-6 flex items-center justify-center text-sm text-[#222222]"
-          >
-            2
-          </button>
-          <button
-            type="button"
-            className="w-5 h-6 flex items-center justify-center text-sm text-[#222222]"
-          >
-            3
-          </button>
-          <button
-            type="button"
-            className="w-5 h-5 flex items-center justify-center text-sm text-[#222222]"
-          >
-            <ChevronRight className="w-4 h-4" />
-          </button>
-        </div>
+        {/* Pagination - only show if there are proofs */}
+        {proofs.length > 0 && (
+          <div className="flex items-center gap-2">
+            {/* Previous button */}
+            <button
+              type="button"
+              onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+              disabled={currentPage === 1}
+              className="w-5 h-5 flex items-center justify-center text-sm disabled:text-[#A8A8A8] text-[#222222]"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            
+            {/* Page numbers */}
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+              <button
+                key={page}
+                type="button"
+                onClick={() => setCurrentPage(page)}
+                className={`w-5 h-6 flex items-center justify-center text-sm rounded ${
+                  currentPage === page
+                    ? "text-white"
+                    : "text-[#222222]"
+                }`}
+                style={currentPage === page ? { backgroundColor: "#04008A" } : {}}
+              >
+                {page}
+              </button>
+            ))}
+            
+            {/* Next button */}
+            <button
+              type="button"
+              onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+              disabled={currentPage === totalPages}
+              className="w-5 h-5 flex items-center justify-center text-sm disabled:text-[#A8A8A8] text-[#222222]"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Delete Confirmation Modal */}

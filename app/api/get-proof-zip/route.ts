@@ -25,7 +25,8 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const channelIdStr = String(channelId);
+    // Normalize channelId to lowercase for consistent DB lookup
+    const channelIdStr = String(channelId).toLowerCase();
 
     // Get file metadata from database
     const dbPath = `channels.${channelIdStr}.${proofStatus}.${proofId}.zipFile`;

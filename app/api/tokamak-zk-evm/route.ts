@@ -95,9 +95,9 @@ async function safeRemove(targetPath: string, label: string) {
 
 async function handleApproveProof(body: ApproveProofRequest) {
   try {
-    const { channelId, proofKey, sequenceNumber, verifierAddress } = body;
+    const { channelId: rawChannelId, proofKey, sequenceNumber, verifierAddress } = body;
 
-    if (!channelId || !proofKey || !sequenceNumber || !verifierAddress) {
+    if (!rawChannelId || !proofKey || !sequenceNumber || !verifierAddress) {
       return NextResponse.json(
         {
           error:
@@ -106,6 +106,9 @@ async function handleApproveProof(body: ApproveProofRequest) {
         { status: 400 }
       );
     }
+
+    // Normalize channelId to lowercase for consistent DB operations
+    const channelId = String(rawChannelId).toLowerCase();
 
     // Get all submitted proofs
     const submittedProofs = await getProofs(channelId, "submitted");
@@ -454,13 +457,16 @@ export async function POST(req: Request) {
 
     // Handle synthesize action
     const {
-      channelId,
+      channelId: rawChannelId,
       channelInitTxHash,
       signedTxRlpStr,
       previousStateSnapshot,
       includeProof = false,
       chainId,
     } = body;
+
+    // Normalize channelId to lowercase for consistent file/DB operations
+    const channelId = String(rawChannelId).toLowerCase();
 
     // Use provided chainId or default to Sepolia
     const targetChainId = chainId ?? NETWORKS[DEFAULT_NETWORK].id;
