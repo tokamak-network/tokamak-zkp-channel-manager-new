@@ -25,16 +25,58 @@ export default function StateExplorerPage() {
   const { currentChannelId } = useChannelFlowStore();
   const [contractChannelState, setContractChannelState] =
     useState<ContractChannelState | null>(null);
+  const [hasWithdrawableAmount, setHasWithdrawableAmount] = useState(false);
+
+  console.log("contractChannelState", contractChannelState);
+  console.log("hasWithdrawableAmount", hasWithdrawableAmount);
 
   // Get channel state from contract
-  const { data: channelStateData, isLoading: isLoadingState, refetch: refetchChannelState } =
-    useBridgeCoreRead({
-      functionName: "getChannelState",
-      args: currentChannelId ? [currentChannelId as `0x${string}`] : undefined,
-      query: {
-        enabled: !!currentChannelId && isConnected,
-      },
-    });
+  const {
+    data: channelStateData,
+    isLoading: isLoadingState,
+    refetch: refetchChannelState,
+  } = useBridgeCoreRead({
+    functionName: "getChannelState",
+    args: currentChannelId ? [currentChannelId as `0x${string}`] : undefined,
+    query: {
+      enabled: !!currentChannelId && isConnected,
+    },
+  });
+
+  // Get target contract for the channel
+  const { data: targetContract } = useBridgeCoreRead({
+    functionName: "getChannelTargetContract",
+    args: currentChannelId ? [currentChannelId as `0x${string}`] : undefined,
+    query: {
+      enabled: !!currentChannelId && isConnected,
+    },
+  });
+
+  // Get withdrawable amount for current user
+  // After cleanupChannel, channel state becomes 0 but withdrawable amounts remain
+  const { data: withdrawableAmount, refetch: refetchWithdrawable } = useBridgeCoreRead({
+    functionName: "getWithdrawableAmount",
+    args:
+      currentChannelId && address && targetContract
+        ? [
+            currentChannelId as `0x${string}`,
+            address as `0x${string}`,
+            targetContract as `0x${string}`,
+          ]
+        : undefined,
+    query: {
+      enabled: !!currentChannelId && !!address && !!targetContract && isConnected,
+    },
+  });
+
+  // Update hasWithdrawableAmount when withdrawableAmount changes
+  useEffect(() => {
+    if (withdrawableAmount !== undefined) {
+      const amount = BigInt(withdrawableAmount.toString());
+      setHasWithdrawableAmount(amount > BigInt(0));
+      console.log("[StateExplorerPage] Withdrawable amount:", amount.toString());
+    }
+  }, [withdrawableAmount]);
 
   // Update channel state based on contract
   useEffect(() => {
@@ -48,61 +90,85 @@ export default function StateExplorerPage() {
   // Listen for submit proof success events to refetch channel state
   useEffect(() => {
     const handleProofSubmitSuccess = () => {
-      console.log("[StateExplorerPage] Proof submit success detected, refetching channel state...");
+      console.log(
+        "[StateExplorerPage] Proof submit success detected, refetching channel state..."
+      );
       refetchWithRetry(3); // Expect state 3 (Closing)
     };
 
     const handleChannelCloseSuccess = () => {
-      console.log("[StateExplorerPage] Channel close success detected, refetching channel state...");
-      refetchWithRetry(4); // Expect state 4 (Closed)
+      console.log(
+        "[StateExplorerPage] Channel close success detected, refetching channel state and withdrawable amount..."
+      );
+      // After verifyFinalBalancesGroth16, cleanupChannel is called which sets state to 0
+      // but withdrawable amounts are preserved. So we need to check withdrawable amount.
+      refetchWithdrawable();
+      refetchWithRetry(0); // After cleanupChannel, state becomes 0
     };
 
     // Refetch channel state with retry logic
     const refetchWithRetry = (expectedState: ContractChannelState) => {
       let retryCount = 0;
       const maxRetries = 3;
-      
+
       const attemptRefetch = () => {
-        setTimeout(async () => {
-          try {
-            const result = await refetchChannelState();
-            console.log("[StateExplorerPage] Channel state refetched:", result);
-            
-            if (result.data !== undefined) {
-              const newState = Number(result.data) as ContractChannelState;
-              if (newState === expectedState) {
-                console.log(`[StateExplorerPage] Channel state changed to ${expectedState}`);
-                return; // Success, stop retrying
+        setTimeout(
+          async () => {
+            try {
+              const result = await refetchChannelState();
+              console.log(
+                "[StateExplorerPage] Channel state refetched:",
+                result
+              );
+
+              if (result.data !== undefined) {
+                const newState = Number(result.data) as ContractChannelState;
+                if (newState === expectedState) {
+                  console.log(
+                    `[StateExplorerPage] Channel state changed to ${expectedState}`
+                  );
+                  return; // Success, stop retrying
+                }
+              }
+
+              // If state hasn't changed yet and we haven't exceeded max retries, try again
+              if (retryCount < maxRetries) {
+                retryCount++;
+                attemptRefetch();
+              }
+            } catch (error) {
+              console.error(
+                "[StateExplorerPage] Failed to refetch channel state:",
+                error
+              );
+              if (retryCount < maxRetries) {
+                retryCount++;
+                attemptRefetch();
               }
             }
-            
-            // If state hasn't changed yet and we haven't exceeded max retries, try again
-            if (retryCount < maxRetries) {
-              retryCount++;
-              attemptRefetch();
-            }
-          } catch (error) {
-            console.error("[StateExplorerPage] Failed to refetch channel state:", error);
-            if (retryCount < maxRetries) {
-              retryCount++;
-              attemptRefetch();
-            }
-          }
-        }, retryCount === 0 ? 1000 : 2000); // First attempt after 1s, then every 2s
+          },
+          retryCount === 0 ? 1000 : 2000
+        ); // First attempt after 1s, then every 2s
       };
-      
+
       attemptRefetch();
     };
 
     // Listen for custom events
-    window.addEventListener('proof-submit-success', handleProofSubmitSuccess);
-    window.addEventListener('channel-close-success', handleChannelCloseSuccess);
+    window.addEventListener("proof-submit-success", handleProofSubmitSuccess);
+    window.addEventListener("channel-close-success", handleChannelCloseSuccess);
 
     return () => {
-      window.removeEventListener('proof-submit-success', handleProofSubmitSuccess);
-      window.removeEventListener('channel-close-success', handleChannelCloseSuccess);
+      window.removeEventListener(
+        "proof-submit-success",
+        handleProofSubmitSuccess
+      );
+      window.removeEventListener(
+        "channel-close-success",
+        handleChannelCloseSuccess
+      );
     };
-  }, [refetchChannelState]);
+  }, [refetchChannelState, refetchWithdrawable]);
 
   // Redirect if no channel selected
   useEffect(() => {
@@ -134,14 +200,24 @@ export default function StateExplorerPage() {
       {/* state === 1 (Initialized): Show deposit page */}
       {/* state === 2 (Open): Show transaction page */}
       {/* state === 3 (Closing): Show state3 page with close channel button */}
-      {/* state === 4 (Closed): Show withdraw page */}
-      {/* state === 0 (None): Show deposit page (edge case - channel not properly initialized) */}
-      {(contractChannelState === 1 || contractChannelState === 0) && (
+      {/* state === 4 (Closed) OR state === 0 with withdrawable amount: Show withdraw page */}
+      {/* state === 0 (None) without withdrawable: Show deposit page (new channel) */}
+      
+      {/* Withdraw page: state 4 OR state 0 with withdrawable amount (after cleanupChannel) */}
+      {(contractChannelState === 4 || (contractChannelState === 0 && hasWithdrawableAmount)) && (
+        <WithdrawPage />
+      )}
+      
+      {/* Deposit page: state 1 OR state 0 without withdrawable (new channel) */}
+      {(contractChannelState === 1 || (contractChannelState === 0 && !hasWithdrawableAmount)) && (
         <DepositPage />
       )}
+      
+      {/* Transaction page: state 2 */}
       {contractChannelState === 2 && <TransactionPage />}
+      
+      {/* State3 page: state 3 */}
       {contractChannelState === 3 && <State3Page />}
-      {contractChannelState === 4 && <WithdrawPage />}
 
       {/* Fallback */}
       {contractChannelState !== 0 &&
