@@ -147,6 +147,7 @@ export function CreateChannelForm() {
         <TransactionConfirmModal
           channelId={createdChannelId}
           txHash={txHash}
+          participantCount={validAddressCount}
           onClose={() => {
             setShowConfirmModal(false);
             reset();
@@ -294,13 +295,6 @@ export function CreateChannelForm() {
         {createError && (
           <div className="p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm font-mono">
             {createError}
-          </div>
-        )}
-
-        {txHash && (
-          <div className="p-3 bg-blue-50 border border-blue-200 rounded text-blue-700 text-sm font-mono">
-            Transaction: {txHash}
-            {isConfirming && " (Confirming...)"}
           </div>
         )}
 

@@ -2,91 +2,106 @@
  * Transaction Confirm Modal
  *
  * Modal shown after successful channel creation
+ * Design: https://www.figma.com/design/0R11fVZOkNSTJjhTKvUjc7/Ooo?node-id=3110-210616
  */
 
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Button, Card, CardContent, CardHeader } from "@tokamak/ui";
+import { X, Copy } from "lucide-react";
 import { useChannelFlowStore } from "@/stores/useChannelFlowStore";
+import { Button } from "@/components/ui";
 
 interface TransactionConfirmModalProps {
   channelId: string;
   txHash: string;
+  participantCount?: number;
   onClose: () => void;
 }
 
 export function TransactionConfirmModal({
   channelId,
   txHash,
+  participantCount = 2,
   onClose,
 }: TransactionConfirmModalProps) {
   const router = useRouter();
+  const [copied, setCopied] = useState(false);
 
   const handleConfirm = () => {
     // Store channel ID in Zustand store (not in URL for privacy)
     const { setCurrentChannelId } = useChannelFlowStore.getState();
     setCurrentChannelId(channelId);
-    
+
     onClose();
     router.push("/join-channel");
   };
 
+  const handleCopyChannelId = async () => {
+    try {
+      await navigator.clipboard.writeText(channelId);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error("Failed to copy:", err);
+    }
+  };
+
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <Card className="max-w-md w-full mx-4">
-        <CardHeader>
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-              <svg
-                className="w-6 h-6 text-green-600"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
+      <div className="w-[500px] bg-white rounded p-6 space-y-8 font-mono">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <h2 className="text-2xl font-medium text-[#111111]">
+            Confirm Transaction
+          </h2>
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-1 hover:bg-[#F2F2F2] rounded transition-colors"
+          >
+            <X className="w-6 h-6 text-[#666666]" />
+          </button>
+        </div>
+
+        {/* Channel ID */}
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <p className="text-lg text-[#666666]">Channel ID</p>
+            <div className="flex items-center gap-10 py-3.5">
+              <p className="text-lg font-medium text-[#111111] break-all flex-1">
+                {channelId}
+              </p>
+              <button
+                type="button"
+                onClick={handleCopyChannelId}
+                className="flex-shrink-0 p-1 hover:bg-[#F2F2F2] rounded transition-colors"
+                title={copied ? "Copied!" : "Copy to clipboard"}
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M5 13l4 4L19 7"
+                <Copy
+                  className={`w-6 h-6 ${copied ? "text-[#3EB100]" : "text-[#666666]"}`}
                 />
-              </svg>
-            </div>
-            <div>
-              <h3 className="text-xl font-semibold">Transaction Confirmed</h3>
-              <p className="text-sm text-gray-500">Channel created successfully</p>
+              </button>
             </div>
           </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Channel ID */}
-          <div className="p-4 bg-gray-50 rounded-lg">
-            <p className="text-xs text-gray-500 mb-1">Channel ID</p>
-            <p className="text-2xl font-bold text-gray-900">{channelId}</p>
-          </div>
+        </div>
 
-          {/* Transaction Hash */}
-          <div className="p-4 bg-gray-50 rounded-lg">
-            <p className="text-xs text-gray-500 mb-1">Transaction Hash</p>
-            <p className="text-xs font-mono text-gray-700 break-all">{txHash}</p>
+        {/* Number of Participants */}
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <p className="text-lg text-[#666666]">Number of Participants</p>
+            <p className="text-lg font-medium text-[#111111]">
+              {participantCount}
+            </p>
           </div>
+        </div>
 
-          {/* Info Message */}
-          <div className="p-3 bg-blue-50 border border-blue-200 rounded text-sm text-blue-700">
-            Click "Confirm" to join the channel
-          </div>
-
-          {/* Actions */}
-          <div className="flex gap-3">
-            <Button onClick={handleConfirm} className="flex-1">
-              Confirm
-            </Button>
-            <Button variant="outline" onClick={onClose}>
-              Close
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+        {/* Confirmed Button */}
+        <Button size="full" onClick={handleConfirm}>
+          Confirmed
+        </Button>
+      </div>
     </div>
   );
 }
