@@ -771,7 +771,7 @@ export function State3Page() {
           {isProcessing || isVerifying ? (
             <>
               <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              {status || "Closing..."}
+              Processing...
             </>
           ) : isTransactionSuccess ? (
             <>
@@ -849,23 +849,6 @@ export function State3Page() {
           </div>
         </div>
       </div>
-
-      {/* Status Messages */}
-      {status && !isProcessing && (
-        <div
-          className="mt-6 p-4 flex items-center gap-2"
-          style={{
-            backgroundColor: "#E8F4FD",
-            borderRadius: 4,
-            border: "1px solid #2A72E5",
-          }}
-        >
-          <Loader2 className="w-5 h-5 animate-spin text-[#2A72E5]" />
-          <span className="text-[#2A72E5]" style={{ fontSize: 14 }}>
-            {status}
-          </span>
-        </div>
-      )}
 
       {isTransactionSuccess && (
         <div
