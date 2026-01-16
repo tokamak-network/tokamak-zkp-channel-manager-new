@@ -167,6 +167,10 @@ export function ProofList({}: ProofListProps) {
     if (isTransactionSuccess && currentChannelId) {
       // Refresh proof list after successful submission
       fetchProofs();
+      // Dispatch event to notify parent components to refetch channel state
+      window.dispatchEvent(new CustomEvent('proof-submit-success', {
+        detail: { channelId: currentChannelId }
+      }));
       // Modal will be closed by user clicking Close button
     }
   }, [isTransactionSuccess, currentChannelId, fetchProofs]);
