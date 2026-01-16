@@ -62,7 +62,6 @@ export function CreateChannelForm() {
     isCreating,
     isConfirming,
     error: createError,
-    createdChannelId,
     txHash,
     reset,
   } = useCreateChannel({
@@ -79,13 +78,6 @@ export function CreateChannelForm() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Show modal when channel is created
-  useEffect(() => {
-    if (createdChannelId) {
-      setShowConfirmModal(true);
-    }
-  }, [createdChannelId]);
-
   const handleGenerateChannelId = () => {
     try {
       setChannelIdError(null);
@@ -99,8 +91,9 @@ export function CreateChannelForm() {
     }
   };
 
-  const handleCreateChannel = async () => {
-    await createChannel();
+  // Open confirm modal (don't execute transaction yet)
+  const handleOpenConfirmModal = () => {
+    setShowConfirmModal(true);
   };
 
   // Helper function to check if an address is a valid Ethereum EOA
@@ -143,11 +136,14 @@ export function CreateChannelForm() {
   return (
     <>
       {/* Transaction Confirm Modal */}
-      {showConfirmModal && createdChannelId && txHash && (
+      {showConfirmModal && generatedChannelId && (
         <TransactionConfirmModal
-          channelId={createdChannelId}
-          txHash={txHash}
+          channelId={generatedChannelId}
           participantCount={validAddressCount}
+          onCreateChannel={createChannel}
+          isCreating={isCreating}
+          isConfirming={isConfirming}
+          txHash={txHash}
           onClose={() => {
             setShowConfirmModal(false);
             reset();
@@ -305,8 +301,8 @@ export function CreateChannelForm() {
         )}
 
         {/* Create Channel Button */}
-        <Button size="full" onClick={handleCreateChannel} disabled={!isFormValid}>
-          {isCreating || isConfirming ? "Creating Channel..." : "Create Channel"}
+        <Button size="full" onClick={handleOpenConfirmModal} disabled={!isFormValid}>
+          Create Channel
         </Button>
       </div>
     </>
