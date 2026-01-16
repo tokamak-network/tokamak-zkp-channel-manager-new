@@ -51,8 +51,11 @@ export function TransactionPage() {
   const [proofActions, setProofActions] = useState<{
     downloadAllApproved: () => void;
     openUploadModal: () => void;
+    openSubmitProofModal: () => void;
     isDownloadingAllApproved: boolean;
     approvedProofsCount: number;
+    isLoadingProofs: boolean;
+    isSubmitting: boolean;
   } | null>(null);
 
   // Hook to fetch previous state snapshot
@@ -422,36 +425,37 @@ export function TransactionPage() {
 
       {/* Proofs Section */}
       <div className="mt-12">
-        <div className="flex items-center justify-between mb-4">
+        {/* Header: Title + Submit Proof Button */}
+        <div className="flex items-center justify-between mb-6">
           <h2
             className="font-medium text-[#111111]"
             style={{ fontSize: 32, lineHeight: "1.3em" }}
           >
             Proofs
           </h2>
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => proofActions?.downloadAllApproved()}
-              disabled={!proofActions || proofActions.isDownloadingAllApproved || proofActions.approvedProofsCount === 0}
-              className="flex items-center gap-2 px-4 py-2 border border-[#111111] rounded bg-white disabled:opacity-50 disabled:cursor-not-allowed"
-              style={{ fontSize: 18 }}
-            >
-              <Download className="w-5 h-5" />
-              {proofActions?.isDownloadingAllApproved ? "Downloading..." : "Download"}
-            </button>
-            <button
-              type="button"
-              onClick={() => proofActions?.openUploadModal()}
-              disabled={!proofActions}
-              className="flex items-center gap-2 px-4 py-2 border border-[#111111] rounded bg-white disabled:opacity-50 disabled:cursor-not-allowed"
-              style={{ fontSize: 18 }}
-            >
-              <Upload className="w-5 h-5" />
-              Upload
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={() => proofActions?.openSubmitProofModal()}
+            disabled={!proofActions || proofActions.approvedProofsCount === 0 || proofActions.isLoadingProofs || proofActions.isSubmitting}
+            className="flex items-center justify-center font-mono font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{
+              height: 40,
+              padding: "16px 24px",
+              borderRadius: 4,
+              border: "1px solid #111111",
+              backgroundColor: "#2A72E5",
+              color: "#FFFFFF",
+              fontSize: 18,
+            }}
+          >
+            {proofActions?.isLoadingProofs
+              ? "Loading..."
+              : proofActions?.isSubmitting
+              ? "Submitting..."
+              : "Submit Proof"}
+          </button>
         </div>
+
         <ProofList 
           key={proofListRefreshKey}
           onActionsReady={setProofActions}

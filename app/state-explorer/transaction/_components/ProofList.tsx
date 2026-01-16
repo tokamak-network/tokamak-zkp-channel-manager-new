@@ -3,19 +3,23 @@
  *
  * Displays a list of proofs for the current channel
  * Shows summary statistics and individual proof items
+ *
+ * Design: https://www.figma.com/design/0R11fVZOkNSTJjhTKvUjc7/Ooo?node-id=3138-231957
  */
 
 "use client";
 
 import { useState, useEffect } from "react";
 import { useAccount } from "wagmi";
-import { Button } from "@tokamak/ui";
 import {
   Download,
+  Upload,
   Trash2,
   FileCheck,
   AlertTriangle,
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import {
   Dialog,
@@ -25,13 +29,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Button } from "@tokamak/ui";
 import { useChannelFlowStore } from "@/stores/useChannelFlowStore";
 import { useBridgeCoreRead } from "@/hooks/contract";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { SubmitProofModal } from "@/app/state-explorer/_components/SubmitProofModal";
 import { useProofs, useProofActions, type Proof } from "../_hooks";
 import { formatDate } from "../_utils/proofUtils";
-import { ProofStatusBadge } from "./ProofStatusBadge";
 import { useSubmitProof } from "@/app/state-explorer/_hooks/useSubmitProof";
 import { SubmitProofConfirmModal } from "./SubmitProofConfirmModal";
 
@@ -40,8 +44,11 @@ interface ProofListProps {
   onActionsReady?: (actions: {
     downloadAllApproved: () => void;
     openUploadModal: () => void;
+    openSubmitProofModal: () => void;
     isDownloadingAllApproved: boolean;
     approvedProofsCount: number;
+    isLoadingProofs: boolean;
+    isSubmitting: boolean;
   }) => void;
 }
 
@@ -63,16 +70,6 @@ export function ProofList({ onActionsReady }: ProofListProps) {
     channelLeader && address
       ? String(channelLeader).toLowerCase() === String(address).toLowerCase()
       : false;
-
-  // Debug logging
-  useEffect(() => {
-    console.log("[ProofList] Leader check:", {
-      channelLeader,
-      address,
-      isLeader,
-      currentChannelId,
-    });
-  }, [channelLeader, address, isLeader, currentChannelId]);
 
   // Use proof fetching hook
   const {
@@ -141,18 +138,6 @@ export function ProofList({ onActionsReady }: ProofListProps) {
     (p) => p.status === "verified"
   ).length;
 
-  // Expose actions to parent component
-  useEffect(() => {
-    if (onActionsReady) {
-      onActionsReady({
-        downloadAllApproved: handleDownloadAllApprovedProofs,
-        openUploadModal: () => setIsSubmitProofModalOpen(true),
-        isDownloadingAllApproved,
-        approvedProofsCount,
-      });
-    }
-  }, [onActionsReady, handleDownloadAllApprovedProofs, isDownloadingAllApproved, approvedProofsCount]);
-
   // Handle submit proof button click
   const handleSubmitProofClick = async () => {
     if (!currentChannelId || approvedProofsCount === 0) {
@@ -169,58 +154,39 @@ export function ProofList({ onActionsReady }: ProofListProps) {
     }
   };
 
+  // Expose actions to parent component
+  useEffect(() => {
+    if (onActionsReady) {
+      onActionsReady({
+        downloadAllApproved: handleDownloadAllApprovedProofs,
+        openUploadModal: () => setIsSubmitProofModalOpen(true),
+        openSubmitProofModal: handleSubmitProofClick,
+        isDownloadingAllApproved,
+        approvedProofsCount,
+        isLoadingProofs,
+        isSubmitting,
+      });
+    }
+  }, [onActionsReady, handleDownloadAllApprovedProofs, isDownloadingAllApproved, approvedProofsCount, isLoadingProofs, isSubmitting]);
+
   // Handle confirm submission
   const handleConfirmSubmit = async () => {
     try {
       await submitProofs();
     } catch (error) {
       console.error("Failed to submit proofs:", error);
-      // Error is already handled in the hook
     }
   };
 
-  // Close modal on success - must be before early returns
+  // Close modal on success
   useEffect(() => {
     if (isTransactionSuccess && currentChannelId) {
-      // Refresh proof list after successful submission
       fetchProofs();
-      // Dispatch event to notify parent components to refetch channel state
       window.dispatchEvent(new CustomEvent('proof-submit-success', {
         detail: { channelId: currentChannelId }
       }));
-      // Modal will be closed by user clicking Close button
     }
   }, [isTransactionSuccess, currentChannelId, fetchProofs]);
-
-  // Debug logging
-  useEffect(() => {
-    console.log("[ProofList] Approve button visibility:", {
-      isLeader,
-      pendingProofsCount: pendingProofs.length,
-      pendingProofs: pendingProofs.map((p) => ({
-        key: p.key,
-        proofId: p.proofId,
-        status: p.status,
-      })),
-      showApproveButton,
-      selectedProofForApproval,
-      allProofs: proofs.map((p) => ({
-        key: p.key,
-        proofId: p.proofId,
-        status: p.status,
-      })),
-      channelLeader,
-      address,
-    });
-  }, [
-    isLeader,
-    pendingProofs.length,
-    showApproveButton,
-    selectedProofForApproval,
-    proofs.length,
-    channelLeader,
-    address,
-  ]);
 
   // Early returns after all hooks
   if (!currentChannelId) {
@@ -243,216 +209,243 @@ export function ProofList({ onActionsReady }: ProofListProps) {
     );
   }
 
+  // Status badge colors based on Figma
+  const getStatusBadgeStyle = (status: string) => {
+    switch (status) {
+      case "verified":
+        return { bg: "#3EB100", text: "Approved" };
+      case "pending":
+        return { bg: "#AA6C00", text: "Pending" };
+      case "rejected":
+        return { bg: "#CD0003", text: "Rejected" };
+      default:
+        return { bg: "#666666", text: status };
+    }
+  };
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 font-mono">
       {/* Summary Statistics */}
-      <div className="grid grid-cols-4 gap-4">
-        <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
-          <div className="text-sm text-gray-600 mb-1">Total Proofs</div>
-          <div className="text-2xl font-bold text-gray-900">{stats.total}</div>
+      <div
+        className="flex border border-[#000000] rounded"
+        style={{ backgroundColor: "#BDBDBD" }}
+      >
+        {/* Total Proofs */}
+        <div className="flex-1 p-4 flex flex-col justify-between border-r border-[#000000]">
+          <span
+            className="text-xs font-medium uppercase px-2 py-1 rounded inline-block"
+            style={{ backgroundColor: "#0F2058", color: "#FFFFFF" }}
+          >
+            Total Proofs
+          </span>
+          <span className="text-2xl font-normal text-black mt-4">{stats.total}</span>
         </div>
-        <div className="p-4 bg-green-50 rounded-lg border border-green-200">
-          <div className="text-sm text-green-600 mb-1">Approved</div>
-          <div className="text-2xl font-bold text-green-700">
-            {stats.approved}
-          </div>
+        {/* Approved */}
+        <div className="flex-1 p-4 flex flex-col justify-between border-r border-[#000000]">
+          <span
+            className="text-xs font-medium uppercase px-2 py-1 rounded inline-block"
+            style={{ backgroundColor: "#3EB100", color: "#FFFFFF" }}
+          >
+            Approved
+          </span>
+          <span className="text-2xl font-normal text-black mt-4">{stats.approved}</span>
         </div>
-        <div className="p-4 bg-yellow-50 rounded-lg border border-yellow-200">
-          <div className="text-sm text-yellow-600 mb-1">Pending</div>
-          <div className="text-2xl font-bold text-yellow-700">
-            {stats.pending}
-          </div>
+        {/* Pending */}
+        <div className="flex-1 p-4 flex flex-col justify-between border-r border-[#000000]">
+          <span
+            className="text-xs font-medium uppercase px-2 py-1 rounded inline-block"
+            style={{ backgroundColor: "#AA6C00", color: "#FFFFFF" }}
+          >
+            Pending
+          </span>
+          <span className="text-2xl font-normal text-black mt-4">{stats.pending}</span>
         </div>
-        <div className="p-4 bg-red-50 rounded-lg border border-red-200">
-          <div className="text-sm text-red-600 mb-1">Rejected</div>
-          <div className="text-2xl font-bold text-red-700">
-            {stats.rejected}
-          </div>
+        {/* Rejected */}
+        <div className="flex-1 p-4 flex flex-col justify-between">
+          <span
+            className="text-xs font-medium uppercase px-2 py-1 rounded inline-block"
+            style={{ backgroundColor: "#CD0003", color: "#FFFFFF" }}
+          >
+            Rejected
+          </span>
+          <span className="text-2xl font-normal text-black mt-4">{stats.rejected}</span>
         </div>
       </div>
 
-      {/* Approve Selected Proof Section (Leader Only) */}
-      {showApproveButton && (
-        <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-semibold text-yellow-800">
-              Leader Action Required
-            </h3>
-            <span className="bg-yellow-500/20 text-yellow-700 text-xs px-2 py-0.5 rounded font-medium">
-              PENDING APPROVAL
-            </span>
-          </div>
-          <p className="text-yellow-700 text-sm mb-4">
-            Select one proof to approve. All other proofs in the same sequence
-            will be automatically rejected.
-          </p>
-        </div>
-      )}
+      {/* Download/Upload Buttons */}
+      <div className="flex justify-end gap-3">
+        <button
+          type="button"
+          onClick={handleDownloadAllApprovedProofs}
+          disabled={isDownloadingAllApproved || approvedProofsCount === 0}
+          className="flex items-center gap-1.5 px-3 py-2 border border-[#111111] rounded bg-white disabled:opacity-50 disabled:cursor-not-allowed"
+          style={{ fontSize: 18, height: 40 }}
+        >
+          <Download className="w-4 h-4" />
+          {isDownloadingAllApproved ? "Downloading..." : "Download"}
+        </button>
+        <button
+          type="button"
+          onClick={() => setIsSubmitProofModalOpen(true)}
+          className="flex items-center gap-1.5 px-3 py-2 border border-[#111111] rounded bg-white"
+          style={{ fontSize: 18, height: 40 }}
+        >
+          <Upload className="w-4 h-4" />
+          Upload
+        </button>
+      </div>
 
-      {/* Proof List */}
-      <div className="space-y-2">
+      {/* Proof Table */}
+      <div className="border-t border-[#DDDDDD]">
         {proofs.length === 0 ? (
-          <div className="text-center py-12 text-gray-500">
+          <div className="text-center py-12 text-[#666666]">
             No proofs found for this channel
           </div>
         ) : (
-          proofs.map((proof) => (
-            <div
-              key={proof.key}
-              className={`flex items-center justify-between p-4 bg-white border rounded-lg transition-colors ${
-                proof.status === "pending" &&
-                selectedProofForApproval === proof.key
-                  ? "border-yellow-500 bg-yellow-50"
-                  : "border-gray-200 hover:bg-gray-50"
-              }`}
-            >
-              <div className="flex items-center gap-4 flex-1">
+          proofs.map((proof, index) => {
+            const statusStyle = getStatusBadgeStyle(proof.status);
+            return (
+              <div
+                key={proof.key}
+                className={`flex items-center py-2.5 ${
+                  index < proofs.length - 1 ? "border-b border-[#DDDDDD]" : ""
+                }`}
+              >
                 {/* Radio button for pending proofs (leader only) */}
-                {proof.status === "pending" && isLeader && (
-                  <input
-                    type="radio"
-                    name="proofApproval"
-                    value={proof.key}
-                    checked={selectedProofForApproval === proof.key}
-                    onChange={(e) =>
-                      setSelectedProofForApproval(e.target.value)
-                    }
-                    className="w-4 h-4 text-yellow-500 focus:ring-yellow-500 focus:ring-2 cursor-pointer"
-                  />
-                )}
+                <div className="w-[34px] flex items-center justify-center px-2">
+                  {proof.status === "pending" && isLeader && (
+                    <input
+                      type="radio"
+                      name="proofApproval"
+                      value={proof.key}
+                      checked={selectedProofForApproval === proof.key}
+                      onChange={(e) => setSelectedProofForApproval(e.target.value)}
+                      className="w-[18px] h-[18px] cursor-pointer"
+                    />
+                  )}
+                </div>
 
-                {/* Status badge for verified/rejected proofs (left side) */}
-                {(proof.status === "verified" ||
-                  proof.status === "rejected") && (
-                  <ProofStatusBadge status={proof.status} />
-                )}
+                {/* Status Tag */}
+                <div className="w-[100px] px-2">
+                  <span
+                    className="text-xs font-medium uppercase px-2 py-1 rounded inline-block"
+                    style={{ backgroundColor: statusStyle.bg, color: "#FFFFFF" }}
+                  >
+                    {statusStyle.text}
+                  </span>
+                </div>
 
-                {/* Proof ID - format based on status */}
-                <div className="font-mono font-medium text-gray-900">
+                {/* Proof ID */}
+                <div className="w-[160px] px-2 text-sm text-[#222222]">
                   {proof.status === "verified"
-                    ? `proof#${proof.sequenceNumber}`
-                    : `proof#${proof.sequenceNumber}-${proof.subNumber}`}
+                    ? `Proof#${proof.sequenceNumber}`
+                    : `Proof#${proof.sequenceNumber}-${proof.subNumber}`}
                 </div>
 
                 {/* Date */}
-                <div className="text-sm text-gray-600">
+                <div className="flex-1 px-2 text-sm text-[#222222]">
                   {formatDate(proof.submittedAt)}
                 </div>
-              </div>
 
-              {/* Actions */}
-              <div className="flex items-center gap-2">
-                {/* Verify button - always available for all proofs */}
-                <Button
-                  variant="outline"
-                  color="blue"
-                  size="sm"
-                  onClick={() => handleVerifyProof(proof)}
-                  disabled={isVerifying}
-                >
-                  {isVerifying ? (
-                    <LoadingSpinner size="sm" />
-                  ) : (
-                    <>
-                      <FileCheck className="w-4 h-4 mr-1" />
-                      Verify Proof
-                    </>
-                  )}
-                </Button>
-                <Button
-                  variant="outline"
-                  color="blue"
-                  size="sm"
-                  onClick={() => handleDownload(proof)}
-                  disabled={downloadingProofKey === proof.key}
-                >
-                  {downloadingProofKey === proof.key ? (
-                    <>
-                      <LoadingSpinner size="sm" className="mr-1" />
-                      Downloading...
-                    </>
-                  ) : (
-                    <>
-                      <Download className="w-4 h-4 mr-1" />
-                      Download Files
-                    </>
-                  )}
-                </Button>
-                {isLeader && (
-                  <Button
-                    variant="outline"
-                    color="red"
-                    size="sm"
-                    onClick={() => handleDeleteClick(proof)}
-                    disabled={deletingProofKey === proof.key}
+                {/* Actions */}
+                <div className="flex items-center gap-2 px-2">
+                  <button
+                    type="button"
+                    onClick={() => handleVerifyProof(proof)}
+                    disabled={isVerifying}
+                    className="p-1.5 hover:bg-[#F2F2F2] rounded transition-colors disabled:opacity-50"
+                    title="Verify Proof"
                   >
-                    {deletingProofKey === proof.key ? (
-                      <LoadingSpinner size="sm" />
-                    ) : (
-                      <>
-                        <Trash2 className="w-4 h-4 mr-1" />
-                        Delete
-                      </>
-                    )}
-                  </Button>
-                )}
+                    <FileCheck className="w-4 h-4 text-[#666666]" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDownload(proof)}
+                    disabled={downloadingProofKey === proof.key}
+                    className="p-1.5 hover:bg-[#F2F2F2] rounded transition-colors disabled:opacity-50"
+                    title="Download"
+                  >
+                    <Download className="w-4 h-4 text-[#666666]" />
+                  </button>
+                  {isLeader && (
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteClick(proof)}
+                      disabled={deletingProofKey === proof.key}
+                      className="p-1.5 hover:bg-[#F2F2F2] rounded transition-colors disabled:opacity-50"
+                      title="Delete"
+                    >
+                      <Trash2 className="w-4 h-4 text-[#CD0003]" />
+                    </button>
+                  )}
+                </div>
               </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
 
-      {/* Approve Selected Proof Button */}
-      {showApproveButton && (
-        <div className="mt-4">
-          <Button
-            variant="primary"
-            color="yellow"
+      {/* Footer: Approve Button + Pagination */}
+      <div className="flex items-center justify-between">
+        {/* Approve Selected Proof Button */}
+        {showApproveButton ? (
+          <button
+            type="button"
             onClick={handleApproveSelected}
             disabled={!selectedProofForApproval || isVerifying}
-            className="w-full"
+            className="flex items-center justify-center font-mono font-medium transition-colors disabled:opacity-50"
+            style={{
+              height: 40,
+              padding: "16px 24px",
+              borderRadius: 4,
+              border: "1px solid #111111",
+              backgroundColor: "#2A72E5",
+              color: "#FFFFFF",
+              fontSize: 18,
+            }}
           >
-            {isVerifying ? (
-              <>
-                <LoadingSpinner size="sm" />
-                Processing...
-              </>
-            ) : (
-              <>
-                <CheckCircle2 className="w-5 h-5" />
-                Approve Selected Proof
-              </>
-            )}
-          </Button>
-        </div>
-      )}
+            {isVerifying ? "Processing..." : "Approve Selected Proof"}
+          </button>
+        ) : (
+          <div />
+        )}
 
-      {/* Submit Proof Button */}
-      {isLeader && approvedProofsCount > 0 && (
-        <div className="mt-6 pt-6 border-t border-gray-200">
-          <Button
-            variant="primary"
-            color="blue"
-            onClick={handleSubmitProofClick}
-            disabled={isLoadingProofs || isSubmitting}
-            className="w-full"
+        {/* Pagination */}
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            disabled
+            className="w-5 h-5 flex items-center justify-center text-sm text-[#A8A8A8]"
           >
-            {isLoadingProofs ? (
-              <>
-                <LoadingSpinner size="sm" className="mr-2" />
-                Loading Proofs...
-              </>
-            ) : isSubmitting ? (
-              <>
-                <LoadingSpinner size="sm" className="mr-2" />
-                Submitting...
-              </>
-            ) : (
-              <>Submit Proof ({approvedProofsCount})</>
-            )}
-          </Button>
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+          <button
+            type="button"
+            className="w-5 h-6 flex items-center justify-center text-sm text-white rounded"
+            style={{ backgroundColor: "#04008A" }}
+          >
+            1
+          </button>
+          <button
+            type="button"
+            className="w-5 h-6 flex items-center justify-center text-sm text-[#222222]"
+          >
+            2
+          </button>
+          <button
+            type="button"
+            className="w-5 h-6 flex items-center justify-center text-sm text-[#222222]"
+          >
+            3
+          </button>
+          <button
+            type="button"
+            className="w-5 h-5 flex items-center justify-center text-sm text-[#222222]"
+          >
+            <ChevronRight className="w-4 h-4" />
+          </button>
         </div>
-      )}
+      </div>
 
       {/* Delete Confirmation Modal */}
       <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
@@ -536,10 +529,6 @@ export function ProofList({ onActionsReady }: ProofListProps) {
           isOpen={isSubmitProofConfirmModalOpen}
           onClose={() => {
             setIsSubmitProofConfirmModalOpen(false);
-            // Reset on close if not successful
-            if (!isTransactionSuccess) {
-              // Keep formatted proofs for retry
-            }
           }}
           onConfirm={handleConfirmSubmit}
           formattedProofs={formattedProofs}
