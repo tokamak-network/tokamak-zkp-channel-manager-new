@@ -2,6 +2,7 @@
  * Join Channel Page
  *
  * Page for joining an existing channel
+ * Design based on Figma: https://www.figma.com/design/0R11fVZOkNSTJjhTKvUjc7/Ooo?node-id=3110-210829
  */
 
 "use client";
@@ -9,17 +10,10 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAccount } from "wagmi";
-import {
-  Button,
-  Input,
-  Label,
-  Card,
-  CardContent,
-  CardHeader,
-} from "@tokamak/ui";
 import { useChannelFlowStore } from "@/stores/useChannelFlowStore";
 import { isValidBytes32 } from "@/lib/channelId";
 import { useChannelParticipantCheck } from "./_hooks/useChannelParticipantCheck";
+import { Button, Input } from "@/components/ui";
 
 export default function JoinChannelPage() {
   const router = useRouter();
@@ -28,7 +22,6 @@ export default function JoinChannelPage() {
   const [channelId, setChannelId] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isChecking, setIsChecking] = useState(false);
-  const [validationError, setValidationError] = useState<string | null>(null);
 
   // Check if connected wallet is a participant of the channel
   const {
@@ -38,27 +31,6 @@ export default function JoinChannelPage() {
     isValidChannelId,
   } = useChannelParticipantCheck(channelId);
 
-  // Debug logging
-  useEffect(() => {
-    console.log("[JoinChannelPage] Participant check state:", {
-      channelId,
-      address,
-      isConnected,
-      isValidChannelId,
-      isParticipant,
-      isCheckingParticipant,
-      participantError,
-    });
-  }, [
-    channelId,
-    address,
-    isConnected,
-    isValidChannelId,
-    isParticipant,
-    isCheckingParticipant,
-    participantError,
-  ]);
-
   // Pre-fill with stored channel ID if available
   useEffect(() => {
     if (currentChannelId) {
@@ -66,21 +38,9 @@ export default function JoinChannelPage() {
     }
   }, [currentChannelId]);
 
-  // Validate channel ID format on input change
-  useEffect(() => {
-    if (!channelId || channelId.trim() === "") {
-      setValidationError(null);
-      return;
-    }
-
-    if (!isValidBytes32(channelId)) {
-      setValidationError(
-        "Channel ID must be a valid bytes32 format (0x + 64 hex characters)"
-      );
-    } else {
-      setValidationError(null);
-    }
-  }, [channelId]);
+  // Determine validation state
+  const hasInput = Boolean(channelId && channelId.trim() !== "");
+  const isFormatValid = hasInput && isValidBytes32(channelId);
 
   const handleJoinChannel = async () => {
     if (!isConnected || !address) {
@@ -129,149 +89,98 @@ export default function JoinChannelPage() {
     }
   };
 
-  return (
-    <>
-      <div className="mb-8">
-        <h2 className="text-2xl font-semibold mb-2 text-[var(--foreground)]">
-          Join Channel
-        </h2>
-        <p className="text-[var(--muted-foreground)]">
-          Enter a channel ID to join an existing channel
-        </p>
-      </div>
+  const isFormValid =
+    isConnected &&
+    isValidChannelId &&
+    !isChecking &&
+    !isCheckingParticipant &&
+    isParticipant !== false;
 
-      <Card className="max-w-xl">
-        <CardHeader>
-          <h3 className="text-lg font-semibold">Channel Information</h3>
-        </CardHeader>
-        <CardContent className="space-y-6">
+  return (
+    <div className="flex flex-col items-center justify-center min-h-screen bg-white">
+      <div className="flex flex-col items-center gap-16" style={{ width: 1081 }}>
+        {/* Title + Description */}
+        <div
+          className="flex flex-col justify-between items-center"
+          style={{ width: 700, height: 107, gap: 12 }}
+        >
+          {/* Title */}
+          <h1
+            className="font-jersey text-center tracking-[0.01em]"
+            style={{ fontSize: 64, lineHeight: "100%" }}
+          >
+            Join Channel
+          </h1>
+
+          {/* Description */}
+          <p
+            className="font-mono font-normal text-center text-[#666666]"
+            style={{ fontSize: 20, lineHeight: "100%", letterSpacing: "0%" }}
+          >
+            Enter the Channel ID shared by the channel creator to join
+          </p>
+        </div>
+
+        {/* Input + Button Row */}
+        <div className="flex items-center gap-2">
           {/* Channel ID Input */}
-          <div>
-            <Label htmlFor="channelId" required>
-              Channel ID
-            </Label>
+          <div style={{ width: 825 }}>
             <Input
-              id="channelId"
-              type="text"
               value={channelId}
               onChange={(e) => {
                 setChannelId(e.target.value);
                 setError(null);
               }}
-              placeholder="Enter channel ID (e.g., 0x...)"
+              placeholder="Enter channel ID"
               disabled={isChecking}
-              className={`w-full font-mono text-sm ${
-                validationError
-                  ? "border-red-500 focus:border-red-500 focus:ring-red-500"
-                  : channelId && isValidChannelId
-                  ? "border-green-500 focus:border-green-500 focus:ring-green-500"
-                  : ""
-              }`}
+              error={hasInput && !isFormatValid}
+              success={isFormatValid && isParticipant === true}
             />
-            {validationError && (
-              <p className="text-xs text-red-500 mt-1">{validationError}</p>
-            )}
-            {!validationError && channelId && isValidChannelId && (
-              <p className="text-xs text-green-500 mt-1 flex items-center gap-1">
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M5 13l4 4L19 7"
-                  />
-                </svg>
-                Valid bytes32 format
-              </p>
-            )}
-            {!validationError && !channelId && (
-              <p className="text-sm text-gray-500 mt-1">
-                Enter the ID of the channel you want to join (bytes32 format)
-              </p>
-            )}
           </div>
 
-          {/* Participant Status Check */}
-          {isConnected && address && channelId && isValidChannelId && (
-            <div>
-              {isCheckingParticipant && (
-                <div className="p-3 bg-blue-50 border border-blue-200 rounded text-blue-700 text-sm">
-                  Checking participant status...
-                </div>
-              )}
-              {!isCheckingParticipant && isParticipant === true && (
-                <div className="p-3 bg-green-50 border border-green-200 rounded text-green-700 text-sm flex items-center gap-2">
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M5 13l4 4L19 7"
-                    />
-                  </svg>
-                  You are registered as a participant in this channel
-                </div>
-              )}
-              {participantError && (
-                <div className="p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
-                  {participantError}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Error Message */}
-          {error && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
-              {error}
-            </div>
-          )}
-
-          {/* Wallet Connection Warning */}
-          {!isConnected && (
-            <div className="p-3 bg-yellow-50 border border-yellow-200 rounded text-yellow-700 text-sm">
-              Please connect your wallet to join a channel
-            </div>
-          )}
-
-          {/* Action Buttons */}
-          <div className="flex gap-3">
+          {/* Join Button */}
+          <div style={{ width: 240 }}>
             <Button
+              variant="purple"
+              size="full"
               onClick={handleJoinChannel}
-              disabled={
-                !isConnected ||
-                !channelId ||
-                !isValidChannelId ||
-                isChecking ||
-                isCheckingParticipant ||
-                isParticipant === false
-              }
-              className="flex-1"
+              disabled={!isFormValid}
             >
-              {isChecking || isCheckingParticipant
-                ? "Checking..."
-                : "Join Channel"}
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => router.push("/")}
-              disabled={isChecking}
-            >
-              Cancel
+              {isChecking || isCheckingParticipant ? "Checking..." : "Join Channel"}
             </Button>
           </div>
-        </CardContent>
-      </Card>
-    </>
+        </div>
+
+        {/* Status Messages */}
+        {hasInput && !isFormatValid && (
+          <p className="font-mono text-sm text-red-500 -mt-12">
+            Channel ID must be a valid bytes32 format (0x + 64 hex characters)
+          </p>
+        )}
+        {isFormatValid && isCheckingParticipant && (
+          <p className="font-mono text-sm text-[#2A72E5] -mt-12">
+            Checking participant status...
+          </p>
+        )}
+        {isFormatValid && !isCheckingParticipant && isParticipant === false && (
+          <p className="font-mono text-sm text-red-500 -mt-12">
+            Your wallet address is not registered as a participant in this channel
+          </p>
+        )}
+        {participantError && isParticipant !== false && (
+          <p className="font-mono text-sm text-red-500 -mt-12">
+            {participantError}
+          </p>
+        )}
+        {error && (
+          <p className="font-mono text-sm text-red-500 -mt-12">{error}</p>
+        )}
+        {!isConnected && (
+          <p className="font-mono text-sm text-yellow-600 -mt-12">
+            Please connect your wallet to join a channel
+          </p>
+        )}
+      </div>
+    </div>
   );
 }

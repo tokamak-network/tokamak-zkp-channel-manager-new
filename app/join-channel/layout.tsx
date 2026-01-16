@@ -1,15 +1,13 @@
 /**
  * Join Channel Layout
- * 
- * Layout with AppLayout for join channel page
+ *
+ * Simple layout for join channel page (full screen centered)
  */
-
-import { AppLayout } from "@/components/AppLayout";
 
 export default function JoinChannelLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  return <AppLayout>{children}</AppLayout>;
+  return <>{children}</>;
 }

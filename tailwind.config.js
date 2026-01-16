@@ -25,6 +25,7 @@ module.exports = {
       fontFamily: {
         sans: ["var(--font-sans)", "system-ui", "sans-serif"],
         mono: ["var(--font-mono)", "monospace"],
+        jersey: ["var(--font-jersey-10)", "sans-serif"],
       },
     },
   },
