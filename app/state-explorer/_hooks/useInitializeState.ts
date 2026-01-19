@@ -21,6 +21,7 @@ export function useInitializeState({ channelId }: UseInitializeStateParams) {
   const {
     generateProof,
     isGenerating: isGeneratingProof,
+    isLoadingChannelData,
     status: proofStatus,
     error: proofError,
   } = useGenerateInitialProof({ channelId });
@@ -103,6 +104,11 @@ export function useInitializeState({ channelId }: UseInitializeStateParams) {
       return;
     }
 
+    if (isLoadingChannelData) {
+      setError("Channel data is still loading. Please wait...");
+      return;
+    }
+
     setIsProcessing(true);
     setError(null);
     setProofData(null);
@@ -177,12 +183,13 @@ export function useInitializeState({ channelId }: UseInitializeStateParams) {
       setError(errorMessage);
       setIsProcessing(false);
     }
-  }, [channelId, generateProof, writeInitialize]);
+  }, [channelId, isLoadingChannelData, generateProof, writeInitialize]);
 
   return {
     initializeState,
     isProcessing: isProcessing || isGeneratingProof || isWriting || isWaiting,
     isGeneratingProof,
+    isLoadingChannelData,
     isWriting,
     isWaiting,
     initializeSuccess,

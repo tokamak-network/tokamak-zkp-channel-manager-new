@@ -15,6 +15,7 @@ interface InitializeStateConfirmModalProps {
   channelId: string;
   onInitialize: () => Promise<void>;
   isProcessing: boolean;
+  isLoadingChannelData: boolean;
   txHash: string | null;
   onClose: () => void;
 }
@@ -25,6 +26,7 @@ export function InitializeStateConfirmModal({
   channelId,
   onInitialize,
   isProcessing,
+  isLoadingChannelData,
   txHash,
   onClose,
 }: InitializeStateConfirmModalProps) {
@@ -149,12 +151,21 @@ export function InitializeStateConfirmModal({
               </div>
             </div>
 
+            {isLoadingChannelData && (
+              <div className="text-center py-2">
+                <p className="text-[#666666]" style={{ fontSize: 12 }}>
+                  Loading channel data...
+                </p>
+              </div>
+            )}
+
             <Button
               variant="primary"
               size="full"
               onClick={handleConfirm}
+              disabled={isLoadingChannelData}
             >
-              Confirm
+              {isLoadingChannelData ? "Loading..." : "Confirm"}
             </Button>
           </div>
         )}

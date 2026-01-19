@@ -17,12 +17,13 @@ import {
   useDisconnect,
   useBalance,
 } from "wagmi";
-import { Copy, ChevronDown, LogOut } from "lucide-react";
+import { Copy, ChevronDown, LogOut, Loader2 } from "lucide-react";
 import { formatAddress } from "@/lib/utils/format";
 import { isValidBytes32 } from "@/lib/channelId";
 import { useGenerateMptKey } from "@/hooks/useGenerateMptKey";
 import { useChannelFlowStore } from "@/stores/useChannelFlowStore";
 import { useTokenBalance } from "@/hooks/useTokenBalance";
+import { useTransactionHistory } from "@/hooks/useTransactionHistory";
 import { FIXED_TARGET_CONTRACT } from "@tokamak/config";
 import { formatUnits } from "viem";
 
@@ -98,12 +99,15 @@ export function AccountPanel({ onClose }: AccountPanelProps) {
     await generate();
   };
 
-  // Mock transaction history - TODO: Replace with actual data
-  const transactionHistory = [
-    { from: "0xE1fc...FC33", date: "13/01/2023 15:49", amount: "3,200.00", token: "TON" },
-    { from: "0xE1fc...FC33", date: "13/01/2023 15:49", amount: "3,200.00", token: "TON" },
-    { from: "0xE1fc...FC33", date: "13/01/2023 15:49", amount: "3,200.00", token: "TON" },
-  ];
+  // Fetch real transaction history from verified proofs
+  const {
+    transactions: transactionHistory,
+    isLoading: isLoadingHistory,
+  } = useTransactionHistory({
+    channelId: currentChannelId,
+    decimals: 18,
+    tokenSymbol: "TON",
+  });
 
   if (!isConnected) {
     return (
@@ -334,47 +338,62 @@ export function AccountPanel({ onClose }: AccountPanelProps) {
 
           {/* Transaction List */}
           <div className="flex flex-col gap-2">
-            {transactionHistory.map((tx, index) => (
-              <div
-                key={index}
-                className="flex flex-col gap-1.5"
-                style={{
-                  padding: "10px 16px",
-                  border: "1px solid #DDDDDD",
-                  borderRadius: 4,
-                }}
-              >
-                <div className="flex items-center justify-between">
-                  <span
-                    className="text-[#000000]"
-                    style={{ fontSize: 12, lineHeight: "1.48em" }}
-                  >
-                    From {tx.from}
-                  </span>
-                  <span
-                    className="text-[#000000]"
-                    style={{ fontSize: 12, lineHeight: "1.48em" }}
-                  >
-                    {tx.date}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Image
-                    src={TONSymbol}
-                    alt={tx.token}
-                    width={24}
-                    height={24}
-                    className="rounded-full"
-                  />
-                  <span
-                    className="text-[#000000]"
-                    style={{ fontSize: 14, lineHeight: "1.48em" }}
-                  >
-                    {tx.amount} {tx.token}
-                  </span>
-                </div>
+            {isLoadingHistory ? (
+              <div className="flex items-center justify-center py-4">
+                <Loader2 className="w-5 h-5 animate-spin text-[#999999]" />
+                <span className="ml-2 text-[#999999]" style={{ fontSize: 14 }}>
+                  Loading...
+                </span>
               </div>
-            ))}
+            ) : transactionHistory.length === 0 ? (
+              <div className="text-center py-4">
+                <span className="text-[#999999]" style={{ fontSize: 14 }}>
+                  No transactions yet
+                </span>
+              </div>
+            ) : (
+              transactionHistory.map((tx, index) => (
+                <div
+                  key={`${tx.sequenceNumber}-${index}`}
+                  className="flex flex-col gap-1.5"
+                  style={{
+                    padding: "10px 16px",
+                    border: "1px solid #DDDDDD",
+                    borderRadius: 4,
+                  }}
+                >
+                  <div className="flex items-center justify-between">
+                    <span
+                      className={tx.type === "received" ? "text-[#3EB100]" : "text-[#E53935]"}
+                      style={{ fontSize: 12, lineHeight: "1.48em", fontWeight: 500 }}
+                    >
+                      {tx.type === "received" ? "Received" : "Sent"}
+                    </span>
+                    <span
+                      className="text-[#666666]"
+                      style={{ fontSize: 12, lineHeight: "1.48em" }}
+                    >
+                      {tx.date}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Image
+                      src={TONSymbol}
+                      alt={tx.token}
+                      width={24}
+                      height={24}
+                      className="rounded-full"
+                    />
+                    <span
+                      className={tx.type === "received" ? "text-[#3EB100]" : "text-[#E53935]"}
+                      style={{ fontSize: 14, lineHeight: "1.48em", fontWeight: 500 }}
+                    >
+                      {tx.type === "received" ? "+" : "-"}{tx.amountFormatted} {tx.token}
+                    </span>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
       )}

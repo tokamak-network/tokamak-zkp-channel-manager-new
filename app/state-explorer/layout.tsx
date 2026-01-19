@@ -82,6 +82,7 @@ export default function StateExplorerLayout({
     initializeState,
     isProcessing,
     isGeneratingProof,
+    isLoadingChannelData,
     isWriting,
     isWaiting,
     initializeSuccess,
@@ -232,7 +233,8 @@ export default function StateExplorerLayout({
               <button
                 type="button"
                 onClick={handleOpenInitializeModal}
-                className="flex-1 flex items-center justify-center font-mono font-medium transition-colors"
+                disabled={isLoadingChannelData}
+                className="flex-1 flex items-center justify-center font-mono font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 style={{
                   height: 40,
                   padding: "16px 24px",
@@ -241,10 +243,11 @@ export default function StateExplorerLayout({
                   backgroundColor: "#0FBCBC",
                   color: "#FFFFFF",
                   fontSize: 18,
-                  cursor: "pointer",
+                  cursor: isLoadingChannelData ? "not-allowed" : "pointer",
                 }}
+                title={isLoadingChannelData ? "Loading channel data..." : "Initialize channel state"}
               >
-                Initialize State
+                {isLoadingChannelData ? "Loading..." : "Initialize State"}
               </button>
             )}
             {/* state === 2 (Open): Show Close Channel button during transaction phase */}
@@ -281,6 +284,7 @@ export default function StateExplorerLayout({
           channelId={channelId}
           onInitialize={handleInitializeState}
           isProcessing={isProcessing}
+          isLoadingChannelData={isLoadingChannelData}
           txHash={initializeTxHash ?? null}
           onClose={handleCloseModal}
         />

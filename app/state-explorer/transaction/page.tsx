@@ -306,8 +306,8 @@ export function TransactionPage() {
     return await zip.generateAsync({ type: "blob" });
   };
 
-  // Check if form fields are filled
-  const isFormFilled = recipient && tokenAmount;
+  // Check if form fields are filled and amount is greater than 0
+  const isFormFilled = recipient && tokenAmount && parseFloat(tokenAmount) > 0;
 
   return (
     <div className="font-mono" style={{ width: 544 }}>

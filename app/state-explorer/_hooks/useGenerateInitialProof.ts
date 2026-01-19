@@ -39,7 +39,11 @@ export function useGenerateInitialProof({
   const [error, setError] = useState<string | null>(null);
 
   // Get channel participants (uses bytes32 directly)
-  const { data: channelParticipants } = useBridgeCoreRead({
+  const { 
+    data: channelParticipants,
+    isLoading: isLoadingParticipants,
+    isFetching: isFetchingParticipants,
+  } = useBridgeCoreRead({
     functionName: "getChannelParticipants",
     args: channelId ? [channelId] : undefined,
     query: {
@@ -48,7 +52,11 @@ export function useGenerateInitialProof({
   });
 
   // Get tree size for the selected channel (uses bytes32 directly)
-  const { data: channelTreeSize } = useBridgeCoreRead({
+  const { 
+    data: channelTreeSize,
+    isLoading: isLoadingTreeSize,
+    isFetching: isFetchingTreeSize,
+  } = useBridgeCoreRead({
     functionName: "getChannelTreeSize",
     args: channelId ? [channelId] : undefined,
     query: {
@@ -57,7 +65,11 @@ export function useGenerateInitialProof({
   });
 
   // Get target contract for the selected channel (uses bytes32 directly)
-  const { data: channelTargetContract } = useBridgeCoreRead({
+  const { 
+    data: channelTargetContract,
+    isLoading: isLoadingTargetContract,
+    isFetching: isFetchingTargetContract,
+  } = useBridgeCoreRead({
     functionName: "getChannelTargetContract",
     args: channelId ? [channelId] : undefined,
     query: {
@@ -66,7 +78,11 @@ export function useGenerateInitialProof({
   });
 
   // Get pre-allocated leaves count for the channel (uses bytes32 directly)
-  const { data: preAllocatedCount } = useBridgeCoreRead({
+  const { 
+    data: preAllocatedCount,
+    isLoading: isLoadingPreAllocCount,
+    isFetching: isFetchingPreAllocCount,
+  } = useBridgeCoreRead({
     functionName: "getChannelPreAllocatedLeavesCount",
     args: channelId ? [channelId] : undefined,
     query: {
@@ -75,13 +91,30 @@ export function useGenerateInitialProof({
   });
 
   // Get pre-allocated keys for the target contract
-  const { data: preAllocatedKeys } = useBridgeCoreRead({
+  const { 
+    data: preAllocatedKeys,
+    isLoading: isLoadingPreAllocKeys,
+    isFetching: isFetchingPreAllocKeys,
+  } = useBridgeCoreRead({
     functionName: "getPreAllocatedKeys",
     args: channelTargetContract ? [channelTargetContract] : undefined,
     query: {
       enabled: !!channelTargetContract && isConnected,
     },
   });
+
+  // Calculate if channel data is still loading
+  // We need at least channelParticipants to be loaded before we can proceed
+  const isLoadingChannelData = 
+    isLoadingParticipants || 
+    isFetchingParticipants ||
+    isLoadingTreeSize ||
+    isFetchingTreeSize ||
+    isLoadingTargetContract ||
+    isFetchingTargetContract ||
+    isLoadingPreAllocCount ||
+    isFetchingPreAllocCount ||
+    (channelTargetContract && (isLoadingPreAllocKeys || isFetchingPreAllocKeys));
 
   const generateProof = useCallback(async (): Promise<ProofData | null> => {
     if (!channelId || !channelParticipants) {
@@ -347,6 +380,7 @@ export function useGenerateInitialProof({
   return {
     generateProof,
     isGenerating,
+    isLoadingChannelData,
     status,
     error,
   };
