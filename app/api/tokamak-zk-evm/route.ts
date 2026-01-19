@@ -512,7 +512,7 @@ export async function POST(req: Request) {
       },
     ];
     const contractCodeJson = JSON.stringify(contractCodesArray, undefined, 2);
-    const contractCodePath = path.join(synthOutputPath, "contract_code.json");
+    const contractCodePath = path.join(synthOutputPath, "contract_codes.json");
     await fs.writeFile(contractCodePath, contractCodeJson);
 
     const previousStateSnapshotJson = JSON.stringify(
