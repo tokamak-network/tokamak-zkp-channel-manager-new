@@ -235,6 +235,12 @@ export function useTransactionHistory({
           const stateSnapshot = JSON.parse(stateSnapshotJson);
           const storageEntries = stateSnapshot.storageEntries || [];
 
+          // Helper to safely convert hex to BigInt (handles empty "0x" values)
+          const safeBigInt = (value: string): bigint => {
+            if (!value || value === "0x" || value === "") return 0n;
+            return BigInt(value);
+          };
+
           // Find my balance by MPT key
           const myEntry = storageEntries.find(
             (entry: { key: string; value: string }) =>
@@ -246,7 +252,7 @@ export function useTransactionHistory({
             continue;
           }
 
-          const currentBalance = BigInt(myEntry.value);
+          const currentBalance = safeBigInt(myEntry.value);
           const diff = currentBalance - previousBalance;
 
           // Only add if there's a change

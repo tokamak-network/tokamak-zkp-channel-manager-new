@@ -51,6 +51,10 @@ export function AccountPanel({ onClose }: AccountPanelProps) {
   const [copiedAddress, setCopiedAddress] = useState(false);
   const [copiedL2Address, setCopiedL2Address] = useState(false);
 
+  // Transaction history filter state
+  const [txFilterType, setTxFilterType] = useState<"all" | "from" | "to">("all");
+  const [isTxFilterOpen, setIsTxFilterOpen] = useState(false);
+
   // Use common hook for L2 address and MPT key generation
   const {
     generate,
@@ -108,6 +112,21 @@ export function AccountPanel({ onClose }: AccountPanelProps) {
     decimals: 18,
     tokenSymbol: "TON",
   });
+
+  // Filter transactions based on selected filter type
+  const filteredTransactions = transactionHistory.filter((tx) => {
+    if (txFilterType === "all") return true;
+    if (txFilterType === "from") return tx.type === "sent"; // From me = Sent
+    if (txFilterType === "to") return tx.type === "received"; // To me = Received
+    return true;
+  });
+
+  // Filter label mapping
+  const filterLabels: Record<"all" | "from" | "to", string> = {
+    all: "All",
+    from: "From",
+    to: "To",
+  };
 
   if (!isConnected) {
     return (
@@ -316,24 +335,57 @@ export function AccountPanel({ onClose }: AccountPanelProps) {
             >
               Transaction History
             </span>
-            <button
-              className="flex items-center justify-between"
-              style={{
-                width: 90,
-                height: 32,
-                padding: "7px 8px",
-                border: "1px solid #111111",
-                borderRadius: 4,
-              }}
-            >
-              <span
-                className="font-medium text-[#111111]"
-                style={{ fontSize: 14, lineHeight: "1.3em" }}
+            {/* Filter Dropdown */}
+            <div className="relative">
+              <button
+                onClick={() => setIsTxFilterOpen(!isTxFilterOpen)}
+                className="flex items-center justify-between"
+                style={{
+                  width: 90,
+                  height: 32,
+                  padding: "7px 8px",
+                  border: "1px solid #111111",
+                  borderRadius: 4,
+                }}
               >
-                From
-              </span>
-              <ChevronDown className="w-4 h-4 text-[#111111]" />
-            </button>
+                <span
+                  className="font-medium text-[#111111]"
+                  style={{ fontSize: 14, lineHeight: "1.3em" }}
+                >
+                  {filterLabels[txFilterType]}
+                </span>
+                <ChevronDown 
+                  className={`w-4 h-4 text-[#111111] transition-transform ${isTxFilterOpen ? "rotate-180" : ""}`} 
+                />
+              </button>
+              {/* Dropdown Menu */}
+              {isTxFilterOpen && (
+                <div
+                  className="absolute right-0 mt-1 bg-white shadow-lg z-10"
+                  style={{
+                    width: 90,
+                    border: "1px solid #DDDDDD",
+                    borderRadius: 4,
+                  }}
+                >
+                  {(["all", "from", "to"] as const).map((type) => (
+                    <button
+                      key={type}
+                      onClick={() => {
+                        setTxFilterType(type);
+                        setIsTxFilterOpen(false);
+                      }}
+                      className={`w-full text-left px-2 py-1.5 hover:bg-gray-100 ${
+                        txFilterType === type ? "bg-gray-50 font-medium" : ""
+                      }`}
+                      style={{ fontSize: 14 }}
+                    >
+                      {filterLabels[type]}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Transaction List */}
@@ -345,14 +397,16 @@ export function AccountPanel({ onClose }: AccountPanelProps) {
                   Loading...
                 </span>
               </div>
-            ) : transactionHistory.length === 0 ? (
+            ) : filteredTransactions.length === 0 ? (
               <div className="text-center py-4">
                 <span className="text-[#999999]" style={{ fontSize: 14 }}>
-                  No transactions yet
+                  {transactionHistory.length === 0 
+                    ? "No transactions yet" 
+                    : `No ${txFilterType === "from" ? "sent" : txFilterType === "to" ? "received" : ""} transactions`}
                 </span>
               </div>
             ) : (
-              transactionHistory.map((tx, index) => (
+              filteredTransactions.map((tx, index) => (
                 <div
                   key={`${tx.sequenceNumber}-${index}`}
                   className="flex flex-col gap-1.5"

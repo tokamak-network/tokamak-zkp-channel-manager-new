@@ -1,8 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { useAccount, useConfig } from "wagmi";
-import { readContracts } from "@wagmi/core";
+import { useAccount, usePublicClient } from "wagmi";
 import { useBridgeCoreRead } from "@/hooks/contract";
 import { getContractAddress, getContractAbi } from "@tokamak/config";
 import { useNetworkId } from "@/hooks/contract/utils";
@@ -32,7 +31,7 @@ export function useGenerateInitialProof({
   channelId,
 }: UseGenerateInitialProofParams) {
   const { isConnected } = useAccount();
-  const config = useConfig();
+  const publicClient = usePublicClient();
   const networkId = useNetworkId();
   const [isGenerating, setIsGenerating] = useState(false);
   const [status, setStatus] = useState<string>("");
@@ -167,26 +166,33 @@ export function useGenerateInitialProof({
           const bridgeCoreAddress = getContractAddress("BridgeCore", networkId);
           const bridgeCoreAbi = getContractAbi("BridgeCore");
 
-          const preAllocatedResults = await readContracts(config, {
-            contracts: preAllocatedKeysList.map((key) => ({
-              address: bridgeCoreAddress,
-              abi: bridgeCoreAbi,
-              functionName: "getPreAllocatedLeaf",
-              args: [channelTargetContract, key],
-            })),
-          });
+          if (!publicClient) {
+            throw new Error("Public client not available");
+          }
 
-          preAllocatedResults.forEach((result, i) => {
+          // Use publicClient.readContract directly to bypass React Query cache
+          const preAllocatedResults = await Promise.all(
+            preAllocatedKeysList.map((key) =>
+              publicClient.readContract({
+                address: bridgeCoreAddress,
+                abi: bridgeCoreAbi,
+                functionName: "getPreAllocatedLeaf",
+                args: [channelTargetContract, key],
+              })
+            )
+          );
+
+          preAllocatedResults.forEach((result: unknown, i: number) => {
             const key = preAllocatedKeysList[i];
 
-            if (!result || result.status === "failure" || !result.result) {
+            if (!result) {
               console.log(
                 `Skipping pre-allocated leaf ${i} (doesn't exist or failed to fetch)`
               );
               return;
             }
 
-            const [value, exists] = result.result as [bigint, boolean];
+            const [value, exists] = result as [bigint, boolean];
 
             if (exists) {
               // Apply modulo R_MOD as the contract does
@@ -226,37 +232,35 @@ export function useGenerateInitialProof({
         let deposit = "0";
 
         try {
-          const [l2MptKeyResult, depositResult] = await readContracts(config, {
-            contracts: [
-              {
-                address: bridgeCoreAddress,
-                abi: bridgeCoreAbi,
-                functionName: "getL2MptKey",
-                args: [channelId, participant],
-              },
-              {
-                address: bridgeCoreAddress,
-                abi: bridgeCoreAbi,
-                functionName: "getParticipantDeposit",
-                args: [channelId, participant],
-              },
-            ],
-          });
+          // Use publicClient.readContract directly to bypass React Query cache
+          // This ensures fresh data is fetched from the blockchain after deposits
+          if (!publicClient) {
+            throw new Error("Public client not available");
+          }
 
-          if (
-            l2MptKeyResult?.status === "success" &&
-            l2MptKeyResult.result !== undefined
-          ) {
-            l2MptKey = (l2MptKeyResult.result as bigint).toString();
+          const [l2MptKeyResultRaw, depositResultRaw] = await Promise.all([
+            publicClient.readContract({
+              address: bridgeCoreAddress,
+              abi: bridgeCoreAbi,
+              functionName: "getL2MptKey",
+              args: [channelId, participant],
+            }),
+            publicClient.readContract({
+              address: bridgeCoreAddress,
+              abi: bridgeCoreAbi,
+              functionName: "getParticipantDeposit",
+              args: [channelId, participant],
+            }),
+          ]);
+
+          if (l2MptKeyResultRaw !== undefined) {
+            l2MptKey = (l2MptKeyResultRaw as bigint).toString();
           } else {
             console.error(`L2 MPT key fetch failed for ${participant}`);
           }
 
-          if (
-            depositResult?.status === "success" &&
-            depositResult.result !== undefined
-          ) {
-            deposit = (depositResult.result as bigint).toString();
+          if (depositResultRaw !== undefined) {
+            deposit = (depositResultRaw as bigint).toString();
           } else {
             console.error(`Deposit fetch failed for ${participant}`);
           }
@@ -373,7 +377,7 @@ export function useGenerateInitialProof({
     channelTargetContract,
     preAllocatedCount,
     preAllocatedKeys,
-    config,
+    publicClient,
     networkId,
   ]);
 
