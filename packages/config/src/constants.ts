@@ -23,7 +23,7 @@ export type ChannelStatus =
  */
 export const CHANNEL_PARTICIPANTS = {
   MIN: 2,
-  MAX: 128,
+  MAX: 16,
 } as const;
 
 /**

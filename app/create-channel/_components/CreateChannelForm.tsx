@@ -295,7 +295,11 @@ export function CreateChannelForm() {
 
         {/* Salt (Optional) */}
         <div className="space-y-4">
-          <Label hint="Optional" hintIcon={<Info className="w-4 h-4 text-[#666666]" />}>
+          <Label
+            hint="Optional"
+            hintIcon={<Info className="w-4 h-4 text-[#666666]" />}
+            tooltip="You can recover your Channel ID later using this salt word and your wallet address."
+          >
             Salt
           </Label>
           <Input
