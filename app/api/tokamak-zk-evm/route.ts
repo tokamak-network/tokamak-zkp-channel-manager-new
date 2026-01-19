@@ -504,7 +504,14 @@ export async function POST(req: Request) {
     );
 
     const contractCodeStr = bytesToHex(contractCode);
-    const contractCodeJson = JSON.stringify(contractCodeStr, undefined, 2);
+    // New format: array of objects with address and code (PR #174)
+    const contractCodesArray = [
+      {
+        address: FIXED_TARGET_CONTRACT,
+        code: contractCodeStr,
+      },
+    ];
+    const contractCodeJson = JSON.stringify(contractCodesArray, undefined, 2);
     const contractCodePath = path.join(synthOutputPath, "contract_code.json");
     await fs.writeFile(contractCodePath, contractCodeJson);
 
