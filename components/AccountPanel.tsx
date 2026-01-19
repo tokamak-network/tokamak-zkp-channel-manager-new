@@ -66,6 +66,10 @@ export function AccountPanel({ onClose }: AccountPanelProps) {
   });
 
   const l2Address = accountInfo?.l2Address || null;
+  const mptKey = accountInfo?.mptKey || null;
+
+  // Copy states
+  const [copiedMptKey, setCopiedMptKey] = useState(false);
 
   const handleCopyL2Address = async () => {
     if (!l2Address) return;
@@ -75,6 +79,17 @@ export function AccountPanel({ onClose }: AccountPanelProps) {
       setTimeout(() => setCopiedL2Address(false), 2000);
     } catch (err) {
       console.error("Failed to copy L2 address:", err);
+    }
+  };
+
+  const handleCopyMptKey = async () => {
+    if (!mptKey) return;
+    try {
+      await navigator.clipboard.writeText(mptKey);
+      setCopiedMptKey(true);
+      setTimeout(() => setCopiedMptKey(false), 2000);
+    } catch (err) {
+      console.error("Failed to copy MPT key:", err);
     }
   };
 
@@ -294,33 +309,81 @@ export function AccountPanel({ onClose }: AccountPanelProps) {
 
         {/* L2 Address Result */}
         {l2Address && (
-          <div
-            className="relative"
-            style={{
-              padding: "14px 16px",
-              paddingRight: 48,
-              backgroundColor: "#F2F2F2",
-              borderRadius: 4,
-            }}
-          >
+          <div className="flex flex-col gap-2">
             <span
-              className="text-[#111111] break-all"
+              className="text-[#666666]"
+              style={{ fontSize: 14, lineHeight: "1.3em" }}
+            >
+              L2 Address
+            </span>
+            <div
+              className="relative"
               style={{
-                fontSize: 16,
-                lineHeight: "1.3em",
+                padding: "14px 16px",
+                paddingRight: 48,
+                backgroundColor: "#F2F2F2",
+                borderRadius: 4,
               }}
             >
-              {l2Address}
-            </span>
-            <button
-              onClick={handleCopyL2Address}
-              className="absolute top-3 right-3 hover:opacity-70 transition-opacity"
-              title={copiedL2Address ? "Copied!" : "Copy L2 address"}
+              <span
+                className="text-[#111111] break-all"
+                style={{
+                  fontSize: 16,
+                  lineHeight: "1.3em",
+                }}
+              >
+                {l2Address}
+              </span>
+              <button
+                onClick={handleCopyL2Address}
+                className="absolute top-3 right-3 hover:opacity-70 transition-opacity"
+                title={copiedL2Address ? "Copied!" : "Copy L2 address"}
+              >
+                <Copy
+                  className={`w-6 h-6 ${copiedL2Address ? "text-green-600" : "text-[#111111]"}`}
+                />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* MPT Key Result */}
+        {mptKey && (
+          <div className="flex flex-col gap-2">
+            <span
+              className="text-[#666666]"
+              style={{ fontSize: 14, lineHeight: "1.3em" }}
             >
-              <Copy
-                className={`w-6 h-6 ${copiedL2Address ? "text-green-600" : "text-[#111111]"}`}
-              />
-            </button>
+              MPT Key
+            </span>
+            <div
+              className="relative"
+              style={{
+                padding: "14px 16px",
+                paddingRight: 48,
+                backgroundColor: "#F2F2F2",
+                borderRadius: 4,
+              }}
+            >
+              <span
+                className="text-[#111111] break-all"
+                style={{
+                  fontSize: 16,
+                  lineHeight: "1.3em",
+                }}
+              >
+                {mptKey}
+              </span>
+              <button
+                onClick={handleCopyMptKey}
+                className="absolute top-3 right-3 hover:opacity-70 transition-opacity"
+                title={copiedMptKey ? "Copied!" : "Copy MPT key"}
+              >
+                <Copy
+                  className={`w-6 h-6 ${copiedMptKey ? "text-green-600" : "text-[#111111]"}`}
+                />
+              </button>
+            </div>
           </div>
         )}
       </div>
