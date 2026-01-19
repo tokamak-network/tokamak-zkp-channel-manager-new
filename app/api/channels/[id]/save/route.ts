@@ -27,6 +27,7 @@ export async function POST(request: Request, { params }: RouteParams) {
       participants,
       blockNumber,
       blockTimestamp,
+      appType,
     } = body;
 
     // Validation
@@ -50,6 +51,7 @@ export async function POST(request: Request, { params }: RouteParams) {
       blockNumber: blockNumber?.toString(),
       blockTimestamp: blockTimestamp?.toString(),
       createdAt: Date.now(), // Unix timestamp (milliseconds) - avoids timezone issues
+      appType: appType || null, // App type for future extensibility (e.g., "ERC20", "NFT", etc.)
     });
 
     return NextResponse.json({

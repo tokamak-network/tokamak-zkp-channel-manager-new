@@ -15,7 +15,7 @@ import { TransactionConfirmModal } from "./TransactionConfirmModal";
 import { useCreateChannel } from "../_hooks/useCreateChannel";
 import { useChannelId } from "../_hooks/useChannelId";
 import { CHANNEL_PARTICIPANTS } from "@tokamak/config";
-import { Info, Check, Copy, RefreshCw } from "lucide-react";
+import { Info, Check, Copy, RefreshCw, ChevronDown } from "lucide-react";
 import { Button, Input, TokenButton, Label } from "@/components/ui";
 
 // Token symbol images
@@ -23,11 +23,25 @@ import TONSymbol from "@/assets/symbols/TON.svg";
 import USDTSymbol from "@/assets/symbols/USDT.svg";
 import USDCSymbol from "@/assets/symbols/USDC.svg";
 
+// App types for channel (extensible for future app types)
+export type AppType = "ERC20" | null;
+
+const APP_OPTIONS: { value: AppType; label: string; disabled?: boolean }[] = [
+  { value: "ERC20", label: "ERC20" },
+  // Future app types can be added here
+  // { value: "NFT", label: "NFT", disabled: true },
+  // { value: "DEX", label: "DEX", disabled: true },
+];
+
 export function CreateChannelForm() {
   const { isConnected } = useAccount();
 
   const { participants, updateParticipant, setParticipants, isValid } =
     useChannelFormStore();
+
+  // App type state
+  const [selectedApp, setSelectedApp] = useState<AppType>(null);
+  const [isAppDropdownOpen, setIsAppDropdownOpen] = useState(false);
 
   // Modal state
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -75,6 +89,7 @@ export function CreateChannelForm() {
     isValid,
     isConnected,
     channelId: generatedChannelId,
+    appType: selectedApp,
   });
 
   // Initialize participants on mount - always start with one empty field
@@ -132,6 +147,7 @@ export function CreateChannelForm() {
   }, [shouldShowNewField, participants, setParticipants]);
 
   const isFormValid =
+    selectedApp &&
     generatedChannelId &&
     validAddressCount >= CHANNEL_PARTICIPANTS.MIN &&
     validAddressCount <= CHANNEL_PARTICIPANTS.MAX &&
@@ -158,30 +174,75 @@ export function CreateChannelForm() {
       )}
 
       <div className="w-[544px] space-y-6 font-mono">
-        {/* Target Token Selection */}
+        {/* App Selection */}
         <div className="space-y-3">
-          <Label>Target</Label>
-          <div className="flex gap-4">
-            <TokenButton
-              selected
-              icon={<Image src={TONSymbol} alt="TON" width={24} height={24} />}
+          <Label>App</Label>
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setIsAppDropdownOpen(!isAppDropdownOpen)}
+              className="w-full h-12 px-4 bg-[#F2F2F2] rounded flex items-center justify-between text-lg transition-colors hover:bg-[#E5E5E5]"
             >
-              TON
-            </TokenButton>
-            <TokenButton
-              disabled
-              icon={<Image src={USDTSymbol} alt="USDT" width={24} height={24} />}
-            >
-              USDT
-            </TokenButton>
-            <TokenButton
-              disabled
-              icon={<Image src={USDCSymbol} alt="USDC" width={24} height={24} />}
-            >
-              USDC
-            </TokenButton>
+              <span className={selectedApp ? "text-[#111111]" : "text-[#999999]"}>
+                {selectedApp || "Select App"}
+              </span>
+              <ChevronDown
+                className={`w-5 h-5 text-[#666666] transition-transform ${
+                  isAppDropdownOpen ? "rotate-180" : ""
+                }`}
+              />
+            </button>
+            {isAppDropdownOpen && (
+              <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-[#E5E5E5] rounded shadow-lg z-10">
+                {APP_OPTIONS.map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    disabled={option.disabled}
+                    onClick={() => {
+                      setSelectedApp(option.value);
+                      setIsAppDropdownOpen(false);
+                    }}
+                    className={`w-full px-4 py-3 text-left text-lg transition-colors ${
+                      option.disabled
+                        ? "text-[#999999] cursor-not-allowed"
+                        : "text-[#111111] hover:bg-[#F2F2F2]"
+                    } ${selectedApp === option.value ? "bg-[#F2F2F2]" : ""}`}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </div>
+
+        {/* Target Token Selection - Only shown when ERC20 is selected */}
+        {selectedApp === "ERC20" && (
+          <div className="space-y-3">
+            <Label>Target</Label>
+            <div className="flex gap-4">
+              <TokenButton
+                selected
+                icon={<Image src={TONSymbol} alt="TON" width={24} height={24} />}
+              >
+                TON
+              </TokenButton>
+              <TokenButton
+                disabled
+                icon={<Image src={USDTSymbol} alt="USDT" width={24} height={24} />}
+              >
+                USDT
+              </TokenButton>
+              <TokenButton
+                disabled
+                icon={<Image src={USDCSymbol} alt="USDC" width={24} height={24} />}
+              >
+                USDC
+              </TokenButton>
+            </div>
+          </div>
+        )}
 
         {/* Channel ID */}
         <div className="space-y-3">
