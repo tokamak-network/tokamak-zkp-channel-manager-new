@@ -17,6 +17,8 @@ export function useChannelId({ participants }: UseChannelIdParams) {
   const { address: connectedAddress } = useAccount();
   const [salt, setSalt] = useState("");
   const [generatedChannelId, setGeneratedChannelId] = useState<`0x${string}` | null>(null);
+  // Track the salt that was used when generating the channel ID
+  const [generatedWithSalt, setGeneratedWithSalt] = useState<string | null>(null);
 
   // Determine leader address (the account that calls openChannel() transaction)
   const leaderAddress = useMemo(() => {
@@ -24,6 +26,12 @@ export function useChannelId({ participants }: UseChannelIdParams) {
     // This is the connected wallet address
     return connectedAddress as Address | undefined;
   }, [connectedAddress]);
+
+  // Check if salt has changed since last generation
+  const isSaltChanged = useMemo(() => {
+    if (generatedWithSalt === null) return false;
+    return salt !== generatedWithSalt;
+  }, [salt, generatedWithSalt]);
 
   // Generate channel ID
   const generateChannelId = useCallback(() => {
@@ -43,7 +51,8 @@ export function useChannelId({ participants }: UseChannelIdParams) {
       ) as `0x${string}`;
 
       setGeneratedChannelId(channelId);
-      
+      setGeneratedWithSalt(finalSalt);
+
       // If salt was auto-generated, store it for display
       if (!salt.trim()) {
         setSalt(finalSalt);
@@ -59,6 +68,7 @@ export function useChannelId({ participants }: UseChannelIdParams) {
   // Reset channel ID
   const resetChannelId = useCallback(() => {
     setGeneratedChannelId(null);
+    setGeneratedWithSalt(null);
     setSalt("");
   }, []);
 
@@ -66,6 +76,8 @@ export function useChannelId({ participants }: UseChannelIdParams) {
     salt,
     setSalt,
     generatedChannelId,
+    generatedWithSalt,
+    isSaltChanged,
     leaderAddress,
     generateChannelId,
     resetChannelId,

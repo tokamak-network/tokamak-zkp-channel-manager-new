@@ -51,6 +51,7 @@ export function CreateChannelForm() {
     salt,
     setSalt,
     generatedChannelId,
+    isSaltChanged,
     leaderAddress,
     generateChannelId,
   } = useChannelId({ participants });
@@ -251,11 +252,16 @@ export function CreateChannelForm() {
             {generatedChannelId ? (
               <button
                 type="button"
-                className="p-1 hover:bg-[#F2F2F2] rounded transition-colors"
-                title="Regenerate Channel ID"
-                // TODO: Implement regenerate functionality
+                className={`p-1 rounded transition-colors ${
+                  isSaltChanged
+                    ? "hover:bg-[#F2F2F2] cursor-pointer"
+                    : "cursor-not-allowed opacity-40"
+                }`}
+                title={isSaltChanged ? "Regenerate Channel ID with new salt" : "Change salt to regenerate"}
+                onClick={isSaltChanged ? handleGenerateChannelId : undefined}
+                disabled={!isSaltChanged}
               >
-                <RefreshCw className="w-6 h-6 text-[#2A72E5]" />
+                <RefreshCw className={`w-6 h-6 ${isSaltChanged ? "text-[#2A72E5]" : "text-[#999999]"}`} />
               </button>
             ) : (
               <Button

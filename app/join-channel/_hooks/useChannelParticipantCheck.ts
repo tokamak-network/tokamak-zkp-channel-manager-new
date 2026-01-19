@@ -28,11 +28,21 @@ import { useBridgeCoreRead } from "@/hooks/contract";
 import { isValidBytes32 } from "@/lib/channelId";
 import { useChannelInfo } from "@/hooks/useChannelInfo";
 
+// Error types for channel validation
+export type ChannelErrorType =
+  | "invalid_format" // Channel ID format is invalid
+  | "not_found" // Channel does not exist
+  | "not_participant" // User is not a participant
+  | "check_failed" // Failed to check participant status
+  | null;
+
 interface UseChannelParticipantCheckResult {
   isParticipant: boolean | undefined;
   isChecking: boolean;
   error: string | null;
+  errorType: ChannelErrorType;
   isValidChannelId: boolean;
+  channelExists: boolean | undefined;
 }
 
 /**
@@ -57,17 +67,28 @@ export function useChannelParticipantCheck(
     isValidChannelId ? (channelId as `0x${string}`) : null
   );
 
+  // Check if channel exists (targetContract is not zero address)
+  const channelExists = useMemo(() => {
+    if (!channelInfo || channelInfo.isLoading) return undefined;
+    const zeroAddress = "0x0000000000000000000000000000000000000000";
+    return (
+      channelInfo.targetContract !== null &&
+      channelInfo.targetContract.toLowerCase() !== zeroAddress.toLowerCase()
+    );
+  }, [channelInfo]);
+
   // Determine which function to use based on channel state
   // state < 2 (None or Initialized): use isChannelWhitelisted (before initializeChannelState)
   // state >= 2 (Open or later): use getChannelParticipants and filter array (temporary workaround)
   const useWhitelistCheck = useMemo(() => {
     if (!channelInfo || channelInfo.isLoading) return undefined;
+    if (!channelExists) return undefined; // Channel doesn't exist
     // state < 2 means before initializeChannelState is called
     // state === 0: None (before deposits)
     // state === 1: Initialized (deposits complete, but initializeChannelState not called yet)
     // state >= 2: Open (initializeChannelState called)
     return channelInfo.state < 2;
-  }, [channelInfo]);
+  }, [channelInfo, channelExists]);
 
   // For whitelist check (state < 2): use isChannelWhitelisted
   const whitelistCheckArgs = useMemo(() => {
@@ -200,51 +221,82 @@ export function useChannelParticipantCheck(
     isValidChannelId,
   ]);
 
-  // Determine error message
-  const error = useMemo(() => {
-    if (!isConnected || !address || !channelId || !isValidChannelId) {
-      return null;
+  // Determine error message and type
+  const { error, errorType } = useMemo((): {
+    error: string | null;
+    errorType: ChannelErrorType;
+  } => {
+    // No input yet
+    if (!channelId) {
+      return { error: null, errorType: null };
+    }
+
+    // Invalid format
+    if (!isValidChannelId) {
+      return {
+        error: "Invalid Channel ID format. Must be 0x followed by 64 hexadecimal characters.",
+        errorType: "invalid_format",
+      };
+    }
+
+    // Not connected
+    if (!isConnected || !address) {
+      return { error: null, errorType: null };
     }
 
     // Wait for channel info to load
     if (channelInfo.isLoading) {
-      return null;
+      return { error: null, errorType: null };
     }
 
+    // Channel doesn't exist
+    if (channelExists === false) {
+      return {
+        error: "Channel not found. Please check the Channel ID and try again.",
+        errorType: "not_found",
+      };
+    }
+
+    // Still checking participant status
     if (isCheckingParticipant) {
-      // Still checking, don't show error yet
-      return null;
+      return { error: null, errorType: null };
     }
 
+    // Check failed
     if (participantCheckError) {
-      return "Failed to check participant status. Please try again.";
+      return {
+        error: "Failed to verify participant status. Please try again.",
+        errorType: "check_failed",
+      };
     }
 
+    // Not a participant
     if (isParticipant === false) {
-      if (useWhitelistCheck) {
-        return "Your wallet address is not whitelisted for this channel. Please wait for the channel to be initialized.";
-      } else {
-        return "Your wallet address is not registered as a participant in this channel.";
-      }
+      return {
+        error: "Your wallet address is not registered as a participant in this channel.",
+        errorType: "not_participant",
+      };
     }
 
-    return null;
+    return { error: null, errorType: null };
   }, [
     isConnected,
     address,
     channelId,
     isValidChannelId,
+    channelExists,
     isParticipant,
     isCheckingParticipant,
     participantCheckError,
     channelInfo.isLoading,
-    useWhitelistCheck,
   ]);
 
   return {
     isParticipant,
     isChecking: isCheckingParticipant,
     error,
+    errorType,
     isValidChannelId,
+    channelExists,
   };
 }

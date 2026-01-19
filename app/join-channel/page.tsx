@@ -28,7 +28,9 @@ export default function JoinChannelPage() {
     isParticipant,
     isChecking: isCheckingParticipant,
     error: participantError,
+    errorType,
     isValidChannelId,
+    channelExists,
   } = useChannelParticipantCheck(channelId);
 
   // Pre-fill with stored channel ID if available
@@ -117,38 +119,50 @@ export default function JoinChannelPage() {
             className="font-mono font-normal text-center text-[#666666]"
             style={{ fontSize: 20, lineHeight: "100%", letterSpacing: "0%" }}
           >
-            Enter the Channel ID shared by the channel creator to join
+            Enter the Channel ID shared by the channel leader to join
           </p>
         </div>
 
         {/* Input + Button Row */}
-        <div className="flex items-center gap-2">
-          {/* Channel ID Input */}
-          <div style={{ width: 825 }}>
-            <Input
-              value={channelId}
-              onChange={(e) => {
-                setChannelId(e.target.value);
-                setError(null);
-              }}
-              placeholder="Enter channel ID"
-              disabled={isChecking}
-              error={hasInput && !isFormatValid}
-              success={isFormatValid && isParticipant === true}
-            />
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center gap-2">
+            {/* Channel ID Input */}
+            <div style={{ width: 825 }}>
+              <Input
+                value={channelId}
+                onChange={(e) => {
+                  setChannelId(e.target.value);
+                  setError(null);
+                }}
+                placeholder="Enter channel ID"
+                disabled={isChecking}
+                error={hasInput && (errorType !== null || !isFormatValid)}
+                success={isFormatValid && channelExists === true && isParticipant === true}
+              />
+            </div>
+
+            {/* Join Button */}
+            <div style={{ width: 240 }}>
+              <Button
+                variant="purple"
+                size="full"
+                onClick={handleJoinChannel}
+                disabled={!isFormValid}
+              >
+                {isChecking || isCheckingParticipant ? "Checking..." : "Join Channel"}
+              </Button>
+            </div>
           </div>
 
-          {/* Join Button */}
-          <div style={{ width: 240 }}>
-            <Button
-              variant="purple"
-              size="full"
-              onClick={handleJoinChannel}
-              disabled={!isFormValid}
+          {/* Error Message */}
+          {hasInput && participantError && (
+            <p
+              className="font-mono text-[#E53E3E]"
+              style={{ fontSize: 14, marginLeft: 4 }}
             >
-              {isChecking || isCheckingParticipant ? "Checking..." : "Join Channel"}
-            </Button>
-          </div>
+              {participantError}
+            </p>
+          )}
         </div>
 
       </div>
