@@ -196,7 +196,7 @@ export default function StateExplorerLayout({
 
   return (
     <AppLayout>
-      <div className="space-y-12">
+      <div className="space-y-6">
         {/* Header - Channel ID */}
         <div className="flex items-center gap-8">
           <h1
@@ -250,8 +250,8 @@ export default function StateExplorerLayout({
                 {isLoadingChannelData ? "Loading..." : "Initialize State"}
               </button>
             )}
-            {/* state === 2 (Open): Show Close Channel button during transaction phase */}
-            {contractChannelState === 2 && (
+            {/* state === 3 (Closing): Show Close Channel button */}
+            {contractChannelState === 3 && (
               <button
                 type="button"
                 onClick={handleOpenCloseChannelModal}
