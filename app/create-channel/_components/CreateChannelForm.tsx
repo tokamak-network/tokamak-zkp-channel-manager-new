@@ -8,6 +8,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Image from "next/image";
 import { useAccount } from "wagmi";
 import { useChannelFormStore } from "@/stores";
 import { TransactionConfirmModal } from "./TransactionConfirmModal";
@@ -16,6 +17,11 @@ import { useChannelId } from "../_hooks/useChannelId";
 import { CHANNEL_PARTICIPANTS } from "@tokamak/config";
 import { Info, Check, Copy, RefreshCw } from "lucide-react";
 import { Button, Input, TokenButton, Label } from "@/components/ui";
+
+// Token symbol images
+import TONSymbol from "@/assets/symbols/TON.svg";
+import USDTSymbol from "@/assets/symbols/USDT.svg";
+import USDCSymbol from "@/assets/symbols/USDC.svg";
 
 export function CreateChannelForm() {
   const { isConnected } = useAccount();
@@ -158,19 +164,19 @@ export function CreateChannelForm() {
           <div className="flex gap-4">
             <TokenButton
               selected
-              icon={<span className="text-[#2A72E5] font-bold text-xs">T</span>}
+              icon={<Image src={TONSymbol} alt="TON" width={24} height={24} />}
             >
               TON
             </TokenButton>
             <TokenButton
               disabled
-              icon={<span className="text-[#999999] font-bold text-xs">T</span>}
+              icon={<Image src={USDTSymbol} alt="USDT" width={24} height={24} />}
             >
               USDT
             </TokenButton>
             <TokenButton
               disabled
-              icon={<span className="text-[#999999] font-bold text-xs">U</span>}
+              icon={<Image src={USDCSymbol} alt="USDC" width={24} height={24} />}
             >
               USDC
             </TokenButton>
@@ -235,7 +241,6 @@ export function CreateChannelForm() {
             value={salt}
             onChange={(e) => setSalt(e.target.value)}
             placeholder="Enter custom salt"
-            disabled={!!generatedChannelId}
           />
         </div>
 

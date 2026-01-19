@@ -1,11 +1,12 @@
 /**
  * Channel Form Store (Step 1)
- * 
+ *
  * Manages form data for creating a channel
+ * Uses in-memory storage only (no persistence)
+ * - Data is cleared on page refresh or navigation
  */
 
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
 
 export interface Participant {
   address: `0x${string}`;
@@ -17,7 +18,7 @@ export interface ChannelFormState {
   targetContract: `0x${string}` | null;
   participants: Participant[];
   enableFrostSignature: boolean;
-  
+
   // Actions
   setChannelName: (name: string) => void;
   setTargetContract: (contract: `0x${string}`) => void;
@@ -27,7 +28,7 @@ export interface ChannelFormState {
   setParticipants: (participants: Participant[]) => void;
   setEnableFrostSignature: (enabled: boolean) => void;
   reset: () => void;
-  
+
   // Validation
   isValid: () => boolean;
 }
@@ -39,52 +40,48 @@ const initialState = {
   enableFrostSignature: true,
 };
 
-export const useChannelFormStore = create<ChannelFormState>()(
-  persist(
-    (set, get) => ({
-      ...initialState,
-      
-      setChannelName: (name) => set({ channelName: name }),
-      
-      setTargetContract: (contract) => set({ targetContract: contract }),
-      
-      addParticipant: (address) => set((state) => {
-        if (state.participants.some(p => p.address.toLowerCase() === address.toLowerCase())) {
-          return state;
-        }
-        return {
-          participants: [...state.participants, { address }],
-        };
-      }),
-      
-      removeParticipant: (index) => set((state) => ({
-        participants: state.participants.filter((_, i) => i !== index),
-      })),
-      
-      updateParticipant: (index, address) => set((state) => {
-        const newParticipants = [...state.participants];
-        newParticipants[index] = { address };
-        return { participants: newParticipants };
-      }),
-      
-      setParticipants: (newParticipants) => set({ participants: newParticipants }),
-      
-      setEnableFrostSignature: (enabled) => set({ enableFrostSignature: enabled }),
-      
-      reset: () => set(initialState),
-      
-      isValid: () => {
-        const state = get();
-        return (
-          state.targetContract !== null &&
-          state.participants.length >= 1 &&
-          state.participants.every(p => /^0x[a-fA-F0-9]{40}$/.test(p.address))
-        );
-      },
+export const useChannelFormStore = create<ChannelFormState>()((set, get) => ({
+  ...initialState,
+
+  setChannelName: (name) => set({ channelName: name }),
+
+  setTargetContract: (contract) => set({ targetContract: contract }),
+
+  addParticipant: (address) =>
+    set((state) => {
+      if (state.participants.some((p) => p.address.toLowerCase() === address.toLowerCase())) {
+        return state;
+      }
+      return {
+        participants: [...state.participants, { address }],
+      };
     }),
-    {
-      name: 'channel-form-storage',
-    }
-  )
-);
+
+  removeParticipant: (index) =>
+    set((state) => ({
+      participants: state.participants.filter((_, i) => i !== index),
+    })),
+
+  updateParticipant: (index, address) =>
+    set((state) => {
+      const newParticipants = [...state.participants];
+      newParticipants[index] = { address };
+      return { participants: newParticipants };
+    }),
+
+  setParticipants: (newParticipants) => set({ participants: newParticipants }),
+
+  setEnableFrostSignature: (enabled) => set({ enableFrostSignature: enabled }),
+
+  reset: () => set(initialState),
+
+  isValid: () => {
+    const state = get();
+    return (
+      state.targetContract !== null &&
+      state.participants.length >= 1 &&
+      state.participants.every((p) => /^0x[a-fA-F0-9]{40}$/.test(p.address))
+    );
+  },
+}));
 
