@@ -63,13 +63,30 @@ export function usePreviousStateSnapshot({
       // Step 2: Try to get from latest verified proof API
       let apiSnapshot: StateSnapshot | null = null;
       try {
+        console.log("[usePreviousStateSnapshot] Step 2: Calling API with channelId:", channelId);
         const response = await fetch(
           `/api/get-latest-state-snapshot?channelId=${channelId}`
         );
+        console.log("[usePreviousStateSnapshot] API response status:", response.status, response.ok);
+        
         if (response.ok) {
           const data = await response.json();
+          console.log("[usePreviousStateSnapshot] API response data:", {
+            success: data.success,
+            hasSnapshot: !!data.snapshot,
+            proofId: data.proofId,
+            sequenceNumber: data.sequenceNumber,
+          });
+          
           if (data.snapshot) {
             apiSnapshot = data.snapshot;
+            console.log("[usePreviousStateSnapshot] API snapshot details:", {
+              stateRoot: apiSnapshot?.stateRoot,
+              storageEntriesCount: apiSnapshot?.storageEntries?.length,
+              storageEntries: apiSnapshot?.storageEntries,
+              hasPreAllocatedLeaves: !!(apiSnapshot?.preAllocatedLeaves?.length),
+            });
+            
             // Check if preAllocatedLeaves is missing or empty
             if (apiSnapshot) {
               const hasPreAllocatedLeaves =
@@ -79,6 +96,7 @@ export function usePreviousStateSnapshot({
 
               if (hasPreAllocatedLeaves) {
                 // Snapshot has preAllocatedLeaves, use it
+                console.log("[usePreviousStateSnapshot] Using API snapshot directly (has preAllocatedLeaves)");
                 setPreviousStateSnapshot(apiSnapshot);
                 setIsLoading(false);
                 return apiSnapshot;
@@ -90,9 +108,15 @@ export function usePreviousStateSnapshot({
               }
             }
           }
+        } else {
+          const errorData = await response.json().catch(() => ({}));
+          console.warn("[usePreviousStateSnapshot] API returned non-ok status:", {
+            status: response.status,
+            error: errorData.error,
+          });
         }
       } catch (apiError) {
-        console.warn("Failed to fetch snapshot from API:", apiError);
+        console.warn("[usePreviousStateSnapshot] Failed to fetch snapshot from API:", apiError);
       }
 
       // Step 3: Fetch from on-chain
@@ -204,12 +228,14 @@ export function usePreviousStateSnapshot({
         console.log(
           `[usePreviousStateSnapshot] Merged preAllocatedLeaves (${preAllocatedLeaves.length} entries) into API snapshot`
         );
+        console.log("[usePreviousStateSnapshot] Merged snapshot storageEntries:", mergedSnapshot.storageEntries);
         setPreviousStateSnapshot(mergedSnapshot);
         setIsLoading(false);
         return mergedSnapshot;
       }
 
       // Otherwise, fetch everything from on-chain (first transfer simulation)
+      console.log("[usePreviousStateSnapshot] No API snapshot available, building from on-chain data (initial state)");
       const registeredKeys: string[] = [];
 
       // Add pre-allocated keys to registeredKeys

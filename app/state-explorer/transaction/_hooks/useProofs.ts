@@ -42,15 +42,19 @@ export function useProofs({ channelId }: UseProofsParams): UseProofsReturn {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchProofs = useCallback(async () => {
+  const fetchProofs = useCallback(async (options?: { silent?: boolean }) => {
+    const silent = options?.silent ?? false;
+
     if (!channelId) {
       setProofs([]);
-      setIsLoading(false);
+      if (!silent) setIsLoading(false);
       return;
     }
 
-    setIsLoading(true);
-    setError(null);
+    if (!silent) {
+      setIsLoading(true);
+      setError(null);
+    }
 
     try {
       // Normalize channelId to lowercase for consistent DB lookup
@@ -58,11 +62,12 @@ export function useProofs({ channelId }: UseProofsParams): UseProofsReturn {
       const normalizedChannelId = channelId?.toLowerCase() || channelId;
       const encodedChannelId = normalizedChannelId ? encodeURIComponent(normalizedChannelId) : channelId;
       
-      // Fetch all proof types
+      // Fetch all proof types (add silent param to suppress API logs during polling)
+      const silentParam = silent ? "&silent=true" : "";
       const [submittedRes, verifiedRes, rejectedRes] = await Promise.all([
-        fetch(`/api/channels/${encodedChannelId}/proofs?type=submitted`),
-        fetch(`/api/channels/${encodedChannelId}/proofs?type=verified`),
-        fetch(`/api/channels/${encodedChannelId}/proofs?type=rejected`),
+        fetch(`/api/channels/${encodedChannelId}/proofs?type=submitted${silentParam}`),
+        fetch(`/api/channels/${encodedChannelId}/proofs?type=verified${silentParam}`),
+        fetch(`/api/channels/${encodedChannelId}/proofs?type=rejected${silentParam}`),
       ]);
 
       const [submittedData, verifiedData, rejectedData] = await Promise.all([
@@ -97,9 +102,11 @@ export function useProofs({ channelId }: UseProofsParams): UseProofsReturn {
       setProofs(allProofs);
     } catch (err) {
       console.error("Failed to fetch proofs:", err);
-      setError(err instanceof Error ? err.message : "Failed to load proofs");
+      if (!silent) {
+        setError(err instanceof Error ? err.message : "Failed to load proofs");
+      }
     } finally {
-      setIsLoading(false);
+      if (!silent) setIsLoading(false);
     }
   }, [channelId]);
 
@@ -107,6 +114,17 @@ export function useProofs({ channelId }: UseProofsParams): UseProofsReturn {
   useEffect(() => {
     fetchProofs();
   }, [fetchProofs]);
+
+  // Poll every 5 seconds for updates (silent mode to avoid flickering)
+  useEffect(() => {
+    if (!channelId) return;
+
+    const intervalId = setInterval(() => {
+      fetchProofs({ silent: true });
+    }, 5000);
+
+    return () => clearInterval(intervalId);
+  }, [channelId, fetchProofs]);
 
   return {
     proofs,

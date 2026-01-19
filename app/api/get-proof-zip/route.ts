@@ -17,6 +17,7 @@ export async function GET(request: NextRequest) {
     const proofStatus =
       searchParams.get("status") || "submittedProofs"; // submittedProofs, verifiedProofs, rejectedProofs
     const format = searchParams.get("format") || "base64"; // base64 or binary
+    const silent = searchParams.get("silent") === "true";
 
     if (!channelId || !proofId) {
       return NextResponse.json(
@@ -31,13 +32,15 @@ export async function GET(request: NextRequest) {
     // Get file metadata from database
     const dbPath = `channels.${channelIdStr}.${proofStatus}.${proofId}.zipFile`;
     
-    // Debug logging
-    console.log("[get-proof-zip] Looking for ZIP file:", {
-      channelId: channelIdStr,
-      proofId,
-      proofStatus,
-      dbPath,
-    });
+    // Only log on initial requests (not during polling)
+    if (!silent) {
+      console.log("[get-proof-zip] Looking for ZIP file:", {
+        channelId: channelIdStr,
+        proofId,
+        proofStatus,
+        dbPath,
+      });
+    }
     
     const zipMetadata = await getData<{
       filePath?: string;

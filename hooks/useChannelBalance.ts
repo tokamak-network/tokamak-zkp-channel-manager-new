@@ -94,19 +94,21 @@ export function useChannelBalance({
   /**
    * Fetch balance from latest verified proof
    */
-  const fetchBalanceFromVerifiedProof = useCallback(async (): Promise<{
+  const fetchBalanceFromVerifiedProof = useCallback(async (options?: { silent?: boolean }): Promise<{
     balance: bigint;
     sequenceNumber: number;
   } | null> => {
+    const silent = options?.silent ?? false;
     if (!channelId || !mptKey) return null;
 
     try {
       const normalizedChannelId = channelId.toLowerCase();
       const encodedChannelId = encodeURIComponent(normalizedChannelId);
 
-      // Fetch verified proofs from DB
+      // Fetch verified proofs from DB (add silent param to suppress API logs during polling)
+      const silentParam = silent ? "&silent=true" : "";
       const proofsResponse = await fetch(
-        `/api/channels/${encodedChannelId}/proofs?type=verified`
+        `/api/channels/${encodedChannelId}/proofs?type=verified${silentParam}`
       );
 
       if (!proofsResponse.ok) {
@@ -144,10 +146,10 @@ export function useChannelBalance({
       const latestProof = proofsArray[0];
       const proofId = latestProof.key;
 
-      // Load the proof ZIP file
+      // Load the proof ZIP file (add silent param to suppress API logs during polling)
       const zipApiUrl = `/api/get-proof-zip?channelId=${encodeURIComponent(
         normalizedChannelId
-      )}&proofId=${encodeURIComponent(proofId)}&status=verifiedProofs&format=binary`;
+      )}&proofId=${encodeURIComponent(proofId)}&status=verifiedProofs&format=binary${silentParam}`;
 
       const zipResponse = await fetch(zipApiUrl);
 
@@ -210,7 +212,9 @@ export function useChannelBalance({
   /**
    * Fetch and set the balance
    */
-  const refetch = useCallback(async () => {
+  const fetchBalance = useCallback(async (options?: { silent?: boolean }) => {
+    const silent = options?.silent ?? false;
+
     if (!channelId || !address || !isConnected) {
       setBalance(null);
       setSource(null);
@@ -224,16 +228,20 @@ export function useChannelBalance({
     }
 
     if (!mptKey) {
-      setError("MPT key not found for this user in the channel");
+      if (!silent) {
+        setError("MPT key not found for this user in the channel");
+      }
       return;
     }
 
-    setIsLoading(true);
-    setError(null);
+    if (!silent) {
+      setIsLoading(true);
+      setError(null);
+    }
 
     try {
       // Try to get balance from latest verified proof
-      const verifiedResult = await fetchBalanceFromVerifiedProof();
+      const verifiedResult = await fetchBalanceFromVerifiedProof({ silent });
 
       if (verifiedResult) {
         setBalance(verifiedResult.balance);
@@ -253,9 +261,11 @@ export function useChannelBalance({
       }
     } catch (err) {
       console.error("[useChannelBalance] Error:", err);
-      setError(err instanceof Error ? err.message : "Failed to fetch balance");
+      if (!silent) {
+        setError(err instanceof Error ? err.message : "Failed to fetch balance");
+      }
     } finally {
-      setIsLoading(false);
+      if (!silent) setIsLoading(false);
     }
   }, [
     channelId,
@@ -268,10 +278,29 @@ export function useChannelBalance({
     fetchBalanceFromVerifiedProof,
   ]);
 
+  /**
+   * Public refetch function (with loading indicator)
+   */
+  const refetch = useCallback(async () => {
+    await fetchBalance();
+  }, [fetchBalance]);
+
   // Auto-fetch when dependencies change
   useEffect(() => {
-    refetch();
-  }, [refetch]);
+    fetchBalance();
+  }, [fetchBalance]);
+
+  // Poll every 5 seconds for updates (silent mode to avoid flickering)
+  useEffect(() => {
+    if (!channelId || !address || !isConnected) return;
+    if (isLoadingMptKey || isLoadingDeposit) return;
+
+    const intervalId = setInterval(() => {
+      fetchBalance({ silent: true });
+    }, 5000);
+
+    return () => clearInterval(intervalId);
+  }, [channelId, address, isConnected, isLoadingMptKey, isLoadingDeposit, fetchBalance]);
 
   return {
     balance,

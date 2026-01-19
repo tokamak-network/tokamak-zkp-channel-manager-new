@@ -129,22 +129,27 @@ export function useTransactionHistory({
   /**
    * Fetch all verified proofs and compute transaction history
    */
-  const fetchTransactionHistory = useCallback(async () => {
+  const fetchTransactionHistory = useCallback(async (options?: { silent?: boolean }) => {
+    const silent = options?.silent ?? false;
+
     if (!channelId || !mptKey || initialDeposit === null) {
       setTransactions([]);
       return;
     }
 
-    setIsLoading(true);
-    setError(null);
+    if (!silent) {
+      setIsLoading(true);
+      setError(null);
+    }
 
     try {
       const normalizedChannelId = channelId.toLowerCase();
       const encodedChannelId = encodeURIComponent(normalizedChannelId);
 
-      // Fetch verified proofs from DB
+      // Fetch verified proofs from DB (add silent param to suppress API logs during polling)
+      const silentParam = silent ? "&silent=true" : "";
       const proofsResponse = await fetch(
-        `/api/channels/${encodedChannelId}/proofs?type=verified`
+        `/api/channels/${encodedChannelId}/proofs?type=verified${silentParam}`
       );
 
       if (!proofsResponse.ok) {
@@ -193,10 +198,10 @@ export function useTransactionHistory({
 
       for (const proof of proofsArray) {
         try {
-          // Load the proof ZIP file
+          // Load the proof ZIP file (add silent param to suppress API logs during polling)
           const zipApiUrl = `/api/get-proof-zip?channelId=${encodeURIComponent(
             normalizedChannelId
-          )}&proofId=${encodeURIComponent(proof.key)}&status=verifiedProofs&format=binary`;
+          )}&proofId=${encodeURIComponent(proof.key)}&status=verifiedProofs&format=binary${silentParam}`;
 
           const zipResponse = await fetch(zipApiUrl);
 
@@ -296,11 +301,13 @@ export function useTransactionHistory({
       setTransactions(txHistory);
     } catch (err) {
       console.error("[useTransactionHistory] Error:", err);
-      setError(
-        err instanceof Error ? err.message : "Failed to fetch transaction history"
-      );
+      if (!silent) {
+        setError(
+          err instanceof Error ? err.message : "Failed to fetch transaction history"
+        );
+      }
     } finally {
-      setIsLoading(false);
+      if (!silent) setIsLoading(false);
     }
   }, [channelId, mptKey, initialDeposit, formatAmount, tokenSymbol]);
 
@@ -320,6 +327,18 @@ export function useTransactionHistory({
       fetchTransactionHistory();
     }
   }, [mptKey, initialDeposit, isLoadingMptKey, isLoadingDeposit, fetchTransactionHistory]);
+
+  // Poll every 5 seconds for updates (silent mode to avoid flickering)
+  useEffect(() => {
+    if (!channelId || !mptKey || initialDeposit === null) return;
+    if (isLoadingMptKey || isLoadingDeposit) return;
+
+    const intervalId = setInterval(() => {
+      fetchTransactionHistory({ silent: true });
+    }, 5000);
+
+    return () => clearInterval(intervalId);
+  }, [channelId, mptKey, initialDeposit, isLoadingMptKey, isLoadingDeposit, fetchTransactionHistory]);
 
   return {
     transactions,
