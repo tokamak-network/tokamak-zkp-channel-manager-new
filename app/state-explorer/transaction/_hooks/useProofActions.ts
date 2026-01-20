@@ -211,7 +211,7 @@ export function useProofActions({
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = proof.zipFile?.fileName || `proof-${proof.proofId}.zip`;
+      link.download = `${channelId}-proof#${proof.sequenceNumber}.zip`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);

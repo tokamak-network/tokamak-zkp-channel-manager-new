@@ -808,7 +808,7 @@ export default function ProofDetailPage() {
                   
                   // Create a new ZIP with organized structure
                   const newZip = new JSZip();
-                  const proofFolderName = `channel-proof-${proof.proofId || proof.id || 'unknown'}`;
+                  const proofFolderName = `${channelId}-proof#${proof.sequenceNumber || 1}`;
                   
                   // Extract files and put them directly in the proof folder (flatten structure)
                   const files = Object.keys(originalZip.files);
