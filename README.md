@@ -20,7 +20,7 @@ Tokamak ZKP Channel Manager enables users to:
 - **React**: React 19
 - **Blockchain**: Wagmi + Viem
 - **State Management**: Zustand
-- **ZK Proofs**: snarkjs (Groth16)
+- **ZK Proofs**: Tokamak zk SNARK
 
 ## Getting Started
 
