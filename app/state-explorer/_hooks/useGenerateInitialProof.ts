@@ -116,23 +116,84 @@ export function useGenerateInitialProof({
     (channelTargetContract && (isLoadingPreAllocKeys || isFetchingPreAllocKeys));
 
   const generateProof = useCallback(async (): Promise<ProofData | null> => {
-    if (!channelId || !channelParticipants) {
-      throw new Error("Missing channel data");
+    if (!channelId) {
+      throw new Error("Channel ID is required");
+    }
+
+    if (!publicClient) {
+      throw new Error("Public client not available");
     }
 
     setIsGenerating(true);
     setError(null);
-    setStatus("Collecting channel data...");
+    setStatus("Fetching fresh channel data from blockchain...");
 
     try {
-      // Determine required tree size from contract
-      const participantCount = (channelParticipants as `0x${string}`[]).length;
-      const preAllocCount = preAllocatedCount ? Number(preAllocatedCount) : 0;
+      const bridgeCoreAddress = getContractAddress("BridgeCore", networkId);
+      const bridgeCoreAbi = getContractAbi("BridgeCore");
+
+      // IMPORTANT: Fetch ALL channel data directly from blockchain to avoid React Query cache issues
+      // This ensures we always use the latest data after deposits
+      const [
+        freshParticipants,
+        freshTreeSize,
+        freshTargetContract,
+        freshPreAllocCount,
+      ] = await Promise.all([
+        publicClient.readContract({
+          address: bridgeCoreAddress,
+          abi: bridgeCoreAbi,
+          functionName: "getChannelParticipants",
+          args: [channelId],
+        }),
+        publicClient.readContract({
+          address: bridgeCoreAddress,
+          abi: bridgeCoreAbi,
+          functionName: "getChannelTreeSize",
+          args: [channelId],
+        }),
+        publicClient.readContract({
+          address: bridgeCoreAddress,
+          abi: bridgeCoreAbi,
+          functionName: "getChannelTargetContract",
+          args: [channelId],
+        }),
+        publicClient.readContract({
+          address: bridgeCoreAddress,
+          abi: bridgeCoreAbi,
+          functionName: "getChannelPreAllocatedLeavesCount",
+          args: [channelId],
+        }),
+      ]);
+
+      const participants = freshParticipants as `0x${string}`[];
+      const participantCount = participants.length;
+      const preAllocCount = freshPreAllocCount ? Number(freshPreAllocCount) : 0;
+      const targetContract = freshTargetContract as `0x${string}`;
+
+      // Fetch pre-allocated keys if target contract exists
+      let preAllocatedKeysList: `0x${string}`[] = [];
+      if (targetContract && targetContract !== "0x0000000000000000000000000000000000000000") {
+        const freshPreAllocKeys = await publicClient.readContract({
+          address: bridgeCoreAddress,
+          abi: bridgeCoreAbi,
+          functionName: "getPreAllocatedKeys",
+          args: [targetContract],
+        });
+        preAllocatedKeysList = (freshPreAllocKeys as `0x${string}`[]) || [];
+      }
+
+      console.log("🔄 Fresh data fetched from blockchain:");
+      console.log("  Participants:", participants);
+      console.log("  Tree Size:", freshTreeSize);
+      console.log("  Target Contract:", targetContract);
+      console.log("  Pre-allocated Count:", preAllocCount);
+      console.log("  Pre-allocated Keys:", preAllocatedKeysList);
 
       // Determine tree size from contract
       let treeSize: number;
-      if (channelTreeSize) {
-        treeSize = Number(channelTreeSize);
+      if (freshTreeSize) {
+        treeSize = Number(freshTreeSize);
       } else {
         const totalEntries = participantCount + preAllocCount;
         const minTreeSize = Math.max(
@@ -145,7 +206,7 @@ export function useGenerateInitialProof({
       // Validate tree size is supported
       if (![16, 32, 64, 128].includes(treeSize)) {
         throw new Error(
-          `Unsupported tree size: ${treeSize}. Channel tree size from contract: ${channelTreeSize}`
+          `Unsupported tree size: ${treeSize}. Channel tree size from contract: ${freshTreeSize}`
         );
       }
 
@@ -158,18 +219,10 @@ export function useGenerateInitialProof({
       const storageValues: string[] = [];
 
       // STEP 1: Add pre-allocated leaves data FIRST
-      if (preAllocCount > 0 && preAllocatedKeys && channelTargetContract) {
+      if (preAllocCount > 0 && preAllocatedKeysList.length > 0 && targetContract) {
         setStatus(`Fetching ${preAllocCount} pre-allocated leaves...`);
 
-        const preAllocatedKeysList = preAllocatedKeys as `0x${string}`[];
         try {
-          const bridgeCoreAddress = getContractAddress("BridgeCore", networkId);
-          const bridgeCoreAbi = getContractAbi("BridgeCore");
-
-          if (!publicClient) {
-            throw new Error("Public client not available");
-          }
-
           // Use publicClient.readContract directly to bypass React Query cache
           const preAllocatedResults = await Promise.all(
             preAllocatedKeysList.map((key) =>
@@ -177,7 +230,7 @@ export function useGenerateInitialProof({
                 address: bridgeCoreAddress,
                 abi: bridgeCoreAbi,
                 functionName: "getPreAllocatedLeaf",
-                args: [channelTargetContract, key],
+                args: [targetContract, key],
               })
             )
           );
@@ -215,10 +268,6 @@ export function useGenerateInitialProof({
       // STEP 2: Add participant data AFTER pre-allocated leaves
       setStatus(`Processing ${participantCount} participants...`);
 
-      const participants = channelParticipants as `0x${string}`[];
-      const bridgeCoreAddress = getContractAddress("BridgeCore", networkId);
-      const bridgeCoreAbi = getContractAbi("BridgeCore");
-
       for (
         let i = 0;
         i < participants.length && storageKeysL2MPT.length < treeSize;
@@ -234,10 +283,6 @@ export function useGenerateInitialProof({
         try {
           // Use publicClient.readContract directly to bypass React Query cache
           // This ensures fresh data is fetched from the blockchain after deposits
-          if (!publicClient) {
-            throw new Error("Public client not available");
-          }
-
           const [l2MptKeyResultRaw, depositResultRaw] = await Promise.all([
             publicClient.readContract({
               address: bridgeCoreAddress,
@@ -293,7 +338,7 @@ export function useGenerateInitialProof({
 
       console.log("🔍 PROOF GENERATION DEBUG:");
       console.log("  Channel ID:", channelId);
-      console.log("  Channel Tree Size:", channelTreeSize);
+      console.log("  Channel Tree Size:", freshTreeSize);
       console.log("  Pre-allocated Count:", preAllocCount);
       console.log("  Participant Count:", participantCount);
       console.log("  Total Entries:", storageKeysL2MPT.length);
@@ -372,11 +417,6 @@ export function useGenerateInitialProof({
     }
   }, [
     channelId,
-    channelParticipants,
-    channelTreeSize,
-    channelTargetContract,
-    preAllocatedCount,
-    preAllocatedKeys,
     publicClient,
     networkId,
   ]);
