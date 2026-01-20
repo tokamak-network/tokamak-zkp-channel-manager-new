@@ -37,7 +37,7 @@ setup_env() {
     echo ""
     echo "To complete setup manually:"
     echo "  1. Create .env file with RPC_URL and NEXT_PUBLIC_ALCHEMY_API_KEY"
-    echo "  2. Run: cd Tokamak-Zk-EVM && ./tokamak-cli --install YOUR_RPC_URL"
+    echo "  2. Run: cd Tokamak-Zk-EVM && ./tokamak-cli --install YOUR_RPC_URL --bun"
     return 1
   fi
 
@@ -45,7 +45,7 @@ setup_env() {
     echo ""
     echo "Skipped. To complete setup manually:"
     echo "  1. Create .env file with RPC_URL and NEXT_PUBLIC_ALCHEMY_API_KEY"
-    echo "  2. Run: cd Tokamak-Zk-EVM && ./tokamak-cli --install YOUR_RPC_URL"
+    echo "  2. Run: cd Tokamak-Zk-EVM && ./tokamak-cli --install YOUR_RPC_URL --bun"
     return 1
   fi
 
@@ -55,7 +55,7 @@ setup_env() {
     echo "Invalid URL format. Must start with https://"
     echo "Skipped. To complete setup manually:"
     echo "  1. Create .env file with RPC_URL and NEXT_PUBLIC_ALCHEMY_API_KEY"
-    echo "  2. Run: cd Tokamak-Zk-EVM && ./tokamak-cli --install YOUR_RPC_URL"
+    echo "  2. Run: cd Tokamak-Zk-EVM && ./tokamak-cli --install YOUR_RPC_URL --bun"
     return 1
   fi
 
@@ -144,7 +144,7 @@ run_tokamak_cli() {
     echo ""
     echo "RPC URL not set. Skipping tokamak-cli installation."
     echo "To complete setup manually:"
-    echo "  cd Tokamak-Zk-EVM && ./tokamak-cli --install YOUR_RPC_URL"
+    echo "  cd Tokamak-Zk-EVM && ./tokamak-cli --install YOUR_RPC_URL --bun"
     return 1
   fi
 
@@ -159,7 +159,7 @@ run_tokamak_cli() {
   export TOKAMAK_ZK_EVM_ROOT="$(pwd)/$SUBMODULE_PATH"
   
   pushd "$SUBMODULE_PATH" >/dev/null
-  if bash ./tokamak-cli --install "$SETUP_RPC_URL"; then
+  if bash ./tokamak-cli --install "$SETUP_RPC_URL" --bun; then
     popd >/dev/null
     echo ""
     echo "============================================"
@@ -171,7 +171,7 @@ run_tokamak_cli() {
     echo ""
     echo "Warning: tokamak-cli --install failed."
     echo "You can retry manually:"
-    echo "  cd Tokamak-Zk-EVM && ./tokamak-cli --install YOUR_RPC_URL"
+    echo "  cd Tokamak-Zk-EVM && ./tokamak-cli --install YOUR_RPC_URL --bun"
     return 1
   fi
 }

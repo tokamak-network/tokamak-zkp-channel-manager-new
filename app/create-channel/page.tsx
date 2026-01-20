@@ -8,16 +8,20 @@
 
 import { Suspense } from "react";
 import { CreateChannelForm } from "./_components/CreateChannelForm";
+import { SecurityBanner } from "@/components/SecurityBanner";
 
 function CreateChannelPageContent() {
   return (
-    <>
-      <h1 className="text-[40px] font-medium font-mono text-[#111111] mb-8">
+    <div className="space-y-6">
+      <h1 className="text-[40px] font-medium font-mono text-[#111111]">
         Create Channel
       </h1>
 
+      {/* Security Banner */}
+      <SecurityBanner />
+
       <CreateChannelForm />
-    </>
+    </div>
   );
 }
 

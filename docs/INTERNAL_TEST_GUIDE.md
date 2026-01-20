@@ -106,7 +106,7 @@ echo "RPC_URL='https://eth-sepolia.g.alchemy.com/v2/YOUR_API_KEY'" > .env
 
 ```bash
 cd Tokamak-Zk-EVM
-./tokamak-cli --install https://eth-sepolia.g.alchemy.com/v2/YOUR_API_KEY
+./tokamak-cli --install https://eth-sepolia.g.alchemy.com/v2/YOUR_API_KEY --bun
 cd ..
 ```
 
