@@ -1,108 +1,180 @@
 # Tokamak ZKP Channel Manager
 
-> 🚧 **Work in Progress** - ZK-Rollup 기반 State Channel 관리 시스템
+A web application for managing Tokamak Private App Channels - secure Layer 2 state channels with zero-knowledge proof verification on Ethereum.
 
-## 프로젝트 구조 (하이브리드 패턴)
+## Overview
 
-```
-tokamak-zkp-channel-manager-new/
-├── app/                    # Next.js App Router
-│   ├── layout.tsx          # 루트 레이아웃
-│   ├── page.tsx            # 홈페이지 (조합)
-│   ├── _components/        # 홈페이지 전용 컴포넌트
-│   ├── channels/
-│   │   ├── page.tsx        # 채널 목록 (조합)
-│   │   └── _components/    # 채널 페이지 전용 컴포넌트
-│   └── api/                # API 라우트
-│       └── channels/
-├── components/             # 공통 컴포넌트
-│   ├── ui/                 # Button, Card, Input 등
-│   └── layout/             # Header, Footer 등
-├── lib/                    # 유틸리티 함수
-├── hooks/                  # 커스텀 React 훅
-├── types/                  # TypeScript 타입 정의
-└── docs/                   # 문서
-```
+Tokamak ZKP Channel Manager enables users to:
+- **Create Channels** - Initialize state channels with multiple participants
+- **Deposit Tokens** - Deposit ERC20 tokens (TON) into channels
+- **Execute L2 Transactions** - Perform off-chain transactions within channels
+- **Generate ZK Proofs** - Create Groth16 proofs for transaction verification
+- **Submit Proofs** - Submit proofs on-chain for state updates
+- **Withdraw Funds** - Withdraw tokens after channel closure
 
-## 패턴 설명
-
-### 하이브리드 패턴
-
-- `page.tsx`: **조합자** 역할 - 메타데이터 + 데이터 페칭 + 컴포넌트 조합
-- `_components/`: 해당 페이지 **전용** 컴포넌트 (언더스코어로 라우트 제외)
-- `components/`: **공통** 재사용 컴포넌트
-
-```tsx
-// app/channels/page.tsx - 페이지 구조가 한눈에 보임
-export default function ChannelsPage() {
-  return (
-    <main>
-      <ChannelStats />      {/* 통계 */}
-      <ChannelFilter />     {/* 필터 */}
-      <ChannelList />       {/* 목록 */}
-    </main>
-  );
-}
-```
-
-## 시작하기
-
-### 레포지토리 클론
-
-이 프로젝트는 `Tokamak-Zk-EVM` 서브모듈을 사용합니다. **가장 간단한 방법**은 일반 클론 후 `npm install`만 하면 됩니다:
-
-```bash
-git clone <repository-url>
-cd tokamak-zkp-channel-manager-new
-npm install  # postinstall 스크립트가 자동으로 서브모듈을 설정합니다
-```
-
-**다른 방법들:**
-
-서브모듈을 클론 시점에 함께 가져오려면:
-
-```bash
-git clone --recursive <repository-url>
-# 또는
-git clone --recurse-submodules <repository-url>
-```
-
-수동으로 서브모듈만 설정하려면:
-
-```bash
-npm run setup
-# 또는
-bash scripts/setup-submodules.sh
-```
-
-### 개발 환경 설정
-
-```bash
-# 의존성 설치
-npm install
-
-# 개발 서버 실행
-npm run dev
-
-# 타입 체크
-npm run type-check
-
-# 빌드
-npm run build
-```
-
-## 문서
-
-- [마이그레이션 가이드](./docs/MIGRATION_GUIDE.md)
-- [아키텍처 분석](./docs/ARCHITECTURE.md)
-
-## 기술 스택
+## Tech Stack
 
 - **Framework**: Next.js 15 (App Router)
 - **Language**: TypeScript 5.7
 - **Styling**: Tailwind CSS 3.4
 - **React**: React 19
+- **Blockchain**: Wagmi + Viem
+- **State Management**: Zustand
+- **ZK Proofs**: snarkjs (Groth16)
 
-## 라이선스
+## Getting Started
+
+### Prerequisites
+
+- Node.js 18+
+- Git
+- MetaMask or other Web3 wallet
+- Alchemy API Key (required)
+
+### Installation
+
+1. **Clone the repository**
+
+```bash
+git clone https://github.com/tokamak-network/tokamak-zkp-channel-manager-new.git
+cd tokamak-zkp-channel-manager-new
+```
+
+2. **Install dependencies**
+
+```bash
+npm install
+```
+
+During installation, you will be prompted to enter your RPC URL:
+
+```
+============================================
+Tokamak ZKP Channel Manager Setup
+============================================
+
+RPC URL is required for the manager app and synthesizer.
+Example: https://eth-sepolia.g.alchemy.com/v2/YOUR_API_KEY
+
+Enter RPC URL (https://...) or press Enter to skip:
+```
+
+> **Important**: Enter your Alchemy Sepolia RPC URL. This is required for the app to function properly.
+
+3. **Start development server**
+
+```bash
+npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+### Manual Setup (if skipped during install)
+
+If you skipped the RPC URL prompt during installation:
+
+1. Create `.env` file in project root:
+
+```bash
+echo "RPC_URL='https://eth-sepolia.g.alchemy.com/v2/YOUR_API_KEY'" > .env
+echo "NEXT_PUBLIC_ALCHEMY_API_KEY='YOUR_API_KEY'" >> .env
+```
+
+2. Run tokamak-cli:
+
+```bash
+cd Tokamak-Zk-EVM
+./tokamak-cli --install https://eth-sepolia.g.alchemy.com/v2/YOUR_API_KEY --bun
+cd ..
+```
+
+## Project Structure
+
+```
+tokamak-zkp-channel-manager-new/
+├── app/                          # Next.js App Router
+│   ├── (home)/                   # Home page
+│   ├── create-channel/           # Channel creation flow
+│   ├── join-channel/             # Join existing channel
+│   ├── initialize-state/         # Initialize channel state
+│   ├── state-explorer/           # Channel state management
+│   │   ├── deposit/              # Token deposit
+│   │   ├── transaction/          # L2 transactions & proofs
+│   │   ├── state3/               # Channel closing
+│   │   └── withdraw/             # Token withdrawal
+│   ├── l2-address/               # L2 address calculator
+│   └── api/                      # API routes
+├── components/                   # Shared UI components
+├── hooks/                        # Custom React hooks
+│   └── contract/                 # Contract interaction hooks
+├── lib/                          # Utility functions
+│   └── db/                       # Database utilities
+├── packages/                     # Internal packages
+│   ├── config/                   # Network & contract config
+│   ├── frost/                    # FROST signature utilities
+│   └── ui/                       # Shared UI components
+├── stores/                       # Zustand state stores
+├── public/zk-assets/             # ZK circuit files (wasm, zkey)
+├── Tokamak-Zk-EVM/               # ZK-EVM submodule
+└── docs/                         # Documentation
+```
+
+## Available Scripts
+
+```bash
+# Development
+npm run dev           # Start dev server
+npm run build         # Build for production
+npm run start         # Start production server
+
+# Code Quality
+npm run lint          # Run ESLint
+npm run type-check    # Run TypeScript type checking
+
+# Setup
+npm run setup         # Re-run submodule setup
+
+# Testing
+npm run test          # Run tests
+npm run test:watch    # Run tests in watch mode
+```
+
+## Network Configuration
+
+| Property | Value |
+|----------|-------|
+| Network | Sepolia Testnet |
+| Chain ID | 11155111 |
+
+### Getting Test Tokens
+
+**Sepolia ETH Faucets:**
+- [Google Cloud Faucet](https://cloud.google.com/application/web3/faucet/ethereum/sepolia)
+- [Chainlink Faucet](https://faucets.chain.link/sepolia)
+- [PoW Mining Faucet](https://sepolia-faucet.pk910.de/)
+
+**TON Faucet:**
+- [TON Faucet Contract](https://sepolia.etherscan.io/address/0xd655762c601b9cac8f6644c4841e47e4734d0444#writeContract#F1) - Execute `requestTokens` function
+
+## Documentation
+
+- [Internal Test Guide](./docs/INTERNAL_TEST_GUIDE.md)
+- [Architecture](./docs/ARCHITECTURE.md)
+- [Migration Guide](./docs/MIGRATION_GUIDE.md)
+- [Contract Hooks Usage](./docs/development/CONTRACT_HOOKS_USAGE.md)
+
+## Channel Flow
+
+```
+1. Create Channel    → Channel initialized with participants
+2. Deposit          → Participants deposit tokens (State: Initialized)
+3. Initialize State → Leader initializes channel state (State: Open)
+4. Transactions     → Off-chain L2 transactions with ZK proofs
+5. Submit Proof     → Leader submits proof on-chain (State: Closing)
+6. Close Channel    → Verify final balances (State: Closed)
+7. Withdraw         → Participants withdraw their funds
+```
+
+## License
 
 MIT
