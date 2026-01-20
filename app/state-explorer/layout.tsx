@@ -20,6 +20,7 @@ import { useCloseChannel } from "./_hooks/useCloseChannel";
 import { useBridgeCoreRead } from "@/hooks/contract";
 import { Copy, Check } from "lucide-react";
 import { ChannelStepper } from "./_components/ChannelStepper";
+import { SecurityBanner } from "@/components/SecurityBanner";
 
 // ChannelState enum from contract: 0=None, 1=Initialized, 2=Open, 3=Closing, 4=Closed
 type ContractChannelState = 0 | 1 | 2 | 3 | 4;
@@ -217,6 +218,9 @@ export default function StateExplorerLayout({
             )}
           </button>
         </div>
+
+        {/* Security Banner */}
+        <SecurityBanner />
 
         {/* Channel Progress Stepper */}
         <ChannelStepper

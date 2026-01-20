@@ -14,15 +14,11 @@ import {
 import { FIXED_TARGET_CONTRACT } from "@tokamak/config";
 import { saveChannelToDatabase } from "../_utils/saveChannel";
 
-// App types for channel (extensible for future app types)
-export type AppType = "ERC20" | null;
-
 interface UseCreateChannelParams {
   participants: Array<{ address: `0x${string}` }>;
   isValid: () => boolean;
   isConnected: boolean;
   channelId: `0x${string}` | null;
-  appType: AppType;
 }
 
 export function useCreateChannel({
@@ -30,7 +26,6 @@ export function useCreateChannel({
   isValid,
   isConnected,
   channelId,
-  appType,
 }: UseCreateChannelParams) {
   const [isCreating, setIsCreating] = useState(false);
   const [isConfirming, setIsConfirming] = useState(false);
@@ -176,7 +171,6 @@ export function useCreateChannel({
           targetContract: FIXED_TARGET_CONTRACT,
           participants: validParticipants.map((p) => p.address),
           blockNumber: receipt.blockNumber.toString(),
-          appType: appType,
         });
       } catch (dbError) {
         console.error("Error saving channel to database:", dbError);
@@ -197,7 +191,7 @@ export function useCreateChannel({
       setIsConfirming(false);
       setIsCreating(false);
     }
-  }, [receipt, isSuccess, abi, participants, appType]);
+  }, [receipt, isSuccess, abi, participants]);
 
   useEffect(() => {
     if (receipt && isSuccess) {

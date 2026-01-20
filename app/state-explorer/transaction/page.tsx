@@ -330,7 +330,15 @@ export function TransactionPage() {
             >
               Recipient L2 Address
             </label>
-            <HelpCircle className="w-5 h-5 text-[#999999]" />
+            <div className="relative group">
+              <HelpCircle className="w-5 h-5 text-[#999999] cursor-help" />
+              <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 px-3 py-2 bg-[#333333] text-white text-sm rounded-md whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10">
+                L2 Address is derived from your wallet address and channel ID.
+                <br />
+                You can calculate it in the Account Panel.
+                <div className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[6px] border-t-[#333333]" />
+              </div>
+            </div>
           </div>
           <input
             type="text"
