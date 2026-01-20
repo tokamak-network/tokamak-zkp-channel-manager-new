@@ -21,7 +21,7 @@ import { RefreshCw, Copy } from "lucide-react";
 import { Button, AmountInput } from "@/components/ui";
 import { DepositConfirmModal } from "./_components/DepositConfirmModal";
 
-export function DepositPage() {
+function DepositPage() {
   const { currentChannelId } = useChannelFlowStore();
   const currentUserMPTKey = useDepositStore(
     (state) => state.currentUserDeposit.mptKey
@@ -278,3 +278,5 @@ export function DepositPage() {
     </div>
   );
 }
+
+export default DepositPage;

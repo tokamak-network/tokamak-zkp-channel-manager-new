@@ -353,8 +353,9 @@ export default function ProofDetailPage() {
               
               if (error) {
                 console.error('Error parsing proof ZIP:', error);
-              } else if (instance && snapshot) {
-                const analysis = await analyzeProof(instance, snapshot, decimals);
+              } else if (instance && snapshot && channelParticipants) {
+                const participants = [...channelParticipants] as string[];
+                const analysis = await analyzeProof(instance, snapshot, participants, decimals);
                 setProofAnalysis(analysis);
                 console.log('Proof analysis completed:', analysis);
               }
@@ -373,7 +374,7 @@ export default function ProofDetailPage() {
     };
 
     fetchProof();
-  }, [channelId, proofId, decimals]);
+  }, [channelId, proofId, decimals, channelParticipants]);
 
   // Fetch ZIP content (handles both file-based and legacy formats)
   useEffect(() => {

@@ -11,7 +11,7 @@
  */
 
 // Export client
-export { db, initDb, getDb } from './client';
+export { initDb, getDb, getDbSync } from './client';
 
 // Export helpers
 export {

@@ -61,7 +61,7 @@ export const PAGINATION = {
  * Transaction Settings
  */
 export const TX_SETTINGS = {
-  DEFAULT_GAS_LIMIT: 500000n,
+  DEFAULT_GAS_LIMIT: BigInt(500000),
   CONFIRMATION_BLOCKS: 2,
 } as const;
 

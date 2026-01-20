@@ -101,7 +101,7 @@ export function useTransactionHistory({
    */
   const formatAmount = useCallback(
     (amountWei: bigint): string => {
-      const formatted = formatUnits(amountWei < 0n ? -amountWei : amountWei, decimals);
+      const formatted = formatUnits(amountWei < BigInt(0) ? -amountWei : amountWei, decimals);
       const num = parseFloat(formatted);
       return num.toLocaleString("en-US", {
         minimumFractionDigits: 2,
@@ -242,7 +242,7 @@ export function useTransactionHistory({
 
           // Helper to safely convert hex to BigInt (handles empty "0x" values)
           const safeBigInt = (value: string): bigint => {
-            if (!value || value === "0x" || value === "") return 0n;
+            if (!value || value === "0x" || value === "") return BigInt(0);
             return BigInt(value);
           };
 
@@ -261,7 +261,7 @@ export function useTransactionHistory({
           const diff = currentBalance - previousBalance;
 
           // Only add if there's a change
-          if (diff !== 0n) {
+          if (diff !== BigInt(0)) {
             // Determine timestamp
             let timestamp: number;
             if (typeof proof.verifiedAt === "number") {
@@ -275,8 +275,8 @@ export function useTransactionHistory({
             }
 
             txHistory.push({
-              type: diff > 0n ? "received" : "sent",
-              amountWei: diff > 0n ? diff : -diff,
+              type: diff > BigInt(0) ? "received" : "sent",
+              amountWei: diff > BigInt(0) ? diff : -diff,
               amountFormatted: formatAmount(diff),
               token: tokenSymbol,
               date: formatDate(timestamp),

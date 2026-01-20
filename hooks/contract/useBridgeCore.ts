@@ -12,8 +12,6 @@ import {
   UseReadContractParameters,
   UseWriteContractParameters,
   UseWaitForTransactionReceiptParameters,
-  WriteContractParameters,
-  WriteContractReturnType,
 } from "wagmi";
 import {
   CONTRACT_ABIS,
@@ -66,13 +64,13 @@ export function useBridgeCoreWrite() {
 
   const writeContractWithConfig = useCallback(
     (
-      params: Omit<WriteContractParameters, 'address' | 'abi'>
-    ): WriteContractReturnType => {
-      return writeContract({
+      params: Omit<Parameters<typeof writeContract>[0], 'address' | 'abi'>
+    ): void => {
+      writeContract({
         ...params,
         address,
         abi: abi as Abi,
-      });
+      } as Parameters<typeof writeContract>[0]);
     },
     [writeContract, address, abi]
   );
@@ -107,7 +105,7 @@ export function useBridgeCoreWaitForReceipt(
  * @returns Promise with the contract read result
  */
 export async function readBridgeCoreContract<TResult = unknown>(
-  config: Parameters<typeof useReadContract>[0]["config"],
+  config: unknown,
   address: `0x${string}`,
   abi: readonly Abi[number][],
   params: {
@@ -117,7 +115,8 @@ export async function readBridgeCoreContract<TResult = unknown>(
 ): Promise<TResult> {
   const { readContract } = await import("@wagmi/core");
 
-  return readContract(config, {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return readContract(config as any, {
     address,
     abi,
     functionName: params.functionName,

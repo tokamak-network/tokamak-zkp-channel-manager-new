@@ -39,7 +39,7 @@ interface StateSnapshot {
   preAllocatedLeaves: Array<{ key: string; value: string }>;
 }
 
-export function State3Page() {
+function State3Page() {
   const { address, isConnected } = useAccount();
   const config = useConfig();
   const bridgeCoreAddress = useBridgeCoreAddress();
@@ -1155,3 +1155,5 @@ export function State3Page() {
     </div>
   );
 }
+
+export default State3Page;

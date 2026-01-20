@@ -95,7 +95,7 @@ export function extractParticipantBalances(
   // storageEntries are in participant order (index 0 = participant 0, etc.)
   return snapshotData.storageEntries.map((entry, idx) => {
     // Convert hex balance to decimal
-    const balanceWei = entry.value === "0x" ? 0n : BigInt(entry.value);
+    const balanceWei = entry.value === "0x" ? BigInt(0) : BigInt(entry.value);
     const balanceEth = Number(balanceWei) / Math.pow(10, decimals);
 
     // Map by index (storageEntries are in participant order)

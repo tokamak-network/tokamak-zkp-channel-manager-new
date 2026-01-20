@@ -24,7 +24,7 @@ import { ProofGenerationModal } from "./_components/ProofGenerationModal";
 import { Button, AmountInput } from "@/components/ui";
 import { useBridgeCoreRead } from "@/hooks/contract";
 
-export function TransactionPage() {
+function TransactionPage() {
   const { address, isConnected } = useAccount();
   const { signMessageAsync } = useSignMessage();
   const { currentChannelId } = useChannelFlowStore();
@@ -442,3 +442,5 @@ export function TransactionPage() {
     </div>
   );
 }
+
+export default TransactionPage;

@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "target": "ES2017",
+    "target": "ES2020",
     "lib": ["dom", "dom.iterable", "esnext"],
     "allowJs": true,
     "skipLibCheck": true,
@@ -13,6 +13,7 @@
     "isolatedModules": true,
     "jsx": "preserve",
     "incremental": true,
+    "allowImportingTsExtensions": true,
     "plugins": [
       {
         "name": "next"
@@ -32,10 +33,21 @@
       "@tokamak/config/*": ["./packages/config/src/*"],
       "@tokamak/frost": ["./packages/frost/src"],
       "@tokamak/frost/*": ["./packages/frost/src/*"],
-      "@/Tokamak-Zk-EVM/*": ["./Tokamak-Zk-EVM/*"]
+      "@/Tokamak-Zk-EVM/*": ["./Tokamak-Zk-EVM/*"],
+      "src/*": ["./Tokamak-Zk-EVM/packages/frontend/synthesizer/src/*"]
     }
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
-  "exclude": ["node_modules"]
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts", "types/**/*.d.ts"],
+  "exclude": [
+    "node_modules",
+    "Tokamak-Zk-EVM/packages/backend",
+    "Tokamak-Zk-EVM/packages/frontend/qap-compiler/scripts",
+    "Tokamak-Zk-EVM/packages/frontend/synthesizer/examples",
+    "Tokamak-Zk-EVM/packages/frontend/synthesizer/tests",
+    "Tokamak-Zk-EVM/packages/frontend/synthesizer/src/circuitGenerator",
+    "Tokamak-Zk-EVM/packages/frontend/synthesizer/src/interface/cli",
+    "Tokamak-Zk-EVM/packages/frontend/synthesizer/src/interface/node",
+    "Tokamak-Zk-EVM/packages/frontend/synthesizer/src/unused"
+  ]
 }
 

@@ -8,8 +8,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { http, createConfig } from '@wagmi/core';
 import { readContracts } from '@wagmi/core';
-import { getContractAddress, getContractAbi } from '@tokamak/config';
-import { sepolia } from 'viem/chains';
+import { getContractAddress, getContractAbi, NETWORKS } from '@tokamak/config';
+
+const { sepolia } = NETWORKS;
 
 // Get RPC URL from environment variable
 const rpcUrl = process.env.RPC_URL || process.env.NEXT_PUBLIC_SEPOLIA_RPC_URL || 'https://rpc.sepolia.org';
@@ -95,6 +96,13 @@ export async function GET(request: NextRequest) {
 
     console.log('[API] Channel read results:', channelReadResults);
 
+    if (!channelReadResults) {
+      return NextResponse.json(
+        { error: 'Failed to read channel data from contract' },
+        { status: 500 }
+      );
+    }
+
     const targetContract = channelReadResults[0]?.result as string;
     const state = channelReadResults[1]?.result as number;
     const participants = channelReadResults[2]?.result as readonly string[];
@@ -152,6 +160,13 @@ export async function GET(request: NextRequest) {
     }
 
     console.log('[API] Participant data results:', participantDataResults);
+
+    if (!participantDataResults) {
+      return NextResponse.json(
+        { error: 'Failed to fetch participant data from contract' },
+        { status: 500 }
+      );
+    }
 
     // Process results (results are in pairs: [l2MptKey, balance, l2MptKey, balance, ...])
     for (let i = 0; i < participants.length; i++) {

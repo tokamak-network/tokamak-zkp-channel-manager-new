@@ -15,7 +15,13 @@ interface VerifiedProof {
   key: string;
   proofId: string;
   sequenceNumber: number;
-  submittedAt: string | number;
+  zipFile: {
+    filePath: string;
+    fileName: string;
+    size: number;
+  };
+  verifiedAt: string | number;
+  verifiedBy: string;
 }
 
 interface SubmitProofConfirmModalProps {
@@ -158,7 +164,7 @@ export function SubmitProofConfirmModal({
                           Proof#{proof.sequenceNumber}
                         </span>
                         <span className="text-[#666666]" style={{ fontSize: 12 }}>
-                          {new Date(proof.submittedAt).toLocaleDateString()}
+                          {new Date(proof.verifiedAt).toLocaleDateString()}
                         </span>
                       </div>
                     ))}

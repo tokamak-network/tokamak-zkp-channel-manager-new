@@ -38,53 +38,56 @@ export function useGenerateInitialProof({
   const [status, setStatus] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
 
+  // Convert channelId to hex string for contract calls
+  const channelIdHex = channelId ? `0x${channelId.toString(16).padStart(64, '0')}` as `0x${string}` : null;
+
   // Get channel participants
   const { data: channelParticipants } = useBridgeCoreRead({
     functionName: "getChannelParticipants",
-    args: channelId ? [channelId] : undefined,
+    args: channelIdHex ? [channelIdHex] : undefined,
     query: {
-      enabled: !!channelId && isConnected,
+      enabled: !!channelIdHex && isConnected,
     },
   });
 
   // Get tree size for the selected channel
   const { data: channelTreeSize } = useBridgeCoreRead({
     functionName: "getChannelTreeSize",
-    args: channelId ? [channelId] : undefined,
+    args: channelIdHex ? [channelIdHex] : undefined,
     query: {
-      enabled: !!channelId && isConnected,
+      enabled: !!channelIdHex && isConnected,
     },
   });
 
   // Get target contract for the selected channel
   const { data: channelTargetContract } = useBridgeCoreRead({
     functionName: "getChannelTargetContract",
-    args: channelId ? [channelId] : undefined,
+    args: channelIdHex ? [channelIdHex] : undefined,
     query: {
-      enabled: !!channelId && isConnected,
+      enabled: !!channelIdHex && isConnected,
     },
   });
 
   // Get pre-allocated leaves count for the channel
   const { data: preAllocatedCount } = useBridgeCoreRead({
     functionName: "getChannelPreAllocatedLeavesCount",
-    args: channelId ? [channelId] : undefined,
+    args: channelIdHex ? [channelIdHex] : undefined,
     query: {
-      enabled: !!channelId && isConnected,
+      enabled: !!channelIdHex && isConnected,
     },
   });
 
   // Get pre-allocated keys for the target contract
   const { data: preAllocatedKeys } = useBridgeCoreRead({
     functionName: "getPreAllocatedKeys",
-    args: channelTargetContract ? [channelTargetContract] : undefined,
+    args: channelTargetContract ? [channelTargetContract as `0x${string}`] : undefined,
     query: {
       enabled: !!channelTargetContract && isConnected,
     },
   });
 
   const generateProof = useCallback(async (): Promise<ProofData | null> => {
-    if (!channelId || !channelParticipants) {
+    if (!channelIdHex || !channelParticipants) {
       throw new Error("Missing channel data");
     }
 
@@ -94,7 +97,7 @@ export function useGenerateInitialProof({
 
     try {
       // Determine required tree size from contract
-      const participantCount = (channelParticipants as `0x${string}`[]).length;
+      const participantCount = (channelParticipants as unknown as `0x${string}`[]).length;
       const preAllocCount = preAllocatedCount ? Number(preAllocatedCount) : 0;
 
       // Determine tree size from contract
@@ -129,7 +132,7 @@ export function useGenerateInitialProof({
       if (preAllocCount > 0 && preAllocatedKeys && channelTargetContract) {
         setStatus(`Fetching ${preAllocCount} pre-allocated leaves...`);
 
-        const preAllocatedKeysList = preAllocatedKeys as `0x${string}`[];
+        const preAllocatedKeysList = preAllocatedKeys as unknown as `0x${string}`[];
         try {
           const bridgeCoreAddress = getContractAddress("BridgeCore", networkId);
           const bridgeCoreAbi = getContractAbi("BridgeCore");
@@ -176,7 +179,7 @@ export function useGenerateInitialProof({
       // STEP 2: Add participant data AFTER pre-allocated leaves
       setStatus(`Processing ${participantCount} participants...`);
 
-      const participants = channelParticipants as `0x${string}`[];
+      const participants = channelParticipants as unknown as `0x${string}`[];
       const bridgeCoreAddress = getContractAddress("BridgeCore", networkId);
       const bridgeCoreAbi = getContractAbi("BridgeCore");
 
@@ -199,13 +202,13 @@ export function useGenerateInitialProof({
                 address: bridgeCoreAddress,
                 abi: bridgeCoreAbi,
                 functionName: "getL2MptKey",
-                args: [channelId, participant],
+                args: [channelIdHex!, participant],
               },
               {
                 address: bridgeCoreAddress,
                 abi: bridgeCoreAbi,
                 functionName: "getParticipantDeposit",
-                args: [channelId, participant],
+                args: [channelIdHex!, participant],
               },
             ],
           });
@@ -255,7 +258,7 @@ export function useGenerateInitialProof({
       setStatus("Preparing circuit input...");
 
       console.log("🔍 PROOF GENERATION DEBUG:");
-      console.log("  Channel ID:", channelId.toString());
+      console.log("  Channel ID:", channelId?.toString());
       console.log("  Channel Tree Size:", channelTreeSize);
       console.log("  Pre-allocated Count:", preAllocCount);
       console.log("  Participant Count:", participantCount);
@@ -334,7 +337,7 @@ export function useGenerateInitialProof({
       throw err;
     }
   }, [
-    channelId,
+    channelIdHex,
     channelParticipants,
     channelTreeSize,
     channelTargetContract,
