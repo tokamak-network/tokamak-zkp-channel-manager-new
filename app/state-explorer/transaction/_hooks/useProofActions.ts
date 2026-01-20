@@ -211,7 +211,11 @@ export function useProofActions({
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `${channelId}-proof#${proof.sequenceNumber}.zip`;
+      // Match the display format in ProofList: verified shows only sequenceNumber, others show sequenceNumber-subNumber
+      const proofName = proof.status === "verified"
+        ? `Proof#${proof.sequenceNumber}`
+        : `Proof#${proof.sequenceNumber}-${proof.subNumber}`;
+      link.download = `${channelId}-${proofName}.zip`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);

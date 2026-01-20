@@ -808,7 +808,11 @@ export default function ProofDetailPage() {
                   
                   // Create a new ZIP with organized structure
                   const newZip = new JSZip();
-                  const proofFolderName = `${channelId}-proof#${proof.sequenceNumber || 1}`;
+                  // Match the display format: verified shows only sequenceNumber, others show sequenceNumber-subNumber
+                  const proofName = proof.status === "verified"
+                    ? `Proof#${proof.sequenceNumber || 1}`
+                    : `Proof#${proof.sequenceNumber || 1}-${proof.subNumber || 1}`;
+                  const proofFolderName = `${channelId}-${proofName}`;
                   
                   // Extract files and put them directly in the proof folder (flatten structure)
                   const files = Object.keys(originalZip.files);
