@@ -9,7 +9,7 @@
 
 import { useRouter } from "next/navigation";
 import { useAccount } from "wagmi";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useChannelFlowStore } from "@/stores/useChannelFlowStore";
 import { AppLayout } from "@/components/AppLayout";
 import { formatAddress } from "@/lib/utils/format";
@@ -58,6 +58,65 @@ export default function StateExplorerLayout({
   const [contractChannelState, setContractChannelState] = useState<ContractChannelState | null>(null);
   const [isLeader, setIsLeader] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [hasWithdrawableAmount, setHasWithdrawableAmount] = useState(false);
+  const [targetContractFromApi, setTargetContractFromApi] = useState<string | null>(null);
+
+  // Get target contract from contract (may be 0x0 after cleanupChannel)
+  const { data: targetContractFromContract } = useBridgeCoreRead({
+    functionName: "getChannelTargetContract",
+    args: channelId ? [channelId as `0x${string}`] : undefined,
+    query: {
+      enabled: !!channelId && isConnected,
+    },
+  });
+
+  // Fetch targetContract from API as fallback (stored in DB, persists after cleanupChannel)
+  const fetchTargetContractFromApi = useCallback(async () => {
+    if (!channelId) return;
+    try {
+      const response = await fetch(`/api/channels/${encodeURIComponent(channelId)}`);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.data?.targetContract) {
+          setTargetContractFromApi(data.data.targetContract);
+        }
+      }
+    } catch (error) {
+      console.error("[StateExplorerLayout] Failed to fetch channel from API:", error);
+    }
+  }, [channelId]);
+
+  // Fetch targetContract from API on mount or when channelId changes
+  useEffect(() => {
+    fetchTargetContractFromApi();
+  }, [fetchTargetContractFromApi]);
+
+  // Use contract targetContract if valid, otherwise use API fallback
+  const targetContract =
+    targetContractFromContract &&
+    targetContractFromContract !== "0x0000000000000000000000000000000000000000"
+      ? (targetContractFromContract as string)
+      : targetContractFromApi;
+
+  // Get withdrawable amount for current user
+  const { data: withdrawableAmount } = useBridgeCoreRead({
+    functionName: "getWithdrawableAmount",
+    args:
+      channelId && address && targetContract
+        ? [channelId as `0x${string}`, address as `0x${string}`, targetContract as `0x${string}`]
+        : undefined,
+    query: {
+      enabled: !!channelId && !!address && !!targetContract && isConnected,
+    },
+  });
+
+  // Update hasWithdrawableAmount when withdrawableAmount changes
+  useEffect(() => {
+    if (withdrawableAmount !== undefined) {
+      const amount = BigInt(withdrawableAmount.toString());
+      setHasWithdrawableAmount(amount > BigInt(0));
+    }
+  }, [withdrawableAmount]);
 
   // Update channel state based on contract
   useEffect(() => {
@@ -227,6 +286,7 @@ export default function StateExplorerLayout({
           currentState={contractChannelState}
           channelId={channelId}
           userAddress={address}
+          hasWithdrawableAmount={hasWithdrawableAmount}
         />
 
         {/* Leader Actions */}
@@ -254,27 +314,8 @@ export default function StateExplorerLayout({
                 {isLoadingChannelData ? "Loading..." : "Initialize State"}
               </button>
             )}
-            {/* state === 3 (Closing): Show Close Channel button */}
-            {contractChannelState === 3 && (
-              <button
-                type="button"
-                onClick={handleOpenCloseChannelModal}
-                className="flex-1 flex items-center justify-center font-mono font-medium transition-colors"
-                style={{
-                  height: 40,
-                  padding: "16px 24px",
-                  borderRadius: 4,
-                  border: "1px solid #111111",
-                  backgroundColor: "#999999",
-                  color: "#DCDCDC",
-                  fontSize: 18,
-                  cursor: "pointer",
-                }}
-              >
-                Close Channel
-              </button>
-            )}
-            {/* state === 3 (Closing) or state === 4 (Closed): No buttons during withdraw phase */}
+            {/* state === 3 (Closing): Close Channel button is shown in state3/page.tsx */}
+            {/* state === 4 (Closed): No buttons during withdraw phase */}
           </div>
         )}
 

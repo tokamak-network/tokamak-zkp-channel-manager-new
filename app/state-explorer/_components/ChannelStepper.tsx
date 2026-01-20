@@ -59,12 +59,14 @@ interface ChannelStepperProps {
   currentState: ContractChannelState | null;
   channelId: string | null;
   userAddress: `0x${string}` | undefined;
+  hasWithdrawableAmount?: boolean;
 }
 
 export function ChannelStepper({
   currentState,
   channelId,
   userAddress,
+  hasWithdrawableAmount = false,
 }: ChannelStepperProps) {
   // Fetch user's deposit amount (only needed for Deposit phase)
   const { data: depositAmount } = useBridgeCoreRead({
@@ -79,12 +81,19 @@ export function ChannelStepper({
     },
   });
 
-  if (currentState === null || currentState === 0) {
+  // After cleanupChannel, state becomes 0 but withdrawable amounts remain
+  // In this case, show the Withdraw step (state 4)
+  if (currentState === null) {
+    return null;
+  }
+  
+  if (currentState === 0 && !hasWithdrawableAmount) {
     return null;
   }
 
   // Map contract state to step index (1-based)
-  const currentStepIndex = currentState;
+  // If state is 0 but hasWithdrawableAmount, show as state 4 (Withdraw)
+  const currentStepIndex = currentState === 0 && hasWithdrawableAmount ? 4 : currentState;
 
   // Format deposit amount
   const formattedDeposit =
