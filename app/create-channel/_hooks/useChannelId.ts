@@ -2,9 +2,10 @@
  * Custom Hook: useChannelId
  *
  * Handles channel ID generation using leader address and salt
+ * Automatically regenerates channel ID when salt changes
  */
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { useAccount } from "wagmi";
 import { keccak256, encodePacked } from "viem";
 import { type Address } from "viem";
@@ -17,8 +18,10 @@ export function useChannelId({ participants }: UseChannelIdParams) {
   const { address: connectedAddress } = useAccount();
   const [salt, setSalt] = useState("");
   const [generatedChannelId, setGeneratedChannelId] = useState<`0x${string}` | null>(null);
-  // Track the salt that was used when generating the channel ID
-  const [generatedWithSalt, setGeneratedWithSalt] = useState<string | null>(null);
+  // Track if initial generation has been done
+  const [hasInitialGeneration, setHasInitialGeneration] = useState(false);
+  // Track the last used salt for comparison (to avoid unnecessary re-renders)
+  const lastUsedSaltRef = useRef<string>("");
 
   // Determine leader address (the account that calls openChannel() transaction)
   const leaderAddress = useMemo(() => {
@@ -27,13 +30,36 @@ export function useChannelId({ participants }: UseChannelIdParams) {
     return connectedAddress as Address | undefined;
   }, [connectedAddress]);
 
-  // Check if salt has changed since last generation
-  const isSaltChanged = useMemo(() => {
-    if (generatedWithSalt === null) return false;
-    return salt !== generatedWithSalt;
-  }, [salt, generatedWithSalt]);
+  // Internal function to compute channel ID
+  const computeChannelId = useCallback((address: Address, saltValue: string): `0x${string}` => {
+    return keccak256(
+      encodePacked(
+        ["address", "string"],
+        [address, saltValue]
+      )
+    ) as `0x${string}`;
+  }, []);
 
-  // Generate channel ID
+  // Auto-regenerate channel ID when salt changes (after initial generation)
+  useEffect(() => {
+    if (!hasInitialGeneration || !leaderAddress) return;
+    
+    const currentSalt = salt.trim();
+    if (currentSalt === lastUsedSaltRef.current) return;
+    
+    // Only auto-regenerate if user has entered a non-empty salt
+    if (currentSalt) {
+      try {
+        const channelId = computeChannelId(leaderAddress, currentSalt);
+        setGeneratedChannelId(channelId);
+        lastUsedSaltRef.current = currentSalt;
+      } catch (error) {
+        console.error("Error auto-regenerating channel ID:", error);
+      }
+    }
+  }, [salt, leaderAddress, hasInitialGeneration, computeChannelId]);
+
+  // Generate channel ID (initial generation or manual trigger)
   const generateChannelId = useCallback(() => {
     if (!leaderAddress) {
       throw new Error("Leader address is required. Please connect your wallet to generate a channel ID.");
@@ -43,15 +69,11 @@ export function useChannelId({ participants }: UseChannelIdParams) {
     const finalSalt = salt.trim() || `${Date.now()}-${crypto.randomUUID()}`;
 
     try {
-      const channelId = keccak256(
-        encodePacked(
-          ["address", "string"],
-          [leaderAddress, finalSalt]
-        )
-      ) as `0x${string}`;
+      const channelId = computeChannelId(leaderAddress, finalSalt);
 
       setGeneratedChannelId(channelId);
-      setGeneratedWithSalt(finalSalt);
+      setHasInitialGeneration(true);
+      lastUsedSaltRef.current = finalSalt;
 
       // If salt was auto-generated, store it for display
       if (!salt.trim()) {
@@ -63,12 +85,13 @@ export function useChannelId({ participants }: UseChannelIdParams) {
       console.error("Error generating channel ID:", error);
       throw new Error("Failed to generate channel ID");
     }
-  }, [leaderAddress, salt]);
+  }, [leaderAddress, salt, computeChannelId]);
 
   // Reset channel ID
   const resetChannelId = useCallback(() => {
     setGeneratedChannelId(null);
-    setGeneratedWithSalt(null);
+    setHasInitialGeneration(false);
+    lastUsedSaltRef.current = "";
     setSalt("");
   }, []);
 
@@ -76,8 +99,7 @@ export function useChannelId({ participants }: UseChannelIdParams) {
     salt,
     setSalt,
     generatedChannelId,
-    generatedWithSalt,
-    isSaltChanged,
+    hasInitialGeneration,
     leaderAddress,
     generateChannelId,
     resetChannelId,

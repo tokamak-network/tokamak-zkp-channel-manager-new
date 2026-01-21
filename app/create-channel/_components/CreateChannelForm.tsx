@@ -14,8 +14,9 @@ import { useChannelFormStore } from "@/stores";
 import { TransactionConfirmModal } from "./TransactionConfirmModal";
 import { useCreateChannel } from "../_hooks/useCreateChannel";
 import { useChannelId } from "../_hooks/useChannelId";
-import { CHANNEL_PARTICIPANTS } from "@tokamak/config";
-import { Info, Check, Copy, RefreshCw, ChevronDown } from "lucide-react";
+import { calculateMaxParticipants } from "../_utils";
+import { getL1NetworkName } from "@tokamak/config";
+import { Info, Check, Copy, ChevronDown } from "lucide-react";
 import { Button, Input, TokenButton, Label } from "@/components/ui";
 
 // Token symbol images
@@ -51,10 +52,14 @@ export function CreateChannelForm() {
     salt,
     setSalt,
     generatedChannelId,
-    isSaltChanged,
     leaderAddress,
     generateChannelId,
   } = useChannelId({ participants });
+
+  // Calculate max participants dynamically based on Merkle tree config
+  // For multiple tokens in the future, pass the token count here
+  const tokenCount = 1; // Currently single token (TON)
+  const maxParticipants = calculateMaxParticipants(tokenCount);
 
   const [channelIdError, setChannelIdError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -138,7 +143,7 @@ export function CreateChannelForm() {
   // Determine if we should show a new empty field
   const shouldShowNewField =
     validAddressCount === participants.length &&
-    validAddressCount < CHANNEL_PARTICIPANTS.MAX;
+    validAddressCount < maxParticipants;
 
   // Auto-add new field when last field is filled with valid address
   useEffect(() => {
@@ -150,8 +155,8 @@ export function CreateChannelForm() {
   const isFormValid =
     selectedApp &&
     generatedChannelId &&
-    validAddressCount >= CHANNEL_PARTICIPANTS.MIN &&
-    validAddressCount <= CHANNEL_PARTICIPANTS.MAX &&
+    validAddressCount >= 1 && // At least one participant required
+    validAddressCount <= maxParticipants &&
     !isCreating &&
     !isConfirming &&
     isConnected;
@@ -249,21 +254,7 @@ export function CreateChannelForm() {
         <div className="space-y-3">
           <div className="flex items-center justify-between w-full">
             <Label>Channel ID</Label>
-            {generatedChannelId ? (
-              <button
-                type="button"
-                className={`p-1 rounded transition-colors ${
-                  isSaltChanged
-                    ? "hover:bg-[#F2F2F2] cursor-pointer"
-                    : "cursor-not-allowed opacity-40"
-                }`}
-                title={isSaltChanged ? "Regenerate Channel ID with new salt" : "Change salt to regenerate"}
-                onClick={isSaltChanged ? handleGenerateChannelId : undefined}
-                disabled={!isSaltChanged}
-              >
-                <RefreshCw className={`w-6 h-6 ${isSaltChanged ? "text-[#2A72E5]" : "text-[#999999]"}`} />
-              </button>
-            ) : (
+            {!generatedChannelId && (
               <Button
                 size="sm"
                 onClick={handleGenerateChannelId}
@@ -316,7 +307,7 @@ export function CreateChannelForm() {
 
         {/* Number of Participants */}
         <div className="space-y-4">
-          <Label hint={`Min ${CHANNEL_PARTICIPANTS.MIN}, Max ${CHANNEL_PARTICIPANTS.MAX}`}>
+          <Label hint={`Max ${maxParticipants}`}>
             Number of Participants
           </Label>
           <div className="w-full h-12 px-4 py-2 bg-[#F2F2F2] rounded flex items-center">
@@ -326,9 +317,13 @@ export function CreateChannelForm() {
           </div>
         </div>
 
-        {/* Participants Address */}
+        {/* Participants Address (Whitelist) */}
         <div className="space-y-4">
-          <Label>Participants Address</Label>
+          <Label>
+            Whitelist of {getL1NetworkName()} addresses
+            <br />
+            for channel participation
+          </Label>
           <div className="space-y-2">
             {participants.map((participant, index) => {
               const validation = addressValidation[index];
