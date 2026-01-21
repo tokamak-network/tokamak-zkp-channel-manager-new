@@ -56,6 +56,21 @@ function State3Page() {
     pC: [bigint, bigint, bigint, bigint];
   } | null>(null);
 
+  // Get channel leader to check if current user is leader
+  const { data: channelLeader } = useBridgeCoreRead({
+    functionName: "getChannelLeader",
+    args: currentChannelId ? [currentChannelId as `0x${string}`] : undefined,
+    query: {
+      enabled: !!currentChannelId && isConnected,
+    },
+  });
+
+  // Check if current user is the channel leader
+  const isLeader =
+    address &&
+    channelLeader &&
+    address.toLowerCase() === (channelLeader as string).toLowerCase();
+
   // Get channel data for closing
   const { data: channelParticipants } = useBridgeCoreRead({
     functionName: "getChannelParticipants",
@@ -1011,46 +1026,48 @@ function State3Page() {
 
   return (
     <div className="font-mono" style={{ width: 544 }}>
-      {/* Close Channel Button */}
+      {/* Close Channel Button - Only visible to leader */}
       <div className="flex flex-col gap-12">
-        <button
-          onClick={handleCloseChannel}
-          disabled={
-            isProcessing ||
-            isVerifying ||
-            isTransactionSuccess ||
-            !isConnected ||
-            !channelParticipants ||
-            !finalStateRoot ||
-            !channelTreeSize
-          }
-          className="flex items-center justify-center font-mono font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          style={{
-            height: 40,
-            padding: "16px 24px",
-            borderRadius: 4,
-            border: "1px solid #111111",
-            backgroundColor:
-              isProcessing || isVerifying ? "#BBBBBB" : "#0FBCBC",
-            color: "#FFFFFF",
-            fontSize: 18,
-            lineHeight: "1.3em",
-          }}
-        >
-          {isProcessing || isVerifying ? (
-            <>
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              Processing...
-            </>
-          ) : isTransactionSuccess ? (
-            <>
-              <CheckCircle className="w-4 h-4 mr-2" />
-              Closed
-            </>
-          ) : (
-            "Close Channel"
-          )}
-        </button>
+        {isLeader && (
+          <button
+            onClick={handleCloseChannel}
+            disabled={
+              isProcessing ||
+              isVerifying ||
+              isTransactionSuccess ||
+              !isConnected ||
+              !channelParticipants ||
+              !finalStateRoot ||
+              !channelTreeSize
+            }
+            className="flex items-center justify-center font-mono font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{
+              height: 40,
+              padding: "16px 24px",
+              borderRadius: 4,
+              border: "1px solid #111111",
+              backgroundColor:
+                isProcessing || isVerifying ? "#BBBBBB" : "#0FBCBC",
+              color: "#FFFFFF",
+              fontSize: 18,
+              lineHeight: "1.3em",
+            }}
+          >
+            {isProcessing || isVerifying ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Processing...
+              </>
+            ) : isTransactionSuccess ? (
+              <>
+                <CheckCircle className="w-4 h-4 mr-2" />
+                Closed
+              </>
+            ) : (
+              "Close Channel"
+            )}
+          </button>
+        )}
 
         {/* My Assets Section */}
         <div className="flex flex-col gap-6">
