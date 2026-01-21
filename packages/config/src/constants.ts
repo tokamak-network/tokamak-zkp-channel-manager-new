@@ -2,7 +2,7 @@
  * Application Constants
  */
 
-export const APP_NAME = "Tokamak ZKP Channel Manager";
+export const APP_NAME = "Tokamak Private App Channels";
 export const APP_VERSION = "0.1.0";
 
 /**

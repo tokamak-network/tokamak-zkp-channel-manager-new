@@ -58,7 +58,7 @@ export default function HomePage() {
                     letterSpacing: "0.02em",
                   }}
                 >
-                  Tokamak ZKP Channel Manager
+                  Tokamak Private App Channels
                 </h1>
                 <p
                   style={{
@@ -115,7 +115,7 @@ export default function HomePage() {
                     letterSpacing: "0.02em",
                   }}
                 >
-                  Tokamak ZKP Channel Manager
+                  Tokamak Private App Channels
                 </h1>
                 <p
                   style={{
