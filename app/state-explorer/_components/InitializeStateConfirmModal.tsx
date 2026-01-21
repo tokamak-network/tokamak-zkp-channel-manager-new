@@ -10,6 +10,7 @@
 import { useState, useEffect } from "react";
 import { X, Loader2, CheckCircle2, Copy } from "lucide-react";
 import { Button } from "@/components/ui";
+import { ParticipantDeposits } from "./ParticipantDeposits";
 
 interface InitializeStateConfirmModalProps {
   channelId: string;
@@ -149,6 +150,18 @@ export function InitializeStateConfirmModal({
                   </button>
                 </div>
               </div>
+            </div>
+
+            {/* Participant Deposits Summary - Leader only */}
+            <div className="w-full pt-2 border-t border-[#EEEEEE]">
+              <ParticipantDeposits
+                channelId={channelId}
+                tokenSymbol="TON"
+                tokenDecimals={18}
+                collapsible={false}
+                showLeaderCheck={true}
+                compact={true}
+              />
             </div>
 
             {isLoadingChannelData && (
