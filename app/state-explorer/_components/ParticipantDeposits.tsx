@@ -150,7 +150,23 @@ export function ParticipantDeposits({
       {/* Content (collapsible) */}
       {(!collapsible || isExpanded) && (
         <>
-          {/* Participants List */}
+          {/* No deposits message */}
+          {registeredCount === 0 && (
+            <div
+              className={`flex items-center justify-center ${compact ? "py-4" : "py-6"} rounded`}
+              style={{ backgroundColor: "#F8F8F8" }}
+            >
+              <span
+                className="text-[#999999]"
+                style={{ fontSize: compact ? 12 : 14 }}
+              >
+                No one has deposited yet
+              </span>
+            </div>
+          )}
+
+          {/* Participants List - only show when at least one has deposited */}
+          {registeredCount > 0 && (
           <div
             className="flex flex-col gap-2"
             style={{
@@ -227,25 +243,28 @@ export function ParticipantDeposits({
               );
             })}
           </div>
+          )}
 
-          {/* Total */}
-          <div
-            className={`flex items-center justify-between ${compact ? "p-2" : "p-3"} rounded`}
-            style={{ backgroundColor: "#F2F2F2" }}
-          >
-            <span
-              className="font-medium text-[#111111]"
-              style={{ fontSize: compact ? 12 : 14 }}
+          {/* Total - only show when at least one has deposited */}
+          {registeredCount > 0 && (
+            <div
+              className={`flex items-center justify-between ${compact ? "p-2" : "p-3"} rounded`}
+              style={{ backgroundColor: "#F2F2F2" }}
             >
-              Total Deposited
-            </span>
-            <span
-              className="font-medium text-[#111111]"
-              style={{ fontSize: compact ? 12 : 14 }}
-            >
-              {parseFloat(formatUnits(totalDeposited, tokenDecimals)).toFixed(2)} {tokenSymbol}
-            </span>
-          </div>
+              <span
+                className="font-medium text-[#111111]"
+                style={{ fontSize: compact ? 12 : 14 }}
+              >
+                Total Deposited
+              </span>
+              <span
+                className="font-medium text-[#111111]"
+                style={{ fontSize: compact ? 12 : 14 }}
+              >
+                {parseFloat(formatUnits(totalDeposited, tokenDecimals)).toFixed(2)} {tokenSymbol}
+              </span>
+            </div>
+          )}
         </>
       )}
     </div>
