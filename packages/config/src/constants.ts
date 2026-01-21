@@ -2,7 +2,7 @@
  * Application Constants
  */
 
-export const APP_NAME = "Tokamak ZKP Channel Manager";
+export const APP_NAME = "Tokamak Private App Channels";
 export const APP_VERSION = "0.1.0";
 
 /**
@@ -19,11 +19,23 @@ export type ChannelStatus =
   (typeof CHANNEL_STATUS)[keyof typeof CHANNEL_STATUS];
 
 /**
- * Channel Participant Limits
+ * Merkle Tree Configuration
+ *
+ * These values are used to calculate the maximum number of participants:
+ * N = (L - P) / S
+ *
+ * Where:
+ * - L: Number of Merkle tree leaves
+ * - P: Number of pre-allocated keys (reserved slots)
+ * - S: Number of storage slots per user
  */
-export const CHANNEL_PARTICIPANTS = {
-  MIN: 2,
-  MAX: 16,
+export const MERKLE_TREE_CONFIG = {
+  /** Number of Merkle tree leaves (L) */
+  LEAVES: 16,
+  /** Number of pre-allocated keys / reserved slots (P) */
+  PRE_ALLOCATED_KEYS: 0,
+  /** Number of storage slots per user (S) */
+  USER_STORAGE_SLOTS: 1,
 } as const;
 
 /**
@@ -61,7 +73,7 @@ export const PAGINATION = {
  * Transaction Settings
  */
 export const TX_SETTINGS = {
-  DEFAULT_GAS_LIMIT: 500000n,
+  DEFAULT_GAS_LIMIT: BigInt(500000),
   CONFIRMATION_BLOCKS: 2,
 } as const;
 

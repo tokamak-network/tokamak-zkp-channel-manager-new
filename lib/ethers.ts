@@ -1,6 +1,6 @@
 import { NUMBER_OF_PREV_BLOCK_HASHES } from "@/Tokamak-Zk-EVM/packages/frontend/synthesizer/src/interface/qapCompiler/importedConstants";
 import { getBlockInfoFromRPC } from "@/Tokamak-Zk-EVM/packages/frontend/synthesizer/src/interface/rpc/rpc";
-import { SynthesizerBlockInfo } from "@/Tokamak-Zk-EVM/packages/frontend/synthesizer/src/synthesizer/types";
+import { SynthesizerBlockInfo } from "@/Tokamak-Zk-EVM/packages/frontend/synthesizer/src/interface";
 import { addHexPrefix, hexToBytes } from "@ethereumjs/util";
 import { ethers } from "ethers";
 import { getChainByChainId } from "@tokamak/config";

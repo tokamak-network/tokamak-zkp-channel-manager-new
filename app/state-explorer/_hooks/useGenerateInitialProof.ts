@@ -96,7 +96,7 @@ export function useGenerateInitialProof({
     isFetching: isFetchingPreAllocKeys,
   } = useBridgeCoreRead({
     functionName: "getPreAllocatedKeys",
-    args: channelTargetContract ? [channelTargetContract] : undefined,
+    args: channelTargetContract ? [channelTargetContract as `0x${string}`] : undefined,
     query: {
       enabled: !!channelTargetContract && isConnected,
     },
@@ -113,7 +113,7 @@ export function useGenerateInitialProof({
     isFetchingTargetContract ||
     isLoadingPreAllocCount ||
     isFetchingPreAllocCount ||
-    (channelTargetContract && (isLoadingPreAllocKeys || isFetchingPreAllocKeys));
+    (!!channelTargetContract && (isLoadingPreAllocKeys || isFetchingPreAllocKeys));
 
   const generateProof = useCallback(async (): Promise<ProofData | null> => {
     if (!channelId) {

@@ -19,8 +19,8 @@ const ibmPlexMono = IBM_Plex_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "Tokamak ZKP Channel Manager",
-    template: "%s | Tokamak ZKP",
+    default: "Tokamak Private App Channels",
+    template: "%s | Tokamak PAC",
   },
   description: "ZK-Rollup State Channel Management System",
 };

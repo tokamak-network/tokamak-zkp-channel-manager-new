@@ -12,7 +12,7 @@ import { useRouter } from "next/navigation";
 import { useAccount } from "wagmi";
 import { useChannelFlowStore } from "@/stores/useChannelFlowStore";
 import { isValidBytes32 } from "@/lib/channelId";
-import { useChannelParticipantCheck } from "./_hooks/useChannelParticipantCheck";
+import { useChannelParticipantCheck } from "@/hooks/useChannelParticipantCheck";
 import { Button, Input } from "@/components/ui";
 
 export default function JoinChannelPage() {

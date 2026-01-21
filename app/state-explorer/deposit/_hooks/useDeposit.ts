@@ -4,7 +4,7 @@
  * Handles deposit transaction flow and state management
  */
 
-import { useEffect, useCallback } from "react";
+import { useEffect, useCallback, useRef } from "react";
 import { useAccount } from "wagmi";
 import { parseUnits } from "viem";
 import { useDepositStore } from "@/stores/useDepositStore";
@@ -21,6 +21,7 @@ interface UseDepositParams {
   needsApproval: boolean;
   approvalSuccess: boolean;
   tokenDecimals: number;
+  onDepositSuccess?: () => void;
 }
 
 /**
@@ -33,6 +34,7 @@ export function useDeposit({
   needsApproval,
   approvalSuccess,
   tokenDecimals,
+  onDepositSuccess,
 }: UseDepositParams) {
   const { address } = useAccount();
   const {
@@ -61,6 +63,9 @@ export function useDeposit({
     },
   });
 
+  // Ref to track already handled deposit tx hash (prevent duplicate handling)
+  const handledTxHashRef = useRef<string | null>(null);
+
   // Update depositing state
   useEffect(() => {
     setDepositing(isWaitingDeposit || isDepositPending);
@@ -75,7 +80,18 @@ export function useDeposit({
 
   // Handle deposit success
   useEffect(() => {
-    if (depositSuccess && depositTxHash && channelId && address && mptKey) {
+    // Prevent duplicate handling of the same tx
+    if (
+      depositSuccess &&
+      depositTxHash &&
+      channelId &&
+      address &&
+      mptKey &&
+      handledTxHashRef.current !== depositTxHash
+    ) {
+      // Mark as handled to prevent re-running
+      handledTxHashRef.current = depositTxHash;
+
       const amount = parseUnits(depositAmount, tokenDecimals);
       setDeposit(address.toLowerCase(), {
         amount,
@@ -85,6 +101,11 @@ export function useDeposit({
       });
       setDepositing(false);
       console.log("✅ Deposit completed successfully:", depositTxHash);
+      
+      // Call callback to refetch allowance after deposit
+      if (onDepositSuccess) {
+        onDepositSuccess();
+      }
     }
   }, [
     depositSuccess,
@@ -96,6 +117,7 @@ export function useDeposit({
     tokenDecimals,
     setDeposit,
     setDepositing,
+    onDepositSuccess,
   ]);
 
   // Handle deposit write error (e.g., user rejected in MetaMask)

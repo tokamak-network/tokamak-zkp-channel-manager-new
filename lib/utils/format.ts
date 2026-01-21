@@ -21,7 +21,7 @@ export function formatBalance(value: bigint, decimals: number = 18, precision: n
   const whole = value / divisor;
   const remainder = value % divisor;
   
-  if (remainder === 0n) {
+  if (remainder === BigInt(0)) {
     return whole.toString();
   }
   

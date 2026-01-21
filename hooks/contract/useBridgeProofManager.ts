@@ -11,10 +11,6 @@ import {
   UseReadContractParameters,
   UseWaitForTransactionReceiptParameters,
 } from "wagmi";
-import type {
-  WriteContractReturnType,
-  WriteContractParameters,
-} from "wagmi/actions";
 import {
   CONTRACT_ABIS,
   getContractAddress,
@@ -51,8 +47,8 @@ export function useBridgeProofManagerRead<
   return useReadContract({
     ...config,
     address,
-    abi: abi as TAbi,
-  });
+    abi,
+  } as UseReadContractParameters<TAbi>);
 }
 
 /**
@@ -65,12 +61,12 @@ export function useBridgeProofManagerWrite() {
   const { writeContract, ...rest } = useWriteContract();
 
   const writeContractWithConfig = useCallback(
-    (params: Omit<WriteContractParameters, "address" | "abi">): void => {
+    (params: Omit<Parameters<typeof writeContract>[0], "address" | "abi">): void => {
       writeContract({
         ...params,
         address,
         abi: abi as Abi,
-      } as WriteContractParameters);
+      } as Parameters<typeof writeContract>[0]);
     },
     [writeContract, address, abi]
   );

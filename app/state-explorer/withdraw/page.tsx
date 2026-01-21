@@ -19,7 +19,7 @@ import { formatUnits } from "viem";
 // Token symbol images
 import TONSymbol from "@/assets/symbols/TON.svg";
 
-export function WithdrawPage() {
+function WithdrawPage() {
   const { currentChannelId } = useChannelFlowStore();
   const {
     handleWithdraw,
@@ -146,3 +146,5 @@ export function WithdrawPage() {
     </div>
   );
 }
+
+export default WithdrawPage;

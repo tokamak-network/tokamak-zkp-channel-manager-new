@@ -2,4 +2,5 @@
  * Join Channel Hooks
  */
 
-export { useChannelParticipantCheck } from "./useChannelParticipantCheck";
+// Re-export from common hooks
+export { useChannelParticipantCheck } from "@/hooks/useChannelParticipantCheck";

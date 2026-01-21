@@ -18,7 +18,6 @@ import {
   GROTH16VERIFIER32LEAVES_ABI,
   GROTH16VERIFIER64LEAVES_ABI,
   GROTH16VERIFIER128LEAVES_ABI,
-  ZECFROST_ABI,
 } from "./contracts/abis";
 import type { Abi } from "viem";
 
@@ -88,7 +87,6 @@ export const CONTRACT_ABIS = {
   Groth16Verifier32Leaves: GROTH16VERIFIER32LEAVES_ABI,
   Groth16Verifier64Leaves: GROTH16VERIFIER64LEAVES_ABI,
   Groth16Verifier128Leaves: GROTH16VERIFIER128LEAVES_ABI,
-  ZecFrost: ZECFROST_ABI,
 } as const satisfies Record<string, readonly Abi[number][]>;
 
 /**
@@ -120,8 +118,8 @@ export const CONTRACT_ADDRESSES = {
     Groth16Verifier128Leaves:
       AUTO_GENERATED_ADDRESSES.sepolia.Groth16Verifier128Leaves,
 
-    // FROST
-    ZecFrost: AUTO_GENERATED_ADDRESSES.sepolia.ZecFrost,
+    // FROST - Not included in auto-generated addresses, using placeholder
+    ZecFrost: "0x0000000000000000000000000000000000000000" as `0x${string}`,
   },
   [mainnet.id]: {
     // TODO: Update when mainnet contracts are deployed
@@ -166,13 +164,13 @@ export function getContractAddress(
 ): `0x${string}` {
   // If it's a number, treat it as chain ID
   if (typeof networkOrChainId === "number") {
-    const addresses = CONTRACT_ADDRESSES[networkOrChainId];
+    const addresses = CONTRACT_ADDRESSES[networkOrChainId as keyof typeof CONTRACT_ADDRESSES];
     if (!addresses) {
       throw new Error(
         `No contract addresses found for chain ID: ${networkOrChainId}`
       );
     }
-    return addresses[contract];
+    return addresses[contract as keyof typeof addresses];
   }
 
   // Otherwise, treat it as network ID and get chain ID

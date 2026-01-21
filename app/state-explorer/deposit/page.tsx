@@ -8,7 +8,7 @@
 
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useChannelFlowStore } from "@/stores/useChannelFlowStore";
 import { useDepositStore } from "@/stores/useDepositStore";
 import { useApprove, useDeposit } from "./_hooks";
@@ -17,11 +17,11 @@ import { useChannelInfo } from "@/hooks/useChannelInfo";
 import { useTokenBalance } from "@/hooks/useTokenBalance";
 import { FIXED_TARGET_CONTRACT } from "@tokamak/config";
 import { formatUnits } from "viem";
-import { RefreshCw, Copy } from "lucide-react";
+import { RefreshCw, Copy, HelpCircle } from "lucide-react";
 import { Button, AmountInput } from "@/components/ui";
 import { DepositConfirmModal } from "./_components/DepositConfirmModal";
 
-export function DepositPage() {
+function DepositPage() {
   const { currentChannelId } = useChannelFlowStore();
   const currentUserMPTKey = useDepositStore(
     (state) => state.currentUserDeposit.mptKey
@@ -90,10 +90,26 @@ export function DepositPage() {
     approvalSuccess,
     handleApprove,
     approveError,
+    refetchAllowance,
+    refetchBalance,
   } = useApprove({
     tokenAddress: tokenAddress as `0x${string}`,
     depositAmount,
   });
+
+  // Refetch allowance when deposit amount changes
+  useEffect(() => {
+    if (depositAmount) {
+      refetchAllowance();
+    }
+  }, [depositAmount, refetchAllowance]);
+
+  // Memoized callback for deposit success
+  const handleDepositSuccess = useCallback(() => {
+    // Refetch allowance and balance after successful deposit
+    refetchAllowance();
+    refetchBalance();
+  }, [refetchAllowance, refetchBalance]);
 
   // Use the deposit hook
   const {
@@ -108,6 +124,7 @@ export function DepositPage() {
     needsApproval,
     approvalSuccess,
     tokenDecimals,
+    onDepositSuccess: handleDepositSuccess,
   });
 
   const handleGenerateKey = async () => {
@@ -240,14 +257,40 @@ export function DepositPage() {
 
         {/* Approve Button */}
         {needsApproval && !approvalSuccess && (
-          <Button
-            variant="primary"
-            size="full"
-            onClick={handleApprove}
-            disabled={!depositAmount || isApproving}
-          >
-            {isApproving ? "Approving..." : "Approve"}
-          </Button>
+          <div className="relative group">
+            <Button
+              variant="success"
+              size="full"
+              onClick={handleApprove}
+              disabled={!currentUserMPTKey || !depositAmount || isApproving}
+            >
+              <span className="flex items-center gap-2">
+                {isApproving
+                  ? "Approving..."
+                  : !currentUserMPTKey
+                    ? "Generate MPT Key First"
+                    : !depositAmount
+                      ? "Enter Amount"
+                      : "Approve"}
+                {!isApproving && currentUserMPTKey && depositAmount && (
+                  <HelpCircle className="w-5 h-5 text-white/80" />
+                )}
+              </span>
+            </Button>
+            {/* Tooltip - only show when ready to approve */}
+            {currentUserMPTKey && depositAmount && (
+              <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-4 py-3 bg-[#333333] text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-10" style={{ width: 320 }}>
+                <p className="font-medium mb-1">Token Approval Required</p>
+                <p className="text-white/80 leading-relaxed">
+                  This is a one-time permission that allows the channel contract to transfer your tokens. 
+                  Your tokens remain in your wallet until you click Confirm to deposit.
+                </p>
+                <div className="absolute top-full left-1/2 transform -translate-x-1/2 -mt-1">
+                  <div className="border-4 border-transparent border-t-[#333333]"></div>
+                </div>
+              </div>
+            )}
+          </div>
         )}
 
         {/* Confirm Button */}
@@ -258,7 +301,11 @@ export function DepositPage() {
             onClick={handleOpenConfirmModal}
             disabled={!isFormValid}
           >
-            Confirm
+            {!currentUserMPTKey
+              ? "Generate MPT Key First"
+              : !depositAmount
+                ? "Enter Amount"
+                : "Confirm"}
           </Button>
         )}
       </div>
@@ -278,3 +325,5 @@ export function DepositPage() {
     </div>
   );
 }
+
+export default DepositPage;

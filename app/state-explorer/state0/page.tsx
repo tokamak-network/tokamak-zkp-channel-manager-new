@@ -11,7 +11,7 @@ import { useRouter } from "next/navigation";
 import { useChannelFlowStore } from "@/stores/useChannelFlowStore";
 import { Home } from "lucide-react";
 
-export function State0Page() {
+function State0Page() {
   const router = useRouter();
   const { clearCurrentChannelId } = useChannelFlowStore();
 
@@ -76,3 +76,5 @@ export function State0Page() {
     </div>
   );
 }
+
+export default State0Page;

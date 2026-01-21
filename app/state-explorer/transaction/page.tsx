@@ -19,12 +19,14 @@ import { usePreviousStateSnapshot } from "@/app/state-explorer/_hooks/usePreviou
 import { useSynthesizer } from "@/app/state-explorer/_hooks/useSynthesizer";
 import { L2_PRV_KEY_MESSAGE } from "@/lib/l2KeyMessage";
 import { addHexPrefix } from "@ethereumjs/util";
+import { parseUnits } from "viem";
 import { ProofList } from "./_components/ProofList";
 import { ProofGenerationModal } from "./_components/ProofGenerationModal";
 import { Button, AmountInput } from "@/components/ui";
 import { useBridgeCoreRead } from "@/hooks/contract";
+import { useChannelUserBalance } from "@/hooks/useChannelUserBalance";
 
-export function TransactionPage() {
+function TransactionPage() {
   const { address, isConnected } = useAccount();
   const { signMessageAsync } = useSignMessage();
   const { currentChannelId } = useChannelFlowStore();
@@ -43,6 +45,28 @@ export function TransactionPage() {
     channelLeader && address
       ? String(channelLeader).toLowerCase() === String(address).toLowerCase()
       : false;
+
+  // Get user's registered MPT key from on-chain (already deposited/registered)
+  const { data: registeredMptKey } = useBridgeCoreRead({
+    functionName: "getL2MptKey",
+    args: currentChannelId && address
+      ? [currentChannelId as `0x${string}`, address]
+      : undefined,
+    query: {
+      enabled: !!currentChannelId && !!address,
+    },
+  });
+
+  // Convert MPT key bigint to hex string
+  const mptKeyHex = registeredMptKey
+    ? `0x${(registeredMptKey as bigint).toString(16).padStart(64, "0")}`
+    : null;
+
+  // Get user's channel balance (from verified proof or initial deposit)
+  const { balance: userBalance, balanceFormatted: userBalanceFormatted } = useChannelUserBalance({
+    channelId: currentChannelId || null,
+    mptKey: mptKeyHex,
+  });
 
   // Form state
   const [keySeed, setKeySeed] = useState<`0x${string}` | null>(null);
@@ -306,8 +330,29 @@ export function TransactionPage() {
     return await zip.generateAsync({ type: "blob" });
   };
 
-  // Check if form fields are filled and amount is greater than 0
-  const isFormFilled = recipient && tokenAmount && parseFloat(tokenAmount) > 0;
+  // Validation checks
+  const hasRecipient = Boolean(recipient && recipient.trim() !== "");
+  const hasAmount = Boolean(tokenAmount && parseFloat(tokenAmount) > 0);
+  
+  // Parse entered amount to bigint for comparison
+  const parsedAmount = tokenAmount && parseFloat(tokenAmount) > 0
+    ? parseUnits(tokenAmount, 18)
+    : BigInt(0);
+  
+  // Check if amount exceeds balance
+  const exceedsBalance = userBalance !== null && parsedAmount > userBalance;
+  
+  // All conditions met
+  const isFormValid = hasRecipient && hasAmount && !exceedsBalance;
+  
+  // Button text based on validation state
+  const getButtonText = () => {
+    if (isSigning) return "Signing...";
+    if (!hasRecipient) return "Enter L2 Address";
+    if (!hasAmount) return "Enter Amount";
+    if (exceedsBalance) return "Insufficient Balance";
+    return "Sign";
+  };
 
   return (
     <div className="font-mono" style={{ width: 544 }}>
@@ -367,19 +412,20 @@ export function TransactionPage() {
           label="Amount"
           value={tokenAmount}
           onChange={setTokenAmount}
-          balance="448"
+          balance={userBalanceFormatted}
           tokenSymbol="TON"
-          onMaxClick={() => setTokenAmount("448")}
+          onMaxClick={() => setTokenAmount(userBalanceFormatted)}
+          error={exceedsBalance}
         />
 
-        {/* Sign Button - Opens modal after signing */}
+        {/* Sign Button - Dynamic text based on validation */}
         <Button
           variant="primary"
           size="full"
           onClick={handleSign}
-          disabled={isSigning || !isConnected || !isFormFilled}
+          disabled={isSigning || !isConnected || !isFormValid}
         >
-          {isSigning ? "Signing..." : "Sign"}
+          {getButtonText()}
         </Button>
       </div>
 
@@ -442,3 +488,5 @@ export function TransactionPage() {
     </div>
   );
 }
+
+export default TransactionPage;

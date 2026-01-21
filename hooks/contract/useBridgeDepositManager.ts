@@ -10,8 +10,6 @@ import {
   useWaitForTransactionReceipt,
   UseReadContractParameters,
   UseWaitForTransactionReceiptParameters,
-  WriteContractParameters,
-  WriteContractReturnType,
 } from 'wagmi';
 import { 
   CONTRACT_ABIS, 
@@ -49,8 +47,8 @@ export function useBridgeDepositManagerRead<TAbi extends Abi = typeof CONTRACT_A
   return useReadContract({
     ...config,
     address,
-    abi: abi as TAbi,
-  });
+    abi,
+  } as UseReadContractParameters<TAbi>);
 }
 
 /**
@@ -64,13 +62,13 @@ export function useBridgeDepositManagerWrite() {
 
   const writeContractWithConfig = useCallback(
     (
-      params: Omit<WriteContractParameters, 'address' | 'abi'>
-    ): WriteContractReturnType => {
-      return writeContract({
+      params: Omit<Parameters<typeof writeContract>[0], 'address' | 'abi'>
+    ): void => {
+      writeContract({
         ...params,
         address,
         abi: abi as Abi,
-      });
+      } as Parameters<typeof writeContract>[0]);
     },
     [writeContract, address, abi]
   );

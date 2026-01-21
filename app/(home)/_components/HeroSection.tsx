@@ -10,7 +10,7 @@ export function HeroSection() {
   return (
     <section className="flex flex-col items-center justify-center px-4 py-24 text-center">
       <h1 className="text-4xl font-bold tracking-tight sm:text-6xl">
-        Tokamak ZKP Channel Manager
+        Tokamak Private App Channels
       </h1>
       <p className="mt-6 max-w-2xl text-lg text-[var(--muted-foreground)]">
         Zero-Knowledge Proof 기반 State Channel 관리 시스템

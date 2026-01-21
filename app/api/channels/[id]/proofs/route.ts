@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getProofs } from "@/lib/db/channels";
 
+interface RouteParams {
+  params: Promise<{ id: string }>;
+}
+
 /**
  * GET /api/channels/:id/proofs - Get proofs for a channel
  * 
@@ -9,10 +13,10 @@ import { getProofs } from "@/lib/db/channels";
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> | { id: string } }
+  { params }: RouteParams
 ) {
   try {
-    const resolvedParams = await Promise.resolve(params);
+    const resolvedParams = await params;
     const channelId = resolvedParams.id;
     const { searchParams } = new URL(request.url);
     const silent = searchParams.get("silent") === "true";

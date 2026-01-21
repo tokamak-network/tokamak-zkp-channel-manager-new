@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getData, updateData } from "@/lib/db";
+import { getData, setData } from "@/lib/db";
 
 /**
  * POST /api/get-next-proof-number
@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
       currentNum === null || currentNum < nextSub ? nextSub : currentNum + 1;
 
     // Atomically update the counter
-    await updateData(counterPath, nextSubNumber);
+    await setData(counterPath, nextSubNumber);
 
     // Generate proof IDs
     const proofId =

@@ -11,11 +11,11 @@ import { useRouter } from "next/navigation";
 import { useAccount } from "wagmi";
 import { useChannelFlowStore } from "@/stores/useChannelFlowStore";
 import { useBridgeCoreRead } from "@/hooks/contract";
-import { DepositPage } from "./deposit/page";
-import { TransactionPage } from "./transaction/page";
-import { WithdrawPage } from "./withdraw/page";
-import { State3Page } from "./state3/page";
-import { State0Page } from "./state0/page";
+import DepositPage from "./deposit/page";
+import TransactionPage from "./transaction/page";
+import WithdrawPage from "./withdraw/page";
+import State3Page from "./state3/page";
+import State0Page from "./state0/page";
 
 // ChannelState enum from contract: 0=None, 1=Initialized, 2=Open, 3=Closing, 4=Closed
 type ContractChannelState = 0 | 1 | 2 | 3 | 4;

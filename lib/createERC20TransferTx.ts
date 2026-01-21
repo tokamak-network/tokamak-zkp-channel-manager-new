@@ -58,7 +58,8 @@ export async function createERC20TransferTx(
   };
 
   // Create unsigned transaction
-  const unsignedTransaction = createTokamakL2Tx(transactionData, { common: tokamakL2Common });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const unsignedTransaction = createTokamakL2Tx(transactionData, { common: tokamakL2Common as any });
 
   // Sign the transaction with L2 private key
   return unsignedTransaction.sign(hexToBytes(addHexPrefix(account.privateKey)));

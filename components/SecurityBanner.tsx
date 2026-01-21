@@ -31,8 +31,8 @@ export function SecurityBanner() {
           Don&apos;t Trust. Verify.
         </span>
         <span style={{ fontSize: 13, color: "#666666", lineHeight: "1.4" }}>
-          Channel leaders and participants are equally bound by proof
-          verification. No one can cheat.
+          Secured by validity proofs. Channel leaders and participants are
+          equally bound by proof verification. No one can cheat.
         </span>
       </div>
     </div>

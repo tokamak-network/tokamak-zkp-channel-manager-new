@@ -12,14 +12,11 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
 import { useAccount, useChainId } from "wagmi";
 import { sepolia, mainnet } from "wagmi/chains";
 import { formatAddress } from "@/lib/utils/format";
 import { AccountPanel } from "./AccountPanel";
-
-// Floating home icon
-import FloatingHomeIcon from "@/assets/icons/FloatingHome.svg";
+import { Home } from "lucide-react";
 
 export function AccountHeader() {
   const router = useRouter();
@@ -36,8 +33,9 @@ export function AccountHeader() {
 
   return (
     <>
-      {/* Header with Account Info - Top Right */}
-      <div className="absolute top-8 right-12 z-30">
+      {/* Header with Account Info and Home Button - Top Right (Vertical) */}
+      <div className="absolute top-8 right-12 z-30 flex flex-col items-end gap-3">
+        {/* Account Button */}
         <button
           onClick={() => setIsPanelOpen(!isPanelOpen)}
           className="flex items-center font-mono bg-white hover:bg-[#F8F8F8] transition-colors cursor-pointer"
@@ -45,6 +43,7 @@ export function AccountHeader() {
             border: "1px solid #BBBBBB",
             borderRadius: 4,
             padding: "16px 0",
+            height: 58,
           }}
         >
           {isConnected && address ? (
@@ -92,27 +91,27 @@ export function AccountHeader() {
             </div>
           )}
         </button>
-      </div>
 
-      {/* Floating Home Button - Bottom Right */}
-      <button
-        onClick={handleGoHome}
-        className="fixed z-30 cursor-pointer hover:scale-105 transition-transform"
-        style={{
-          bottom: 32,
-          right: 48,
-        }}
-      >
-        <Image
-          src={FloatingHomeIcon}
-          alt="Home"
-          width={48}
-          height={48}
+        {/* Home Button */}
+        <button
+          onClick={handleGoHome}
+          className="flex items-center justify-center gap-2 font-mono bg-white hover:bg-[#F8F8F8] transition-colors cursor-pointer w-full"
           style={{
-            filter: "drop-shadow(0px 8px 8px rgba(0, 0, 0, 0.2))",
+            border: "1px solid #BBBBBB",
+            borderRadius: 4,
+            padding: "16px 24px",
+            height: 58,
           }}
-        />
-      </button>
+        >
+          <Home size={24} className="text-[#111111]" />
+          <span
+            className="text-[#111111]"
+            style={{ fontSize: 20, lineHeight: "1.3em" }}
+          >
+            Home
+          </span>
+        </button>
+      </div>
 
       {/* Sliding Account Panel */}
       <div

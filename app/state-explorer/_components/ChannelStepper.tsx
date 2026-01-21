@@ -81,6 +81,23 @@ export function ChannelStepper({
     },
   });
 
+  // Fetch user's registered MPT key to check if they have deposited
+  // A user who deposited (even 0 TON) will have a non-zero MPT key
+  const { data: registeredMptKey } = useBridgeCoreRead({
+    functionName: "getL2MptKey",
+    args:
+      channelId && userAddress
+        ? [channelId as `0x${string}`, userAddress]
+        : undefined,
+    query: {
+      enabled: !!channelId && !!userAddress && currentState === 1,
+      refetchInterval: 5000,
+    },
+  });
+
+  // Check if user has deposited (MPT key is registered)
+  const hasDeposited = registeredMptKey !== undefined && registeredMptKey !== BigInt(0);
+
   // After cleanupChannel, state becomes 0 but withdrawable amounts remain
   // In this case, show the Withdraw step (state 4)
   if (currentState === null) {
@@ -185,10 +202,12 @@ export function ChannelStepper({
           {/* Show deposit amount only in Deposit phase */}
           {currentStepIndex === 1 && formattedDeposit !== null && (
             <p
-              className="mt-2 font-mono font-medium text-[#2A72E5]"
+              className={`mt-2 font-mono font-medium ${hasDeposited ? "text-[#2A72E5]" : "text-[#E5A02A]"}`}
               style={{ fontSize: 14 }}
             >
-              Your Deposit: {formattedDeposit} TON
+              {hasDeposited
+                ? `Your Deposit: ${formattedDeposit} TON`
+                : "⚠ You have not deposited yet"}
             </p>
           )}
         </div>

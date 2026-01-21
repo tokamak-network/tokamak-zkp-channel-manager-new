@@ -115,7 +115,7 @@ export default function SubmitProofPage() {
   // Update signature requirement based on frost signature setting
   useEffect(() => {
     if (isFrostSignatureEnabled !== undefined) {
-      setRequireSignature(isFrostSignatureEnabled);
+      setRequireSignature(Boolean(isFrostSignatureEnabled));
     }
   }, [isFrostSignatureEnabled]);
 
@@ -367,8 +367,7 @@ export default function SubmitProofPage() {
   };
 
   // Contract write (address and abi are pre-configured)
-  const { writeContract, isPending: isWritePending } = useBridgeProofManagerWrite();
-  const [txHash, setTxHash] = useState<`0x${string}` | null>(null);
+  const { writeContract, isPending: isWritePending, data: txHash } = useBridgeProofManagerWrite();
   
   const { isLoading: isTransactionLoading, isSuccess } = useBridgeProofManagerWaitForReceipt({
     hash: txHash || undefined,
@@ -665,7 +664,7 @@ export default function SubmitProofPage() {
         throw new Error("Invalid channel ID");
       }
 
-      const hash = writeContract({
+      writeContract({
         functionName: 'submitProofAndSignature',
         args: [
           channelIdBytes32,
@@ -678,8 +677,6 @@ export default function SubmitProofPage() {
           }
         ],
       });
-
-      setTxHash(hash);
     } catch (error) {
       console.error('Error submitting proof:', error);
       alert('Error submitting proof. Please try again.');
@@ -689,7 +686,8 @@ export default function SubmitProofPage() {
   };
   
   // Check if channel is in correct state for proof submission (Open=2)
-  const isChannelStateValid = channelInfo && Number(channelInfo[1]) === 2;
+  const channelInfoArray = channelInfo as unknown as readonly [unknown, bigint, unknown, unknown, unknown, unknown, unknown] | undefined;
+  const isChannelStateValid = channelInfoArray && Number(channelInfoArray[1]) === 2;
   
   const canSubmit = isConnected && selectedChannelId && isFormValid() && isChannelStateValid && !isLoading && !isTransactionLoading && !isWritePending;
 
@@ -770,20 +768,20 @@ export default function SubmitProofPage() {
                 </div>
                 <div className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
                   <div className="text-sm text-gray-500 dark:text-gray-400">Status</div>
-                  <div className={`text-lg font-semibold ${channelInfo ? getChannelStateColor(Number(channelInfo[1])) : 'text-gray-400'}`}>
-                    {channelInfo ? getChannelStateDisplay(Number(channelInfo[1])) : 'Loading...'}
+                  <div className={`text-lg font-semibold ${channelInfoArray ? getChannelStateColor(Number(channelInfoArray[1])) : 'text-gray-400'}`}>
+                    {channelInfoArray ? getChannelStateDisplay(Number(channelInfoArray[1])) : 'Loading...'}
                   </div>
                 </div>
                 <div className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
                   <div className="text-sm text-gray-500 dark:text-gray-400">Participants</div>
                   <div className="text-lg font-semibold">
-                    {channelParticipants ? channelParticipants.length : '...'}
+                    {channelParticipants ? (channelParticipants as unknown as readonly `0x${string}`[]).length : '...'}
                   </div>
                 </div>
                 <div className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
                   <div className="text-sm text-gray-500 dark:text-gray-400">Target Contract</div>
                   <div className="text-lg font-semibold font-mono text-xs">
-                    {targetContract ? `${targetContract.substring(0, 8)}...${targetContract.substring(36)}` : '...'}
+                    {targetContract ? `${String(targetContract).substring(0, 8)}...${String(targetContract).substring(36)}` : '...'}
                   </div>
                 </div>
               </div>
@@ -1097,12 +1095,12 @@ export default function SubmitProofPage() {
                 </div>
               )}
               
-              {isFormValid() && !isChannelStateValid && channelInfo && (
+              {isFormValid() && !isChannelStateValid && channelInfoArray && (
                 <div className="mb-4 p-4 bg-red-500/10 border border-red-500/30 rounded-lg flex items-start gap-3">
                   <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
                   <div className="text-sm">
                     <strong className="block mb-1">Invalid Channel State</strong>
-                    Channel must be in "Open" state. Current: {getChannelStateDisplay(Number(channelInfo[1]))}
+                    Channel must be in "Open" state. Current: {getChannelStateDisplay(Number(channelInfoArray[1]))}
                   </div>
                 </div>
               )}

@@ -16,6 +16,7 @@ import { formatAddress } from "@/lib/utils/format";
 import { useInitializeState } from "./_hooks/useInitializeState";
 import { InitializeStateConfirmModal } from "./_components/InitializeStateConfirmModal";
 import { CloseChannelConfirmModal } from "./_components/CloseChannelConfirmModal";
+import { ParticipantDeposits } from "./_components/ParticipantDeposits";
 import { useCloseChannel } from "./_hooks/useCloseChannel";
 import { useBridgeCoreRead } from "@/hooks/contract";
 import { Copy, Check } from "lucide-react";
@@ -291,28 +292,40 @@ export default function StateExplorerLayout({
 
         {/* Leader Actions */}
         {isLeader && contractChannelState !== null && (
-          <div className="flex gap-6" style={{ width: 544 }}>
+          <div className="flex flex-col gap-4" style={{ width: 544 }}>
             {/* state === 1 (Initialized): Show Initialize State button during deposit phase */}
             {contractChannelState === 1 && (
-              <button
-                type="button"
-                onClick={handleOpenInitializeModal}
-                disabled={isLoadingChannelData}
-                className="flex-1 flex items-center justify-center font-mono font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                style={{
-                  height: 40,
-                  padding: "16px 24px",
-                  borderRadius: 4,
-                  border: "1px solid #111111",
-                  backgroundColor: "#0FBCBC",
-                  color: "#FFFFFF",
-                  fontSize: 18,
-                  cursor: isLoadingChannelData ? "not-allowed" : "pointer",
-                }}
-                title={isLoadingChannelData ? "Loading channel data..." : "Initialize channel state"}
-              >
-                {isLoadingChannelData ? "Loading..." : "Initialize State"}
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={handleOpenInitializeModal}
+                  disabled={isLoadingChannelData}
+                  className="flex items-center justify-center font-mono font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  style={{
+                    height: 40,
+                    padding: "16px 24px",
+                    borderRadius: 4,
+                    border: "1px solid #111111",
+                    backgroundColor: "#0FBCBC",
+                    color: "#FFFFFF",
+                    fontSize: 18,
+                    cursor: isLoadingChannelData ? "not-allowed" : "pointer",
+                  }}
+                  title={isLoadingChannelData ? "Loading channel data..." : "Initialize channel state"}
+                >
+                  {isLoadingChannelData ? "Loading..." : "Initialize State"}
+                </button>
+
+                {/* Participant Deposits - Collapsible, collapsed by default */}
+                <ParticipantDeposits
+                  channelId={channelId}
+                  tokenSymbol="TON"
+                  tokenDecimals={18}
+                  collapsible={true}
+                  defaultExpanded={false}
+                  showLeaderCheck={false}
+                />
+              </>
             )}
             {/* state === 3 (Closing): Close Channel button is shown in state3/page.tsx */}
             {/* state === 4 (Closed): No buttons during withdraw phase */}

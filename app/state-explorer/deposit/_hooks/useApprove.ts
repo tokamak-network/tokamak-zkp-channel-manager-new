@@ -69,6 +69,9 @@ export function useApprove({ tokenAddress, depositAmount }: UseApproveParams) {
         : undefined,
     query: {
       enabled: !!address && !!tokenAddress && !!depositManagerAddress,
+      // Don't cache - always fetch fresh data
+      staleTime: 0,
+      gcTime: 0,
     },
   });
 
@@ -154,5 +157,7 @@ export function useApprove({ tokenAddress, depositAmount }: UseApproveParams) {
     approveTxHash,
     approveError: approveError || approvalTxError,
     handleApprove,
+    refetchAllowance,
+    refetchBalance,
   };
 }

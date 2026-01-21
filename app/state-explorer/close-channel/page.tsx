@@ -35,9 +35,26 @@ export default function CloseChannelPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const { address, isConnected } = useAccount();
-  const channelId = searchParams?.get("channelId") || "";
+  const channelIdParam = searchParams?.get("channelId");
+  const channelId = channelIdParam && channelIdParam.startsWith("0x") 
+    ? (channelIdParam as `0x${string}`) 
+    : null;
 
-  const { channelInfo, isLeader } = useChannelInfo(channelId);
+  const channelInfo = useChannelInfo(channelId);
+
+  // Get channel leader to determine if current user is leader
+  const { data: channelLeader } = useBridgeCoreRead({
+    functionName: "getChannelLeader",
+    args: channelId ? [channelId as `0x${string}`] : undefined,
+    query: {
+      enabled: !!channelId && isConnected,
+    },
+  });
+
+  const isLeader = useMemo(() => {
+    if (!channelLeader || !address) return false;
+    return String(channelLeader).toLowerCase() === String(address).toLowerCase();
+  }, [channelLeader, address]);
 
   // Phase state: 1 = Submit Proof, 2 = Verify Final Balances
   const [phase, setPhase] = useState<1 | 2>(1);
@@ -69,13 +86,15 @@ export default function CloseChannelPage() {
   } | null>(null);
 
   // Get channel data for Phase 2
-  const { data: channelParticipants } = useBridgeCoreRead({
+  const { data: channelParticipantsRaw } = useBridgeCoreRead({
     functionName: "getChannelParticipants",
     args: channelId ? [channelId as `0x${string}`] : undefined,
     query: {
       enabled: !!channelId && isConnected && phase === 2,
     },
   });
+  // Cast to proper array type
+  const channelParticipants = channelParticipantsRaw as `0x${string}`[] | undefined;
 
   const { data: channelTreeSize } = useBridgeCoreRead({
     functionName: "getChannelTreeSize",
@@ -103,7 +122,7 @@ export default function CloseChannelPage() {
 
   const { data: preAllocatedKeys } = useBridgeCoreRead({
     functionName: "getPreAllocatedKeys",
-    args: channelTargetContract ? [channelTargetContract] : undefined,
+    args: channelTargetContract ? [channelTargetContract as `0x${string}`] : undefined,
     query: {
       enabled: !!channelTargetContract && isConnected && phase === 2,
     },
@@ -379,9 +398,9 @@ export default function CloseChannelPage() {
     );
 
     setGroth16Proof({
-      pA: proofResult.proof.pA,
-      pB: proofResult.proof.pB,
-      pC: proofResult.proof.pC,
+      pA: [...proofResult.proof.pA] as [bigint, bigint, bigint, bigint],
+      pB: [...proofResult.proof.pB] as [bigint, bigint, bigint, bigint, bigint, bigint, bigint, bigint],
+      pC: [...proofResult.proof.pC] as [bigint, bigint, bigint, bigint],
     });
 
     return proofResult;

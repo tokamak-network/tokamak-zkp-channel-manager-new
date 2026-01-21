@@ -20,7 +20,7 @@ export function DepositSection({ channelId }: DepositSectionProps) {
   const [depositAmount, setDepositAmount] = useState("");
   const [isDepositing, setIsDepositing] = useState(false);
   
-  const currentUserMPTKey = useDepositStore((state) => state.currentUserMPTKey);
+  const currentUserMPTKey = useDepositStore((state) => state.currentUserDeposit.mptKey);
   const setCurrentUserMPTKey = useDepositStore((state) => state.setCurrentUserMPTKey);
   
   // Use the MPT key generation hook
