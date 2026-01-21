@@ -22,21 +22,13 @@ import { isValidBytes32 } from "@/lib/channelId";
 import { useGenerateMptKey } from "@/hooks/useGenerateMptKey";
 import { useTransactionHistory } from "@/hooks/useTransactionHistory";
 import { useChannelParticipantCheck } from "@/hooks/useChannelParticipantCheck";
-import { formatUnits } from "viem";
-import JSZip from "jszip";
+import { useChannelUserBalance } from "@/hooks/useChannelUserBalance";
 
 // Token symbol images
 import TONSymbol from "@/assets/symbols/TON.svg";
 
 interface AccountPanelProps {
   onClose?: () => void;
-}
-
-// Channel balance from latest approved proof
-interface ChannelBalance {
-  balance: bigint;
-  tokenSymbol: string;
-  proofNumber: number;
 }
 
 export function AccountPanel({ onClose }: AccountPanelProps) {
@@ -49,10 +41,6 @@ export function AccountPanel({ onClose }: AccountPanelProps) {
   const [isChannelLoaded, setIsChannelLoaded] = useState(false); // Track if Load button was clicked
   const [copiedAddress, setCopiedAddress] = useState(false);
   const [copiedL2Address, setCopiedL2Address] = useState(false);
-
-  // Channel balance state
-  const [channelBalance, setChannelBalance] = useState<ChannelBalance | null>(null);
-  const [isLoadingBalance, setIsLoadingBalance] = useState(false);
 
   // Transaction history filter state - Network selector
   const [txNetworkType, setTxNetworkType] = useState<"sepolia" | "channel">("channel");
@@ -89,6 +77,18 @@ export function AccountPanel({ onClose }: AccountPanelProps) {
 
   const l2Address = accountInfo?.l2Address || null;
   const mptKey = accountInfo?.mptKey || null;
+
+  // Use shared hook for channel balance (from verified proof or initial deposit)
+  const {
+    balance: channelBalance,
+    balanceFormatted,
+    isFromProof,
+    proofNumber,
+    isLoading: isLoadingBalance,
+  } = useChannelUserBalance({
+    channelId: isChannelLoaded ? channelIdInput : null,
+    mptKey,
+  });
 
   // Determine validation state
   const hasInput = Boolean(channelIdInput && channelIdInput.trim() !== "");
@@ -151,142 +151,6 @@ export function AccountPanel({ onClose }: AccountPanelProps) {
     setChannelIdInput(value);
     setIsChannelLoaded(false);
   };
-
-  // Fetch channel balance from latest approved proof
-  const fetchChannelBalance = useCallback(async () => {
-    if (!channelIdInput || !isValidBytes32(channelIdInput) || !mptKey) {
-      setChannelBalance(null);
-      return;
-    }
-
-    setIsLoadingBalance(true);
-    try {
-      const normalizedChannelId = channelIdInput.toLowerCase();
-      const encodedChannelId = encodeURIComponent(normalizedChannelId);
-
-      // Fetch channel info for token symbol (target contract)
-      const channelResponse = await fetch(`/api/channels/${encodedChannelId}`);
-      let tokenSymbol = "TON"; // Default
-      if (channelResponse.ok) {
-        const channelData = await channelResponse.json();
-        if (channelData.success && channelData.data?.targetContract) {
-          // For now, use TON as default. Could map contract address to symbol
-          tokenSymbol = "TON";
-        }
-      }
-
-      // Fetch verified proofs
-      const proofsResponse = await fetch(
-        `/api/channels/${encodedChannelId}/proofs?type=verified`
-      );
-
-      if (!proofsResponse.ok) {
-        setChannelBalance(null);
-        return;
-      }
-
-      const proofsData = await proofsResponse.json();
-      if (!proofsData.success || !proofsData.data) {
-        setChannelBalance(null);
-        return;
-      }
-
-      // Get proofs array
-      let proofsArray: Array<{
-        key: string;
-        sequenceNumber: number;
-      }> = [];
-
-      if (Array.isArray(proofsData.data)) {
-        proofsArray = proofsData.data;
-      } else if (proofsData.data && typeof proofsData.data === "object") {
-        proofsArray = Object.entries(proofsData.data).map(
-          ([key, value]: [string, any]) => ({
-            key,
-            ...value,
-          })
-        );
-      }
-
-      if (proofsArray.length === 0) {
-        setChannelBalance(null);
-        return;
-      }
-
-      // Sort by sequence number (descending) to get latest
-      proofsArray.sort(
-        (a, b) => (b.sequenceNumber || 0) - (a.sequenceNumber || 0)
-      );
-
-      const latestProof = proofsArray[0];
-
-      // Load the proof ZIP file
-      const zipApiUrl = `/api/get-proof-zip?channelId=${encodeURIComponent(
-        normalizedChannelId
-      )}&proofId=${encodeURIComponent(latestProof.key)}&status=verifiedProofs&format=binary`;
-
-      const zipResponse = await fetch(zipApiUrl);
-
-      if (!zipResponse.ok) {
-        setChannelBalance(null);
-        return;
-      }
-
-      const zipBlob = await zipResponse.blob();
-      const zipArrayBuffer = await zipBlob.arrayBuffer();
-      const zip = await JSZip.loadAsync(zipArrayBuffer);
-
-      // Find and parse state_snapshot.json
-      let stateSnapshotJson: string | null = null;
-      const files = Object.keys(zip.files);
-      for (const filePath of files) {
-        const fileName = filePath.split("/").pop()?.toLowerCase();
-        if (fileName === "state_snapshot.json") {
-          const file = zip.file(filePath);
-          if (file) {
-            stateSnapshotJson = await file.async("string");
-            break;
-          }
-        }
-      }
-
-      if (!stateSnapshotJson) {
-        setChannelBalance(null);
-        return;
-      }
-
-      const stateSnapshot = JSON.parse(stateSnapshotJson);
-      const storageEntries = stateSnapshot.storageEntries || [];
-
-      // Helper to safely convert hex to BigInt
-      const safeBigInt = (value: string): bigint => {
-        if (!value || value === "0x" || value === "") return BigInt(0);
-        return BigInt(value);
-      };
-
-      // Find my balance by MPT key
-      const myEntry = storageEntries.find(
-        (entry: { key: string; value: string }) =>
-          entry.key.toLowerCase() === mptKey.toLowerCase()
-      );
-
-      if (!myEntry) {
-        setChannelBalance(null);
-        return;
-      }
-
-      setChannelBalance({
-        balance: safeBigInt(myEntry.value),
-        tokenSymbol,
-        proofNumber: latestProof.sequenceNumber || 0,
-      });
-    } catch (err) {
-      console.error("[AccountPanel] Error fetching channel balance:", err);
-      setChannelBalance(null);
-    } finally {
-      setIsLoadingBalance(false);
-    }
-  }, [channelIdInput, mptKey]);
 
   // Fetch L1 transactions from DB (open channel, initialize state)
   const fetchL1Transactions = useCallback(async () => {
@@ -365,13 +229,6 @@ export function AccountPanel({ onClose }: AccountPanelProps) {
       minute: "2-digit",
     });
   };
-
-  // Auto-fetch channel balance when mptKey changes
-  useEffect(() => {
-    if (mptKey && channelIdInput) {
-      fetchChannelBalance();
-    }
-  }, [mptKey, channelIdInput, fetchChannelBalance]);
 
   // Auto-fetch L1 transactions when channel ID changes
   useEffect(() => {
@@ -648,7 +505,7 @@ export function AccountPanel({ onClose }: AccountPanelProps) {
                   Loading balance...
                 </span>
               </div>
-            ) : channelBalance ? (
+            ) : channelBalance !== null ? (
               <div
                 className="flex items-center justify-between"
                 style={{ padding: "10px 0", borderRadius: 4 }}
@@ -656,7 +513,7 @@ export function AccountPanel({ onClose }: AccountPanelProps) {
                 <div className="flex items-center gap-2">
                   <Image
                     src={TONSymbol}
-                    alt={channelBalance.tokenSymbol}
+                    alt="TON"
                     width={24}
                     height={24}
                     className="rounded-full"
@@ -665,20 +522,20 @@ export function AccountPanel({ onClose }: AccountPanelProps) {
                     className="text-[#111111]"
                     style={{ fontSize: 18, lineHeight: "1.3em" }}
                   >
-                    {parseFloat(formatUnits(channelBalance.balance, 18)).toFixed(2)}
+                    {balanceFormatted}
                   </span>
                 </div>
                 <span
                   className="text-[#666666]"
                   style={{ fontSize: 14, lineHeight: "1.3em" }}
                 >
-                  Proof #{channelBalance.proofNumber}
+                  {isFromProof ? `Proof #${proofNumber}` : "Initial Deposit"}
                 </span>
               </div>
             ) : (
               <div className="py-2">
                 <span className="text-[#999999]" style={{ fontSize: 14 }}>
-                  No verified proofs found
+                  No balance found
                 </span>
               </div>
             )}
