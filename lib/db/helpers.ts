@@ -12,6 +12,8 @@ import { getDb } from "./client";
  */
 export async function getData<T = any>(path: string): Promise<T | null> {
   const db = await getDb();
+  // Always read from disk to get latest data (for multi-process sync)
+  await db.read();
   const pathParts = path.split(/[./]/).filter(Boolean);
 
   let current: any = db.data;
@@ -32,6 +34,7 @@ export async function getData<T = any>(path: string): Promise<T | null> {
  */
 export async function setData(path: string, data: any): Promise<void> {
   const db = await getDb();
+  
   const pathParts = path.split(/[./]/).filter(Boolean);
 
   // Create nested structure
@@ -60,6 +63,7 @@ export async function setData(path: string, data: any): Promise<void> {
  */
 export async function pushData(path: string, data: any): Promise<string> {
   const db = await getDb();
+  
   const pathParts = path.split(/[./]/).filter(Boolean);
 
   // Navigate to parent
@@ -122,6 +126,7 @@ export async function updateData(
  */
 export async function deleteData(path: string): Promise<void> {
   const db = await getDb();
+  
   const pathParts = path.split(/[./]/).filter(Boolean);
 
   if (pathParts.length === 0) {
