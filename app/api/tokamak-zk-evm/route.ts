@@ -642,7 +642,7 @@ export async function POST(req: Request) {
 
     await assertPathExists(synthOutputPath, "dir");
 
-    // STEP 2: If includeProof is true, run prove and extract proof bundle
+    // STEP 2: If includeProof is true, run prove, verify, and extract proof bundle
     if (includeProof) {
       console.log("Running tokamak-cli prove...");
       try {
@@ -656,6 +656,59 @@ export async function POST(req: Request) {
         );
       }
 
+      // STEP 3: Verify the generated proof before extracting
+      console.log("Running tokamak-cli preprocess for verification...");
+      try {
+        await runTokamakCli(["--preprocess"], {
+          timeout: 300000, // 5 minutes timeout
+        });
+      } catch (preprocessError: any) {
+        console.error("Preprocess for verification failed:", preprocessError);
+        throw new Error(
+          `Proof verification setup failed: ${preprocessError.message || "Unknown error"}`
+        );
+      }
+
+      console.log("Running tokamak-cli verify...");
+      try {
+        const { stdout: verifyStdout } = await execFileAsync(
+          tokamakCliPath,
+          ["--verify"],
+          {
+            cwd: distRoot,
+            env: baseEnv,
+            timeout: 300000, // 5 minutes timeout
+          }
+        );
+
+        console.log("Verify stdout:", verifyStdout);
+
+        // Check if verification passed
+        const isVerified =
+          verifyStdout.includes("Verify: verify output => true") ||
+          verifyStdout.includes("✓") ||
+          verifyStdout.toLowerCase().includes("success");
+
+        if (!isVerified) {
+          console.error("Proof verification failed - invalid proof");
+          throw new Error(
+            "Proof verification failed: The generated proof is invalid. Please try again."
+          );
+        }
+
+        console.log("✅ Proof verification passed!");
+      } catch (verifyError: any) {
+        console.error("Verify failed:", verifyError);
+        // If it's already our custom error, re-throw it
+        if (verifyError.message?.includes("Proof verification failed")) {
+          throw verifyError;
+        }
+        throw new Error(
+          `Proof verification failed: ${verifyError.message || "Unknown error"}`
+        );
+      }
+
+      // STEP 4: Extract proof bundle (only after successful verification)
       console.log("Extracting proof bundle...");
       await runTokamakCli(["--extract-proof", outputZipPath]);
 
