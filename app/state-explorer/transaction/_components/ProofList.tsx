@@ -461,20 +461,16 @@ export function ProofList({ onActionsReady }: ProofListProps) {
             return (
               <div
                 key={proof.key}
-                className={`flex items-center py-2.5 ${
+                className={`relative flex items-center py-2.5 ${
                   index < paginatedProofs.length - 1 ? "border-b border-[#DDDDDD]" : ""
                 }`}
               >
-                {/* Radio button for pending proofs (leader only) */}
-                <div 
-                  className="w-[34px] flex items-center justify-center px-2 cursor-pointer"
-                  onClick={() => {
-                    if (proof.status === "pending" && isLeader) {
-                      setSelectedProofForApproval(proof.key);
-                    }
-                  }}
-                >
-                  {proof.status === "pending" && isLeader && (
+                {/* Radio button for pending proofs (leader only) - positioned outside left */}
+                {proof.status === "pending" && isLeader && (
+                  <div 
+                    className="absolute -left-8 flex items-center justify-center cursor-pointer"
+                    onClick={() => setSelectedProofForApproval(proof.key)}
+                  >
                     <input
                       type="radio"
                       name="proofApproval"
@@ -483,8 +479,8 @@ export function ProofList({ onActionsReady }: ProofListProps) {
                       onChange={(e) => setSelectedProofForApproval(e.target.value)}
                       className="w-[18px] h-[18px] cursor-pointer accent-[#2A72E5]"
                     />
-                  )}
-                </div>
+                  </div>
+                )}
 
                 {/* Status Tag */}
                 <div className="w-[100px] px-2">
@@ -497,7 +493,7 @@ export function ProofList({ onActionsReady }: ProofListProps) {
                 </div>
 
                 {/* Proof ID */}
-                <div className="w-[160px] px-2 text-sm text-[#222222]">
+                <div className="w-[140px] px-2 text-sm text-[#222222]">
                   {proof.status === "verified"
                     ? `Proof#${proof.sequenceNumber}`
                     : `Proof#${proof.sequenceNumber}-${proof.subNumber}`}
@@ -510,14 +506,15 @@ export function ProofList({ onActionsReady }: ProofListProps) {
 
                 {/* Actions */}
                 <div className="flex items-center gap-2 px-2">
+                  {/* Verify Button - prominent with text */}
                   <button
                     type="button"
                     onClick={() => handleVerifyClick(proof)}
                     disabled={isVerifying}
-                    className="p-1.5 hover:bg-[#F2F2F2] rounded transition-colors disabled:opacity-50"
-                    title="Verify Proof"
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-[#F0F4FF] hover:bg-[#E0EBFF] text-[#2A72E5] rounded border border-[#2A72E5] transition-colors disabled:opacity-50 text-xs font-medium"
                   >
-                    <FileCheck className="w-4 h-4 text-[#666666]" />
+                    <FileCheck className="w-3.5 h-3.5" />
+                    Verify
                   </button>
                   <button
                     type="button"
