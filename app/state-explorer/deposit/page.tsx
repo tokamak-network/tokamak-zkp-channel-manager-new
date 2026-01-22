@@ -15,7 +15,7 @@ import { useChannelInfo } from "@/hooks/useChannelInfo";
 import { useTokenBalance } from "@/hooks/useTokenBalance";
 import { FIXED_TARGET_CONTRACT } from "@tokamak/config";
 import { formatUnits } from "viem";
-import { Copy, Info, CheckCircle2, Loader2 } from "lucide-react";
+import { Copy, Info, CheckCircle2, Loader2, HelpCircle } from "lucide-react";
 import { Button, AmountInput } from "@/components/ui";
 import { DepositConfirmModal } from "./_components/DepositConfirmModal";
 
@@ -52,6 +52,7 @@ function DepositPage() {
   // Use the approval hook
   const {
     needsApproval,
+    isApproving,
     approvalSuccess,
     handleApprove,
     refetchAllowance,
@@ -88,9 +89,6 @@ function DepositPage() {
     channelId: currentChannelId,
     depositAmount,
     tokenDecimals,
-    needsApproval,
-    approvalSuccess,
-    handleApprove,
     onDepositSuccess: handleDepositSuccess,
   });
 
@@ -106,12 +104,13 @@ function DepositPage() {
     return formatUnits(userTokenBalance, tokenDecimals);
   }, [userTokenBalance, tokenDecimals]);
 
-  // Form is valid when deposit amount is entered and no balance issues
+  // Form is valid when deposit amount is entered, no balance issues, and approval done (if needed)
   const isFormValid =
     depositAmount &&
     parseFloat(depositAmount) >= 0 &&
     !isInsufficientBalance &&
-    !isProcessing;
+    !isProcessing &&
+    (!needsApproval || approvalSuccess);
 
   // Modal state
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -136,8 +135,6 @@ function DepositPage() {
         return "Signing to generate your L2 MPT Key...";
       case "mpt_generated":
         return "MPT Key generated!";
-      case "approving":
-        return "Approving token transfer...";
       case "signing_deposit":
         return "Signing deposit transaction...";
       case "confirming":
@@ -171,7 +168,6 @@ function DepositPage() {
             <p className="text-[#004085]/80 leading-relaxed">
               Depositing requires two signatures: first to generate your unique L2 key, 
               then to confirm the deposit transaction.
-              {needsApproval && !approvalSuccess && " A third signature may be needed for token approval."}
             </p>
           </div>
         </div>
@@ -247,19 +243,57 @@ function DepositPage() {
           </div>
         )}
 
-        {/* Deposit Button */}
-        <Button
-          variant="primary"
-          size="full"
-          onClick={handleOpenConfirmModal}
-          disabled={!isFormValid}
-        >
-          {!depositAmount
-            ? "Enter Amount"
-            : isInsufficientBalance
-              ? "Insufficient Balance"
-              : "Deposit"}
-        </Button>
+        {/* Approve Button - Show when approval is needed */}
+        {needsApproval && !approvalSuccess && (
+          <div className="relative group">
+            <Button
+              variant="success"
+              size="full"
+              onClick={handleApprove}
+              disabled={!depositAmount || isApproving || isInsufficientBalance}
+            >
+              <span className="flex items-center justify-center gap-2">
+                {isApproving
+                  ? "Approving..."
+                  : !depositAmount
+                    ? "Enter Amount"
+                    : "Approve"}
+                {!isApproving && depositAmount && !isInsufficientBalance && (
+                  <HelpCircle className="w-5 h-5 text-white/80" />
+                )}
+              </span>
+            </Button>
+            {/* Tooltip - only show when ready to approve */}
+            {depositAmount && !isInsufficientBalance && (
+              <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-4 py-3 bg-[#333333] text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-10" style={{ width: 320 }}>
+                <p className="font-medium mb-1">Token Approval Required</p>
+                <p className="text-white/80 leading-relaxed">
+                  This is a one-time permission that allows the channel contract to transfer your tokens. 
+                  Your tokens remain in your wallet until you deposit.
+                </p>
+                <div className="absolute top-full left-1/2 transform -translate-x-1/2 -mt-1">
+                  <div className="border-4 border-transparent border-t-[#333333]"></div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Deposit Button - Show when approval is done or not needed */}
+        {(!needsApproval || approvalSuccess) && (
+          <Button
+            variant="primary"
+            size="full"
+            onClick={handleOpenConfirmModal}
+            disabled={!isFormValid}
+          >
+            {!depositAmount
+              ? "Enter Amount"
+              : isInsufficientBalance
+                ? "Insufficient Balance"
+                : "Deposit"}
+          </Button>
+        )}
       </div>
 
       {/* Deposit Confirm Modal */}

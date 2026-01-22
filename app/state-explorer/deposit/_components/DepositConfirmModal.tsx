@@ -57,7 +57,6 @@ export function DepositConfirmModal({
   const getStepInfo = (step: DepositStep) => {
     const steps = [
       { key: "signing_mpt", label: "Generating L2 MPT Key" },
-      { key: "approving", label: "Approving Token" },
       { key: "signing_deposit", label: "Signing Deposit" },
       { key: "confirming", label: "Confirming Transaction" },
     ];

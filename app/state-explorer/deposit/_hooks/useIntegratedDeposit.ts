@@ -20,8 +20,7 @@ export type DepositStep =
   | "idle"
   | "signing_mpt" // Step 1: Signing for MPT key generation
   | "mpt_generated" // MPT key generated, ready for deposit
-  | "approving" // Step 2a: Approving token (if needed)
-  | "signing_deposit" // Step 2b: Signing deposit transaction
+  | "signing_deposit" // Step 2: Signing deposit transaction
   | "confirming" // Waiting for transaction confirmation
   | "completed" // Deposit completed
   | "error"; // Error occurred
@@ -30,9 +29,6 @@ interface UseIntegratedDepositParams {
   channelId: string | null;
   depositAmount: string;
   tokenDecimals: number;
-  needsApproval: boolean;
-  approvalSuccess: boolean;
-  handleApprove: () => Promise<void>;
   onDepositSuccess?: () => void;
 }
 
@@ -60,9 +56,6 @@ export function useIntegratedDeposit({
   channelId,
   depositAmount,
   tokenDecimals,
-  needsApproval,
-  approvalSuccess,
-  handleApprove,
   onDepositSuccess,
 }: UseIntegratedDepositParams): UseIntegratedDepositReturn {
   const { address, isConnected } = useAccount();
@@ -160,20 +153,10 @@ export function useIntegratedDeposit({
       setCurrentStep("mpt_generated");
 
       // ========================================
-      // Step 2a: Handle Approval if needed
-      // ========================================
-      if (needsApproval && !approvalSuccess) {
-        setCurrentStep("approving");
-        console.log("📝 [Step 2a] Requesting token approval...");
-        await handleApprove();
-        console.log("✅ [Step 2a] Token approval completed");
-      }
-
-      // ========================================
-      // Step 2b: Execute Deposit (Second/Third Signature)
+      // Step 2: Execute Deposit (Second Signature)
       // ========================================
       setCurrentStep("signing_deposit");
-      console.log("📝 [Step 2b] Executing deposit transaction...");
+      console.log("📝 [Step 2] Executing deposit transaction...");
 
       const amount = parseUnits(depositAmount, tokenDecimals);
       const channelIdBytes32 = toBytes32(channelId);
@@ -212,10 +195,7 @@ export function useIntegratedDeposit({
     channelId,
     depositAmount,
     tokenDecimals,
-    needsApproval,
-    approvalSuccess,
     signMessageAsync,
-    handleApprove,
     writeDeposit,
   ]);
 
