@@ -11,7 +11,7 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2, CheckCircle, AlertCircle } from "lucide-react";
+import { CheckCircle } from "lucide-react";
 import { useChannelFlowStore } from "@/stores/useChannelFlowStore";
 import { useWithdraw } from "./_hooks";
 import { WithdrawConfirmModal } from "./_components";
@@ -28,7 +28,6 @@ function WithdrawPage() {
     isWithdrawing,
     withdrawTxHash,
     withdrawSuccess,
-    error,
     withdrawableAmount,
     currentStep,
     reset,
@@ -171,40 +170,6 @@ function WithdrawPage() {
             )}
           </button>
         </div>
-
-        {/* Success Message */}
-        {withdrawSuccess && (
-          <div
-            className="mt-6 p-4 flex items-center gap-2"
-            style={{
-              backgroundColor: "#E8F8E8",
-              borderRadius: 4,
-              border: "1px solid #22C55E",
-            }}
-          >
-            <CheckCircle className="w-5 h-5 text-[#22C55E]" />
-            <span className="text-[#22C55E]" style={{ fontSize: 14 }}>
-              Tokens have been withdrawn successfully
-            </span>
-          </div>
-        )}
-
-        {/* Error Message */}
-        {error && (
-          <div
-            className="mt-6 p-4 flex items-start gap-2"
-            style={{
-              backgroundColor: "#FEE2E2",
-              borderRadius: 4,
-              border: "1px solid #EF4444",
-            }}
-          >
-            <AlertCircle className="w-5 h-5 text-[#EF4444] flex-shrink-0 mt-0.5" />
-            <span className="text-[#EF4444]" style={{ fontSize: 14 }}>
-              {error}
-            </span>
-          </div>
-        )}
       </div>
     </>
   );
