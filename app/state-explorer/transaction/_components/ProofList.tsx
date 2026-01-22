@@ -26,9 +26,10 @@ import { useBridgeCoreRead } from "@/hooks/contract";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { SubmitProofModal } from "@/app/state-explorer/_components/SubmitProofModal";
 import { useProofs, useProofActions, type Proof } from "../_hooks";
-import { formatDate } from "../_utils/proofUtils";
+import { formatDateTimeShort } from "../_utils/proofUtils";
 import { useSubmitProof } from "@/app/state-explorer/_hooks/useSubmitProof";
 import { SubmitProofConfirmModal } from "./SubmitProofConfirmModal";
+import { ApproveConfirmModal } from "./ApproveConfirmModal";
 
 interface ProofListProps {
   onRefresh?: () => void;
@@ -85,11 +86,18 @@ export function ProofList({ onActionsReady }: ProofListProps) {
     proofToDelete,
     setProofToDelete,
     deletingProofKey,
-    handleApproveSelected,
+    handleApproveClick,
+    handleApproveConfirm,
     selectedProofForApproval,
     setSelectedProofForApproval,
-    isVerifying,
+    showApproveConfirm,
+    setShowApproveConfirm,
+    proofToApprove,
+    isApproving,
+    isApproveSuccess,
+    approveError,
     handleVerifyProof,
+    isVerifying,
   } = useProofActions({
     channelId: currentChannelId,
     proofs,
@@ -496,8 +504,8 @@ export function ProofList({ onActionsReady }: ProofListProps) {
                 </div>
 
                 {/* Date */}
-                <div className="flex-1 px-2 text-sm text-[#222222]">
-                  {formatDate(proof.submittedAt)}
+                <div className="flex-1 px-2 text-sm text-[#222222] whitespace-nowrap">
+                  {formatDateTimeShort(proof.submittedAt)}
                 </div>
 
                 {/* Actions */}
@@ -543,11 +551,11 @@ export function ProofList({ onActionsReady }: ProofListProps) {
         {/* Approve Selected Proof Button */}
         {showApproveButton ? (
           (() => {
-            const isDisabled = !selectedProofForApproval || isVerifying;
+            const isDisabled = !selectedProofForApproval || isApproving;
             return (
               <button
                 type="button"
-                onClick={handleApproveSelected}
+                onClick={handleApproveClick}
                 disabled={isDisabled}
                 className="font-mono font-medium rounded border transition-colors flex items-center justify-center h-12 px-6 text-lg"
                 style={{
@@ -557,7 +565,7 @@ export function ProofList({ onActionsReady }: ProofListProps) {
                   cursor: isDisabled ? "not-allowed" : "pointer",
                 }}
               >
-                {isVerifying ? "Processing..." : "Approve Selected Proof"}
+                Approve Selected Proof
               </button>
             );
           })()
@@ -672,7 +680,7 @@ export function ProofList({ onActionsReady }: ProofListProps) {
                     Date
                   </span>
                   <span className="text-[#111111] font-medium" style={{ fontSize: 14 }}>
-                    {formatDate(proofToDelete.submittedAt)}
+                    {formatDateTimeShort(proofToDelete.submittedAt)}
                   </span>
                 </div>
                 <div className="flex justify-between">
@@ -788,7 +796,7 @@ export function ProofList({ onActionsReady }: ProofListProps) {
                     Date
                   </span>
                   <span className="text-[#111111] font-medium" style={{ fontSize: 14 }}>
-                    {formatDate(proofToVerify.submittedAt)}
+                    {formatDateTimeShort(proofToVerify.submittedAt)}
                   </span>
                 </div>
                 <div className="flex justify-between">
@@ -896,6 +904,19 @@ export function ProofList({ onActionsReady }: ProofListProps) {
           error={submitError}
         />
       )}
+
+      {/* Approve Confirm Modal */}
+      <ApproveConfirmModal
+        isOpen={showApproveConfirm}
+        onClose={() => {
+          setShowApproveConfirm(false);
+        }}
+        onConfirm={handleApproveConfirm}
+        proofToApprove={proofToApprove}
+        isApproving={isApproving}
+        isSuccess={isApproveSuccess}
+        error={approveError}
+      />
     </div>
   );
 }
