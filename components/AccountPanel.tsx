@@ -49,6 +49,22 @@ export function AccountPanel({ onClose }: AccountPanelProps) {
   // Account dropdown state
   const [isAccountDropdownOpen, setIsAccountDropdownOpen] = useState(false);
   const accountDropdownRef = useRef<HTMLDivElement>(null);
+  const [copiedDropdownAddress, setCopiedDropdownAddress] = useState<string | null>(null);
+
+  // Handle copy address in dropdown
+  const handleCopyDropdownAddress = async (address: string, e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent dropdown from closing
+    try {
+      await navigator.clipboard.writeText(address);
+      setCopiedDropdownAddress(address);
+      setTimeout(() => setCopiedDropdownAddress(null), 2000);
+    } catch (err) {
+      console.error("Failed to copy address:", err);
+    }
+  };
+
+  // Track previous address to detect account changes
+  const prevAddressRef = useRef<string | undefined>(address);
 
   // L2 Address calculation state - Channel ID input
   const [channelIdInput, setChannelIdInput] = useState("");
@@ -111,6 +127,20 @@ export function AccountPanel({ onClose }: AccountPanelProps) {
 
   // Copy states
   const [copiedMptKey, setCopiedMptKey] = useState(false);
+
+  // Reset channel data when account changes
+  useEffect(() => {
+    if (prevAddressRef.current !== address) {
+      // Account changed - reset all channel-related state
+      setChannelIdInput("");
+      setIsChannelLoaded(false);
+      setCopiedL2Address(false);
+      setCopiedMptKey(false);
+      setL1Transactions([]);
+      setTxNetworkType("channel");
+      prevAddressRef.current = address;
+    }
+  }, [address]);
 
   const handleCopyL2Address = async () => {
     if (!l2Address) return;
@@ -371,15 +401,13 @@ export function AccountPanel({ onClose }: AccountPanelProps) {
                         className={`flex items-center justify-between px-4 py-2.5 ${
                           account.isActive
                             ? "bg-[#F5F9FF]"
-                            : "hover:bg-gray-50 cursor-pointer"
+                            : "hover:bg-gray-50"
                         }`}
-                        onClick={() => {
-                          // MetaMask doesn't allow dApps to programmatically switch accounts
-                          // User must switch manually in MetaMask - the app auto-updates via wagmi
-                          setIsAccountDropdownOpen(false);
-                        }}
                       >
                         <div className="flex items-center gap-2">
+                          {account.isActive && (
+                            <Check className="w-4 h-4 text-[#2A72E5]" />
+                          )}
                           <span
                             className={`font-mono ${
                               account.isActive ? "text-[#2A72E5] font-medium" : "text-[#111111]"
@@ -397,9 +425,17 @@ export function AccountPanel({ onClose }: AccountPanelProps) {
                             </span>
                           )}
                         </div>
-                        {account.isActive && (
-                          <Check className="w-4 h-4 text-[#2A72E5]" />
-                        )}
+                        <button
+                          onClick={(e) => handleCopyDropdownAddress(account.address, e)}
+                          className="p-1 hover:bg-gray-200 rounded transition-colors"
+                          title={copiedDropdownAddress === account.address ? "Copied!" : "Copy address"}
+                        >
+                          {copiedDropdownAddress === account.address ? (
+                            <Check className="w-4 h-4 text-green-600" />
+                          ) : (
+                            <Copy className="w-4 h-4 text-[#666666]" />
+                          )}
+                        </button>
                       </div>
                     ))
                   ) : (
