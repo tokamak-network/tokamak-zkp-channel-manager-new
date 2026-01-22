@@ -17,6 +17,9 @@
  *   - state === 3: Channel is closing
  *   - state === 4: Channel is closed
  *
+ * - Special case: state === 4 (Closed) but user has pending withdrawal
+ *   - Even if channel appears closed, users with withdrawable amount can join to withdraw
+ *
  * Note: In the contract, isParticipant is set to true during openChannel (state = 1),
  * but for join-channel page purposes, we use isChannelWhitelisted for state < 2
  * to check if user can join during deposit phase.
@@ -24,7 +27,7 @@
 
 import { useMemo, useEffect } from "react";
 import { useAccount } from "wagmi";
-import { useBridgeCoreRead } from "@/hooks/contract";
+import { useBridgeCoreRead, useBridgeWithdrawManagerRead } from "@/hooks/contract";
 import { isValidBytes32 } from "@/lib/channelId";
 import { useChannelInfo } from "@/hooks/useChannelInfo";
 
@@ -43,6 +46,8 @@ interface UseChannelParticipantCheckResult {
   errorType: ChannelErrorType;
   isValidChannelId: boolean;
   channelExists: boolean | undefined;
+  /** Whether user has pending withdrawal amount (for closed channels) */
+  hasPendingWithdrawal: boolean | undefined;
 }
 
 /**
@@ -163,21 +168,73 @@ export function useChannelParticipantCheck(
     );
   }, [address, participantsArray]);
 
+  // Check for pending withdrawal (for closed channels with state 4 or even state 0 after reset)
+  // This allows users who have withdrawable amounts to join even if channel appears closed/reset
+  const withdrawCheckArgs = useMemo(() => {
+    if (!isValidChannelId || !address) return undefined;
+    // Check withdrawal for state 4 (Closed) or state 0 (might be reset but still have pending withdrawals)
+    if (channelInfo?.state !== 4 && channelInfo?.state !== 0) return undefined;
+    return [channelId as `0x${string}`, address] as const;
+  }, [isValidChannelId, channelId, address, channelInfo?.state]);
+
+  const {
+    data: withdrawableAmountRaw,
+    isLoading: isCheckingWithdrawable,
+  } = useBridgeWithdrawManagerRead({
+    functionName: "getWithdrawableAmount",
+    args: withdrawCheckArgs,
+    query: {
+      enabled:
+        isConnected &&
+        !!address &&
+        isValidChannelId &&
+        (channelInfo?.state === 4 || channelInfo?.state === 0) &&
+        !channelInfo?.isLoading,
+      refetchInterval: false,
+    },
+  });
+
+  // Check if user has pending withdrawal
+  const hasPendingWithdrawal = useMemo(() => {
+    if (withdrawableAmountRaw === undefined) return undefined;
+    const amount = typeof withdrawableAmountRaw === "bigint" 
+      ? withdrawableAmountRaw 
+      : BigInt(String(withdrawableAmountRaw || 0));
+    return amount > BigInt(0);
+  }, [withdrawableAmountRaw]);
+
   // Combine results based on state
+  // For state 4 or 0: allow if has pending withdrawal OR is participant
   const isParticipant = useMemo(() => {
+    // If channel is closed (state 4) or reset (state 0), check pending withdrawal first
+    if (channelInfo?.state === 4 || (channelInfo?.state === 0 && hasPendingWithdrawal !== undefined)) {
+      if (hasPendingWithdrawal === true) {
+        return true; // User can join to withdraw
+      }
+      // If no pending withdrawal for state 0, channel doesn't exist
+      if (channelInfo?.state === 0 && hasPendingWithdrawal === false) {
+        return undefined; // Let channelExists check handle this
+      }
+      // For state 4 without pending withdrawal, fall through to participant check
+    }
+    
     if (useWhitelistCheck === undefined) return undefined;
     if (useWhitelistCheck) {
       return isWhitelisted;
     } else {
       return isParticipantFromArray;
     }
-  }, [useWhitelistCheck, isWhitelisted, isParticipantFromArray]);
+  }, [useWhitelistCheck, isWhitelisted, isParticipantFromArray, channelInfo?.state, hasPendingWithdrawal]);
 
   // Combined loading state
   const isCheckingParticipant = useMemo(() => {
+    // If checking withdrawable amount for closed/reset channels
+    if ((channelInfo?.state === 4 || channelInfo?.state === 0) && isCheckingWithdrawable) {
+      return true;
+    }
     if (useWhitelistCheck === undefined) return true;
     return useWhitelistCheck ? isCheckingWhitelist : isCheckingParticipants;
-  }, [useWhitelistCheck, isCheckingWhitelist, isCheckingParticipants]);
+  }, [useWhitelistCheck, isCheckingWhitelist, isCheckingParticipants, channelInfo?.state, isCheckingWithdrawable]);
 
   // Combined error state
   const participantCheckError = useMemo(() => {
@@ -202,6 +259,7 @@ export function useChannelParticipantCheck(
         isWhitelisted,
         isParticipantFromArray,
         isParticipant,
+        hasPendingWithdrawal,
         participantsArray: participantsList,
         isCheckingParticipant,
         error: participantCheckError,
@@ -215,6 +273,7 @@ export function useChannelParticipantCheck(
     isWhitelisted,
     isParticipantFromArray,
     isParticipant,
+    hasPendingWithdrawal,
     participantsArray,
     isCheckingParticipant,
     participantCheckError,
@@ -249,8 +308,17 @@ export function useChannelParticipantCheck(
       return { error: null, errorType: null };
     }
 
-    // Channel doesn't exist
+    // Channel doesn't exist - but check for pending withdrawals first
+    // User might have pending withdrawal even if channel appears reset (state 0)
     if (channelExists === false) {
+      // If checking for withdrawal and found pending amount, don't show not_found error
+      if (hasPendingWithdrawal === true) {
+        return { error: null, errorType: null };
+      }
+      // Still checking withdrawable amount
+      if (hasPendingWithdrawal === undefined && isCheckingWithdrawable) {
+        return { error: null, errorType: null };
+      }
       return {
         error: "Channel not found. Please check the Channel ID and try again.",
         errorType: "not_found",
@@ -289,6 +357,8 @@ export function useChannelParticipantCheck(
     isCheckingParticipant,
     participantCheckError,
     channelInfo.isLoading,
+    hasPendingWithdrawal,
+    isCheckingWithdrawable,
   ]);
 
   return {
@@ -298,5 +368,6 @@ export function useChannelParticipantCheck(
     errorType,
     isValidChannelId,
     channelExists,
+    hasPendingWithdrawal,
   };
 }
