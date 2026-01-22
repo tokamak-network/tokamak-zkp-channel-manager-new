@@ -500,6 +500,8 @@ function TransactionPage() {
           recipient={recipient || ""}
           amount={tokenAmount}
           tokenSymbol="TON"
+          currentStep={currentProofStep}
+          onStepChange={setCurrentProofStep}
         />
       )}
     </div>

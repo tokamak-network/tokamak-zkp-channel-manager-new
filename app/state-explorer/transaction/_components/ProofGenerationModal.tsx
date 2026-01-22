@@ -7,7 +7,7 @@
 
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { X, Loader2, CheckCircle2, Circle } from "lucide-react";
 import { Button } from "@/components/ui";
 
@@ -37,6 +37,8 @@ interface ProofGenerationModalProps {
   recipient: string;
   amount: string;
   tokenSymbol: string;
+  currentStep?: ProofGenerationStep; // External step state from SSE
+  onStepChange?: (step: ProofGenerationStep) => void; // Callback to update step
 }
 
 type ModalState = "confirm" | "processing" | "completed" | "error";
@@ -50,30 +52,57 @@ export function ProofGenerationModal({
   recipient,
   amount,
   tokenSymbol,
+  currentStep: externalStep,
+  onStepChange,
 }: ProofGenerationModalProps) {
   const [modalState, setModalState] = useState<ModalState>("confirm");
-  const [currentStep, setCurrentStep] = useState<ProofGenerationStep>("idle");
+  const [internalStep, setInternalStep] = useState<ProofGenerationStep>("idle");
   const [error, setError] = useState<string | null>(null);
+
+  // Use external step if provided, otherwise use internal
+  const currentStep = externalStep ?? internalStep;
+
+  // Update step - either via callback or internal state
+  const updateStep = (step: ProofGenerationStep) => {
+    if (onStepChange) {
+      onStepChange(step);
+    } else {
+      setInternalStep(step);
+    }
+  };
+
+  // Update modal state based on external step changes
+  useEffect(() => {
+    if (externalStep === "completed" && modalState === "processing") {
+      setModalState("completed");
+    } else if (externalStep === "error" && modalState === "processing") {
+      setModalState("error");
+    }
+  }, [externalStep, modalState]);
 
   if (!isOpen) return null;
 
   const handleConfirm = async () => {
     setModalState("processing");
-    setCurrentStep("signing");
+    updateStep("signing");
     setError(null);
 
     try {
       // Step 1: Sign with MetaMask
       const keySeed = await onSign();
 
-      // Steps 2-4: Generate proof (progress updates come via callback)
+      // After signing, step will be updated by SSE via onStepChange
+      // Steps 2-4: Generate proof (progress updates come via SSE)
       await onGenerateProof(keySeed);
 
-      setCurrentStep("completed");
-      setModalState("completed");
+      // If using internal state (no SSE), mark as completed
+      if (!onStepChange) {
+        updateStep("completed");
+        setModalState("completed");
+      }
     } catch (err) {
       console.error("Proof generation error:", err);
-      setCurrentStep("error");
+      updateStep("error");
       setModalState("error");
       setError(err instanceof Error ? err.message : "Failed to generate proof");
     }
@@ -82,7 +111,7 @@ export function ProofGenerationModal({
   const handleClose = () => {
     if (modalState !== "processing") {
       setModalState("confirm");
-      setCurrentStep("idle");
+      updateStep("idle");
       setError(null);
       onClose();
     }
