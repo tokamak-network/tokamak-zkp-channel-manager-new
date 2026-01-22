@@ -206,7 +206,7 @@ export function ParticipantDeposits({
                           <span className="ml-2 text-[#2A72E5]">(You)</span>
                         )}
                       </span>
-                      {index === 0 && (
+                      {channelLeader && participant.address.toLowerCase() === String(channelLeader).toLowerCase() && (
                         <span
                           className="text-[#666666]"
                           style={{ fontSize: compact ? 10 : 12 }}
