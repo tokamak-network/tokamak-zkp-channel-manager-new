@@ -14,7 +14,7 @@ import { useWithdraw } from "./_hooks";
 import { WithdrawConfirmModal } from "./_components";
 import { formatUnits } from "viem";
 
-export function WithdrawPage() {
+function WithdrawPage() {
   const { currentChannelId } = useChannelFlowStore();
   const {
     handleWithdraw,
@@ -102,3 +102,5 @@ export function WithdrawPage() {
     </>
   );
 }
+
+export default WithdrawPage;
