@@ -15,6 +15,7 @@ import type { InitializeStateStep } from "../_hooks/useInitializeState";
 
 // Step definitions for progress display
 const TRANSACTION_STEPS = [
+  { key: "generating_proof", label: "Generating Proof" },
   { key: "signing", label: "Signing Transaction" },
   { key: "confirming", label: "Confirming Transaction" },
 ] as const;
@@ -209,7 +210,11 @@ export function InitializeStateConfirmModal({
                 Initializing State
               </h3>
               <p className="text-[#666666]" style={{ fontSize: 14 }}>
-                Please sign the transaction in your wallet
+                {currentStep === "generating_proof"
+                  ? "Generating zero-knowledge proof..."
+                  : currentStep === "signing"
+                    ? "Please sign the transaction in your wallet"
+                    : "Confirming transaction on blockchain..."}
               </p>
             </div>
 

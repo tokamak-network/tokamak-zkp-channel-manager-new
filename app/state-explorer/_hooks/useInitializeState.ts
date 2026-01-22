@@ -10,6 +10,7 @@ import type { ProofData } from "@/stores/useInitializeStore";
 
 export type InitializeStateStep =
   | "idle"
+  | "generating_proof"
   | "signing"
   | "confirming"
   | "completed"
@@ -54,10 +55,17 @@ export function useInitializeState({ channelId }: UseInitializeStateParams) {
     },
   });
 
-  // Step transitions based on contract hooks
+  // Step transitions based on proof generation and contract hooks
   useEffect(() => {
-    // When pending signature, move to signing step
-    if (isWriting && currentStep === "idle") {
+    // When generating proof, move to generating_proof step
+    if (isGeneratingProof && currentStep === "idle") {
+      setCurrentStep("generating_proof");
+    }
+  }, [isGeneratingProof, currentStep]);
+
+  useEffect(() => {
+    // When pending signature (proof done, waiting for wallet), move to signing step
+    if (isWriting && (currentStep === "idle" || currentStep === "generating_proof")) {
       setCurrentStep("signing");
     }
   }, [isWriting, currentStep]);
