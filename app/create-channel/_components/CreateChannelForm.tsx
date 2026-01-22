@@ -15,9 +15,10 @@ import { TransactionConfirmModal } from "./TransactionConfirmModal";
 import { useCreateChannel } from "../_hooks/useCreateChannel";
 import { useChannelId } from "../_hooks/useChannelId";
 import { usePreAllocatedLeavesCount } from "../_hooks/usePreAllocatedLeavesCount";
+import { useChannelIdExists } from "../_hooks/useChannelIdExists";
 import { calculateMaxParticipants } from "../_utils";
 import { getL1NetworkName, SUPPORTED_TOKENS, type TokenSymbol } from "@tokamak/config";
-import { Info, Check, Copy, ChevronDown } from "lucide-react";
+import { Info, Check, Copy, ChevronDown, AlertTriangle } from "lucide-react";
 import { Button, Input, TokenButton, Label } from "@/components/ui";
 
 // Token symbol images
@@ -59,6 +60,10 @@ export function CreateChannelForm() {
     leaderAddress,
     generateChannelId,
   } = useChannelId({ participants });
+
+  // Check if the generated channel ID already exists
+  const { exists: channelIdExists, isLoading: isCheckingChannelId } =
+    useChannelIdExists(generatedChannelId as `0x${string}` | null);
 
   // Get token addresses for selected tokens
   const selectedTokenAddresses = useMemo(
@@ -185,6 +190,8 @@ export function CreateChannelForm() {
   const isFormValid =
     selectedApp &&
     generatedChannelId &&
+    !channelIdExists && // Channel ID must not already exist
+    !isCheckingChannelId &&
     validAddressCount >= 1 && // At least one participant required
     validAddressCount <= maxParticipants &&
     !isCreating &&
@@ -323,6 +330,19 @@ export function CreateChannelForm() {
           )}
           {channelIdError && (
             <p className="text-sm text-red-500">{channelIdError}</p>
+          )}
+          {/* Warning: Channel ID already exists */}
+          {generatedChannelId && channelIdExists && (
+            <div className="flex items-center gap-2 p-3 bg-[#FFF3CD] border border-[#FFE69C] rounded">
+              <AlertTriangle className="w-5 h-5 text-[#856404] flex-shrink-0" />
+              <p className="text-sm text-[#856404]">
+                This Channel ID already exists. Please change the salt to generate a new one.
+              </p>
+            </div>
+          )}
+          {/* Loading: Checking channel ID */}
+          {generatedChannelId && isCheckingChannelId && (
+            <p className="text-sm text-[#666666]">Checking channel ID availability...</p>
           )}
         </div>
 
