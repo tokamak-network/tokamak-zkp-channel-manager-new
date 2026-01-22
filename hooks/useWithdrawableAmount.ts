@@ -2,18 +2,20 @@
  * Custom Hook: useWithdrawableAmount
  *
  * Checks if a user has withdrawable amount in a channel
+ * Iterates through supported tokens from config and checks on-chain
+ * 
  * This hook handles the case where channel data might be reset (state 0)
  * but withdrawal data still exists in the contract
- *
- * It uses two strategies to get targetContract:
- * 1. From contract (getChannelTargetContract) - may return 0x0 after cleanup
- * 2. From API/DB as fallback - persists even after cleanup
  */
 
-import { useState, useEffect, useMemo } from "react";
+import { useMemo, useEffect } from "react";
 import { useAccount } from "wagmi";
-import { useBridgeCoreRead } from "@/hooks/contract";
+import { useQueries } from "@tanstack/react-query";
+import { useBridgeCoreAddress, useBridgeCoreAbi } from "@/hooks/contract";
 import { toBytes32 } from "@/lib/channelId";
+import { SUPPORTED_TOKENS } from "@tokamak/config";
+import { readContract } from "@wagmi/core";
+import { useConfig } from "wagmi";
 
 interface UseWithdrawableAmountParams {
   channelId: string | null | undefined;
@@ -26,22 +28,30 @@ interface UseWithdrawableAmountResult {
   hasWithdrawableAmount: boolean | undefined;
   /** Whether the check is still loading */
   isLoading: boolean;
-  /** Target contract address (from contract or API fallback) */
+  /** Target contract address that has withdrawable amount */
   targetContract: `0x${string}` | null;
   /** Error message if any */
   error: string | null;
 }
 
+// Get enabled token addresses from config
+const getEnabledTokenAddresses = (): `0x${string}`[] => {
+  return Object.values(SUPPORTED_TOKENS)
+    .filter((token) => token.enabled && token.address !== "0x0000000000000000000000000000000000000000")
+    .map((token) => token.address);
+};
+
 /**
  * Hook for checking withdrawable amount for a user in a channel
+ * Iterates through all enabled tokens from config to find any withdrawable amount
  */
 export function useWithdrawableAmount({
   channelId,
 }: UseWithdrawableAmountParams): UseWithdrawableAmountResult {
   const { address, isConnected } = useAccount();
-  const [targetContractFromApi, setTargetContractFromApi] = useState<string | null>(null);
-  const [isLoadingApi, setIsLoadingApi] = useState(false);
-  const [apiError, setApiError] = useState<string | null>(null);
+  const config = useConfig();
+  const bridgeCoreAddress = useBridgeCoreAddress();
+  const bridgeCoreAbi = useBridgeCoreAbi();
 
   // Get channelId as bytes32
   const channelIdBytes32 = useMemo(() => {
@@ -53,132 +63,93 @@ export function useWithdrawableAmount({
     }
   }, [channelId]);
 
-  // Get targetContract from contract (may be 0x0 after cleanupChannel)
-  const { 
-    data: targetContractFromContract,
-    isLoading: isLoadingContract,
-  } = useBridgeCoreRead({
-    functionName: "getChannelTargetContract",
-    args: channelIdBytes32 ? [channelIdBytes32] : undefined,
-    query: {
-      enabled: !!channelIdBytes32 && isConnected,
-    },
+  // Get enabled token addresses
+  const enabledTokens = useMemo(() => getEnabledTokenAddresses(), []);
+
+  // Query withdrawable amount for each enabled token
+  const withdrawableQueries = useQueries({
+    queries: enabledTokens.map((tokenAddress) => ({
+      queryKey: ["withdrawableAmount", channelIdBytes32, address, tokenAddress, bridgeCoreAddress],
+      queryFn: async () => {
+        if (!channelIdBytes32 || !address || !bridgeCoreAddress) {
+          return { tokenAddress, amount: BigInt(0) };
+        }
+
+        try {
+          const result = await readContract(config, {
+            address: bridgeCoreAddress,
+            abi: bridgeCoreAbi,
+            functionName: "getWithdrawableAmount",
+            args: [channelIdBytes32, address as `0x${string}`, tokenAddress],
+          });
+
+          const amount = result ? BigInt(result.toString()) : BigInt(0);
+          
+          console.log("[useWithdrawableAmount] Query result:", {
+            tokenAddress,
+            amount: amount.toString(),
+          });
+
+          return { tokenAddress, amount };
+        } catch (error) {
+          console.error("[useWithdrawableAmount] Query error for token:", tokenAddress, error);
+          return { tokenAddress, amount: BigInt(0) };
+        }
+      },
+      enabled: !!channelIdBytes32 && !!address && isConnected && !!bridgeCoreAddress,
+      staleTime: 10000, // 10 seconds
+    })),
   });
 
-  // Fetch targetContract from API as fallback (stored in DB, persists after cleanupChannel)
-  useEffect(() => {
-    const fetchTargetContract = async () => {
-      if (!channelId) return;
-      
-      setIsLoadingApi(true);
-      setApiError(null);
-      
-      try {
-        const response = await fetch(`/api/channels/${encodeURIComponent(channelId)}`);
-        if (response.ok) {
-          const data = await response.json();
-          if (data.success && data.data?.targetContract) {
-            setTargetContractFromApi(data.data.targetContract);
-            console.log("[useWithdrawableAmount] Got targetContract from API:", data.data.targetContract);
-          }
-        }
-      } catch (error) {
-        console.error("[useWithdrawableAmount] Failed to fetch channel from API:", error);
-        setApiError("Failed to fetch channel data");
-      } finally {
-        setIsLoadingApi(false);
+  // Check if any query is still loading
+  const isLoading = withdrawableQueries.some((q) => q.isLoading);
+
+  // Find the first token with positive withdrawable amount
+  const { withdrawableAmount, targetContract } = useMemo(() => {
+    for (const query of withdrawableQueries) {
+      if (query.data && query.data.amount > BigInt(0)) {
+        return {
+          withdrawableAmount: query.data.amount,
+          targetContract: query.data.tokenAddress as `0x${string}`,
+        };
       }
+    }
+    return {
+      withdrawableAmount: BigInt(0),
+      targetContract: null,
     };
+  }, [withdrawableQueries]);
 
-    fetchTargetContract();
-  }, [channelId]);
-
-  // Use contract targetContract if valid, otherwise use API fallback
-  const targetContract = useMemo(() => {
-    const zeroAddress = "0x0000000000000000000000000000000000000000";
-    
-    if (
-      targetContractFromContract &&
-      String(targetContractFromContract).toLowerCase() !== zeroAddress.toLowerCase()
-    ) {
-      return targetContractFromContract as `0x${string}`;
-    }
-    
-    if (targetContractFromApi) {
-      return targetContractFromApi as `0x${string}`;
-    }
-    
-    return null;
-  }, [targetContractFromContract, targetContractFromApi]);
+  // Check if has withdrawable amount
+  const hasWithdrawableAmount = useMemo(() => {
+    if (isLoading) return undefined;
+    return withdrawableAmount > BigInt(0);
+  }, [isLoading, withdrawableAmount]);
 
   // Debug log
   useEffect(() => {
     if (channelId && address) {
-      console.log("[useWithdrawableAmount] Target contract check:", {
-        channelId,
-        targetContractFromContract,
-        targetContractFromApi,
-        finalTargetContract: targetContract,
-        isLoadingContract,
-        isLoadingApi,
-      });
-    }
-  }, [channelId, address, targetContractFromContract, targetContractFromApi, targetContract, isLoadingContract, isLoadingApi]);
-
-  // Get withdrawable amount
-  const { 
-    data: withdrawableAmountRaw,
-    isLoading: isLoadingAmount,
-  } = useBridgeCoreRead({
-    functionName: "getWithdrawableAmount",
-    args:
-      channelIdBytes32 && address && targetContract
-        ? [channelIdBytes32, address as `0x${string}`, targetContract]
-        : undefined,
-    query: {
-      enabled: !!channelIdBytes32 && !!address && !!targetContract && isConnected,
-    },
-  });
-
-  // Convert to bigint
-  const withdrawableAmount = useMemo(() => {
-    if (withdrawableAmountRaw === undefined) return BigInt(0);
-    try {
-      return BigInt(withdrawableAmountRaw.toString());
-    } catch {
-      return BigInt(0);
-    }
-  }, [withdrawableAmountRaw]);
-
-  // Check if has withdrawable amount
-  const hasWithdrawableAmount = useMemo(() => {
-    // Still loading
-    if (isLoadingContract || isLoadingApi || isLoadingAmount) return undefined;
-    // No target contract found
-    if (!targetContract) return false;
-    // Check amount
-    return withdrawableAmount > BigInt(0);
-  }, [isLoadingContract, isLoadingApi, isLoadingAmount, targetContract, withdrawableAmount]);
-
-  // Debug log for amount
-  useEffect(() => {
-    if (channelId && address && targetContract) {
-      console.log("[useWithdrawableAmount] Amount check:", {
+      console.log("[useWithdrawableAmount] Check result:", {
         channelId,
         address,
-        targetContract,
-        withdrawableAmountRaw,
+        enabledTokens,
+        isLoading,
         withdrawableAmount: withdrawableAmount.toString(),
         hasWithdrawableAmount,
+        targetContract,
+        queryResults: withdrawableQueries.map((q) => ({
+          isLoading: q.isLoading,
+          data: q.data,
+        })),
       });
     }
-  }, [channelId, address, targetContract, withdrawableAmountRaw, withdrawableAmount, hasWithdrawableAmount]);
+  }, [channelId, address, enabledTokens, isLoading, withdrawableAmount, hasWithdrawableAmount, targetContract, withdrawableQueries]);
 
   return {
     withdrawableAmount,
     hasWithdrawableAmount,
-    isLoading: isLoadingContract || isLoadingApi || isLoadingAmount,
+    isLoading,
     targetContract,
-    error: apiError,
+    error: null,
   };
 }
