@@ -10,18 +10,16 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback, useRef } from "react";
 import { useAccount, useSignMessage } from "wagmi";
-import JSZip from "jszip";
 import { HelpCircle } from "lucide-react";
 import { useChannelFlowStore } from "@/stores/useChannelFlowStore";
 import { usePreviousStateSnapshot } from "@/app/state-explorer/_hooks/usePreviousStateSnapshot";
-import { useSynthesizer } from "@/app/state-explorer/_hooks/useSynthesizer";
 import { L2_PRV_KEY_MESSAGE } from "@/lib/l2KeyMessage";
 import { addHexPrefix } from "@ethereumjs/util";
 import { parseUnits } from "viem";
 import { ProofList } from "./_components/ProofList";
-import { ProofGenerationModal } from "./_components/ProofGenerationModal";
+import { ProofGenerationModal, type ProofGenerationStep } from "./_components/ProofGenerationModal";
 import { Button, AmountInput } from "@/components/ui";
 import { useBridgeCoreRead } from "@/hooks/contract";
 import { useChannelUserBalance } from "@/hooks/useChannelUserBalance";
@@ -69,17 +67,17 @@ function TransactionPage() {
   });
 
   // Form state
-  const [keySeed, setKeySeed] = useState<`0x${string}` | null>(null);
   const [recipient, setRecipient] = useState<`0x${string}` | null>(null);
   const [tokenAmount, setTokenAmount] = useState<string>("");
-  // ZK Proof is always included
-  const includeProof = true;
 
   // UI state
-  const [isSigning, setIsSigning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [proofListRefreshKey, setProofListRefreshKey] = useState(0);
   const [showProofModal, setShowProofModal] = useState(false);
+  const [currentProofStep, setCurrentProofStep] = useState<ProofGenerationStep>("idle");
+
+  // Ref to store keySeed for proof generation
+  const keySeedRef = useRef<`0x${string}` | null>(null);
 
   // Proof actions from ProofList
   const [proofActions, setProofActions] = useState<{
@@ -98,17 +96,8 @@ function TransactionPage() {
     bundleSnapshot: null,
   });
 
-  // Hook to synthesize L2 transaction
-  const { synthesize, isFormValid: validateForm } = useSynthesizer({
-    channelId: currentChannelId || "",
-    recipient,
-    tokenAmount: tokenAmount || null,
-    keySeed,
-    includeProof,
-  });
-
-  // Generate key seed using MetaMask and open proof modal
-  const handleSign = async () => {
+  // Open modal to start the proof generation flow
+  const handleOpenProofModal = () => {
     if (!isConnected || !address) {
       setError("Please connect your wallet first");
       return;
@@ -119,203 +108,169 @@ function TransactionPage() {
       return;
     }
 
-    // Validate form before signing
     if (!recipient || !tokenAmount) {
-      setError("Please fill in all fields before signing");
+      setError("Please fill in all fields");
       return;
     }
 
     setError(null);
-    setIsSigning(true);
-    try {
-      const message = L2_PRV_KEY_MESSAGE + currentChannelId;
-      const seed = await signMessageAsync({ message });
-      setKeySeed(seed);
-      // Open proof generation modal immediately after signing
-      setShowProofModal(true);
-    } catch (err) {
-      if (err instanceof Error && err.message.includes("User rejected")) {
-        setError("Signature cancelled by user");
-      } else {
-        console.error("Failed to generate a seed from user signature:", err);
-        setError(
-          err instanceof Error
-            ? err.message
-            : "Failed in interaction with MetaMask"
-        );
-      }
-      setKeySeed(null);
-    } finally {
-      setIsSigning(false);
-    }
+    setShowProofModal(true);
   };
 
-  // Handle proof generation (called from modal)
-  const handleGenerateProof = async () => {
-    if (!currentChannelId || !address || !keySeed) {
-      throw new Error("Missing channel, wallet connection, or signature");
+  // Sign with MetaMask (called from modal)
+  const handleSign = useCallback(async (): Promise<`0x${string}`> => {
+    if (!currentChannelId) {
+      throw new Error("No channel selected");
     }
 
-    // Step 1: Get initialization tx hash
-    const normalizedChannelId = currentChannelId?.toLowerCase() || currentChannelId;
-    const encodedChannelId = normalizedChannelId ? encodeURIComponent(normalizedChannelId) : currentChannelId;
+    const message = L2_PRV_KEY_MESSAGE + currentChannelId;
+    const seed = await signMessageAsync({ message });
+    keySeedRef.current = seed;
+    return seed;
+  }, [currentChannelId, signMessageAsync]);
+
+  // Handle proof generation with SSE progress tracking (called from modal)
+  const handleGenerateProof = useCallback(async (keySeed: `0x${string}`) => {
+    if (!currentChannelId || !address || !recipient || !tokenAmount) {
+      throw new Error("Missing required parameters");
+    }
+
+    // Get initialization tx hash
+    const normalizedChannelId = currentChannelId.toLowerCase();
+    const encodedChannelId = encodeURIComponent(normalizedChannelId);
     
-    const response = await fetch(`/api/channels/${encodedChannelId}`, {
+    const channelResponse = await fetch(`/api/channels/${encodedChannelId}`, {
       cache: 'no-store',
-      headers: {
-        'Cache-Control': 'no-cache',
-      },
+      headers: { 'Cache-Control': 'no-cache' },
     });
-    const responseData = await response.json();
-    
-    const initTxHash = responseData.data?.initializationTxHash;
+    const channelData = await channelResponse.json();
+    const initTxHash = channelData.data?.initializationTxHash;
 
     if (!initTxHash) {
-      throw new Error(
-        "Could not find initialization transaction hash for this channel"
-      );
+      throw new Error("Could not find initialization transaction hash");
     }
 
-    // Step 2: Fetch previous state snapshot
+    // Fetch previous state snapshot
     const previousStateSnapshot = await fetchSnapshot();
-
     if (!previousStateSnapshot) {
-      throw new Error(
-        "Could not find previous state snapshot and failed to fetch initial state from on-chain"
-      );
+      throw new Error("Could not find previous state snapshot");
     }
 
-    // Step 3: Synthesize and generate proof
-    const zipBlob = await synthesize(initTxHash, previousStateSnapshot);
-    
-    // Step 4: Get next proof number
+    // Import required modules
+    const { createERC20TransferTx } = await import("@/lib/createERC20TransferTx");
+    const { bytesToHex } = await import("@ethereumjs/util");
+    const { TON_TOKEN_ADDRESS } = await import("@tokamak/config");
+    const { parseInputAmount } = await import("@/lib/utils/format");
+    const JSZip = (await import("jszip")).default;
+
+    // Create signed L2 transaction
+    const amountInWei = parseInputAmount(tokenAmount.trim(), 18);
+    const signedTx = await createERC20TransferTx(
+      0,
+      recipient,
+      amountInWei,
+      keySeed,
+      TON_TOKEN_ADDRESS
+    );
+    const signedTxStr = bytesToHex(signedTx.serialize());
+
+    // Make SSE request for proof generation with progress
+    const response = await fetch("/api/tokamak-zk-evm/synthesize-stream", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        channelId: normalizedChannelId,
+        channelInitTxHash: initTxHash,
+        signedTxRlpStr: signedTxStr,
+        previousStateSnapshot,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to start proof generation");
+    }
+
+    const reader = response.body?.getReader();
+    if (!reader) {
+      throw new Error("No response body");
+    }
+
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let zipBase64: string | null = null;
+
+    // Read SSE stream
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+
+      // Parse SSE events
+      const lines = buffer.split("\n");
+      buffer = lines.pop() || "";
+
+      for (const line of lines) {
+        if (line.startsWith("data: ")) {
+          try {
+            const data = JSON.parse(line.slice(6));
+            setCurrentProofStep(data.step);
+
+            if (data.step === "error") {
+              throw new Error(data.error || "Proof generation failed");
+            }
+
+            if (data.step === "completed" && data.zipBase64) {
+              zipBase64 = data.zipBase64;
+            }
+          } catch (parseError) {
+            if (parseError instanceof Error && parseError.message.includes("Proof generation failed")) {
+              throw parseError;
+            }
+            console.warn("Failed to parse SSE event:", parseError);
+          }
+        }
+      }
+    }
+
+    if (!zipBase64) {
+      throw new Error("No proof data received");
+    }
+
+    // Convert base64 to blob
+    const zipBuffer = Uint8Array.from(atob(zipBase64), (c) => c.charCodeAt(0));
+    const zipBlob = new Blob([zipBuffer], { type: "application/zip" });
+
+    // Get next proof number
     const proofNumberResponse = await fetch("/api/get-next-proof-number", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ channelId: currentChannelId.toLowerCase() }),
+      body: JSON.stringify({ channelId: normalizedChannelId }),
     });
 
     if (!proofNumberResponse.ok) {
-      const errorData = await proofNumberResponse.json().catch(() => ({}));
-      throw new Error(errorData.error || "Failed to get next proof number");
+      throw new Error("Failed to get next proof number");
     }
 
     const { proofNumber, subNumber, proofId, storageProofId } =
       await proofNumberResponse.json();
 
-    // Step 5: Reconstruct ZIP
-    const reconstructedZipBlob = await reconstructZip(
-      zipBlob,
-      currentChannelId,
-      proofNumber
-    );
-
-    // Step 6: Upload to storage
-    const formData = new FormData();
-    formData.append(
-      "file",
-      new File([reconstructedZipBlob], `proof-${proofId}.zip`, {
-        type: "application/zip",
-      })
-    );
-    formData.append("channelId", currentChannelId.toLowerCase());
-    formData.append("proofId", storageProofId);
-
-    const uploadResponse = await fetch("/api/save-proof-zip", {
-      method: "POST",
-      body: formData,
-    });
-
-    if (!uploadResponse.ok) {
-      const errorData = await uploadResponse.json().catch(() => ({}));
-      throw new Error(
-        errorData.error || errorData.details || "Upload failed"
-      );
-    }
-
-    // Step 7: Save proof metadata to DB
-    const proofMetadata = {
-      proofId: proofId,
-      sequenceNumber: proofNumber,
-      subNumber: subNumber,
-      submittedAt: Date.now(),
-      submitter: address,
-      timestamp: Date.now(),
-      uploadStatus: "complete",
-      status: "pending",
-      channelId: currentChannelId.toLowerCase(),
-    };
-
-    const saveResponse = await fetch("/api/db", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        path: `channels.${currentChannelId.toLowerCase()}.submittedProofs.${storageProofId}`,
-        data: proofMetadata,
-        operation: "update",
-      }),
-    });
-
-    if (!saveResponse.ok) {
-      const errorData = await saveResponse.json().catch(() => ({}));
-      throw new Error(errorData.error || "Failed to save proof metadata");
-    }
-
-    // Step 8: Download the reconstructed ZIP file
-    const url = URL.createObjectURL(reconstructedZipBlob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `l2-transaction-channel-${currentChannelId}.zip`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-
-    // Refresh proof list
-    setProofListRefreshKey((prev) => prev + 1);
-  };
-
-  // Handle modal close
-  const handleModalClose = () => {
-    setShowProofModal(false);
-    // Reset form
-    setKeySeed(null);
-    setRecipient(null);
-    setTokenAmount("");
-  };
-
-  // Reconstruct ZIP with new folder structure
-  const reconstructZip = async (
-    originalZipBlob: Blob,
-    channelId: string,
-    proofNumber: number
-  ): Promise<Blob> => {
+    // Reconstruct ZIP with new folder structure
     const zip = new JSZip();
-    const originalZip = await JSZip.loadAsync(originalZipBlob);
-
-    const newFolderName = `${channelId.toLowerCase()}-proof#${proofNumber}`;
+    const originalZip = await JSZip.loadAsync(zipBlob);
+    const newFolderName = `${normalizedChannelId}-proof#${proofNumber}`;
 
     for (const [filePath, file] of Object.entries(originalZip.files)) {
       if (file.dir) continue;
-
       const fileName = filePath.split("/").pop() || filePath;
 
       let targetFolder = "";
-      if (
-        fileName === "proof.json" ||
-        filePath.includes("prove") ||
-        filePath.includes("proof")
-      ) {
+      if (fileName === "proof.json" || filePath.includes("prove") || filePath.includes("proof")) {
         targetFolder = `${newFolderName}/prove/`;
       } else if (
-        fileName === "instance.json" ||
-        fileName === "state_snapshot.json" ||
-        fileName === "placementVariables.json" ||
-        fileName === "instance_description.json" ||
-        fileName === "permutation.json" ||
-        fileName === "block_info.json" ||
-        fileName === "contract_code.json" ||
-        fileName === "previous_state_snapshot.json" ||
+        ["instance.json", "state_snapshot.json", "placementVariables.json", 
+         "instance_description.json", "permutation.json", "block_info.json",
+         "contract_code.json", "previous_state_snapshot.json"].includes(fileName) ||
         filePath.includes("synthesizer")
       ) {
         targetFolder = `${newFolderName}/synthesizer/`;
@@ -327,7 +282,69 @@ function TransactionPage() {
       zip.file(`${targetFolder}${fileName}`, content);
     }
 
-    return await zip.generateAsync({ type: "blob" });
+    const reconstructedZipBlob = await zip.generateAsync({ type: "blob" });
+
+    // Upload to storage
+    const formData = new FormData();
+    formData.append(
+      "file",
+      new File([reconstructedZipBlob], `proof-${proofId}.zip`, { type: "application/zip" })
+    );
+    formData.append("channelId", normalizedChannelId);
+    formData.append("proofId", storageProofId);
+
+    const uploadResponse = await fetch("/api/save-proof-zip", {
+      method: "POST",
+      body: formData,
+    });
+
+    if (!uploadResponse.ok) {
+      throw new Error("Failed to upload proof");
+    }
+
+    // Save proof metadata to DB
+    await fetch("/api/db", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        path: `channels.${normalizedChannelId}.submittedProofs.${storageProofId}`,
+        data: {
+          proofId,
+          sequenceNumber: proofNumber,
+          subNumber,
+          submittedAt: Date.now(),
+          submitter: address,
+          timestamp: Date.now(),
+          uploadStatus: "complete",
+          status: "pending",
+          channelId: normalizedChannelId,
+        },
+        operation: "update",
+      }),
+    });
+
+    // Download the ZIP file
+    const url = URL.createObjectURL(reconstructedZipBlob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `l2-transaction-channel-${currentChannelId}.zip`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    // Refresh proof list
+    setProofListRefreshKey((prev) => prev + 1);
+  }, [currentChannelId, address, recipient, tokenAmount, fetchSnapshot]);
+
+  // Handle modal close
+  const handleModalClose = () => {
+    setShowProofModal(false);
+    setCurrentProofStep("idle");
+    keySeedRef.current = null;
+    // Reset form
+    setRecipient(null);
+    setTokenAmount("");
   };
 
   // Validation checks
@@ -347,11 +364,10 @@ function TransactionPage() {
   
   // Button text based on validation state
   const getButtonText = () => {
-    if (isSigning) return "Signing...";
     if (!hasRecipient) return "Enter L2 Address";
     if (!hasAmount) return "Enter Amount";
     if (exceedsBalance) return "Insufficient Balance";
-    return "Sign";
+    return "Create Transaction";
   };
 
   return (
@@ -418,12 +434,12 @@ function TransactionPage() {
           error={exceedsBalance}
         />
 
-        {/* Sign Button - Dynamic text based on validation */}
+        {/* Create Transaction Button - Opens proof generation modal */}
         <Button
           variant="primary"
           size="full"
-          onClick={handleSign}
-          disabled={isSigning || !isConnected || !isFormValid}
+          onClick={handleOpenProofModal}
+          disabled={!isConnected || !isFormValid}
         >
           {getButtonText()}
         </Button>
@@ -478,6 +494,7 @@ function TransactionPage() {
         <ProofGenerationModal
           isOpen={showProofModal}
           onClose={handleModalClose}
+          onSign={handleSign}
           onGenerateProof={handleGenerateProof}
           channelId={currentChannelId}
           recipient={recipient || ""}

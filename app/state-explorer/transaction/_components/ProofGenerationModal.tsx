@@ -1,31 +1,50 @@
 /**
  * Proof Generation Modal
  *
- * Modal for generating ZK proof after signing
- * Shows confirm step first, then progress and handles download
+ * Modal for generating ZK proof with step-by-step progress
+ * Steps: 1. Signing -> 2. Synthesizer -> 3. Making Proof -> 4. Verify -> Completed
  */
 
 "use client";
 
-import { useState } from "react";
-import { X, Loader2, CheckCircle2 } from "lucide-react";
+import { useState, useCallback } from "react";
+import { X, Loader2, CheckCircle2, Circle } from "lucide-react";
 import { Button } from "@/components/ui";
+
+export type ProofGenerationStep =
+  | "idle"
+  | "signing"
+  | "synthesizer"
+  | "making_proof"
+  | "verify"
+  | "completed"
+  | "error";
+
+// Step definitions for progress display
+const GENERATION_STEPS = [
+  { key: "signing", label: "Signing Transaction" },
+  { key: "synthesizer", label: "Running Synthesizer" },
+  { key: "making_proof", label: "Generating ZK Proof" },
+  { key: "verify", label: "Verifying Proof" },
+] as const;
 
 interface ProofGenerationModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onGenerateProof: () => Promise<void>;
+  onSign: () => Promise<`0x${string}`>; // Returns keySeed
+  onGenerateProof: (keySeed: `0x${string}`) => Promise<void>;
   channelId: string;
   recipient: string;
   amount: string;
   tokenSymbol: string;
 }
 
-type ModalState = "confirm" | "generating" | "completed" | "error";
+type ModalState = "confirm" | "processing" | "completed" | "error";
 
 export function ProofGenerationModal({
   isOpen,
   onClose,
+  onSign,
   onGenerateProof,
   channelId,
   recipient,
@@ -33,34 +52,67 @@ export function ProofGenerationModal({
   tokenSymbol,
 }: ProofGenerationModalProps) {
   const [modalState, setModalState] = useState<ModalState>("confirm");
+  const [currentStep, setCurrentStep] = useState<ProofGenerationStep>("idle");
   const [error, setError] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
   const handleConfirm = async () => {
-    setModalState("generating");
+    setModalState("processing");
+    setCurrentStep("signing");
     setError(null);
-    
+
     try {
-      await onGenerateProof();
+      // Step 1: Sign with MetaMask
+      const keySeed = await onSign();
+
+      // Steps 2-4: Generate proof (progress updates come via callback)
+      await onGenerateProof(keySeed);
+
+      setCurrentStep("completed");
       setModalState("completed");
     } catch (err) {
+      console.error("Proof generation error:", err);
+      setCurrentStep("error");
       setModalState("error");
       setError(err instanceof Error ? err.message : "Failed to generate proof");
     }
   };
 
   const handleClose = () => {
-    if (modalState !== "generating") {
-      setModalState("confirm"); // Reset state for next open
+    if (modalState !== "processing") {
+      setModalState("confirm");
+      setCurrentStep("idle");
+      setError(null);
       onClose();
     }
+  };
+
+  // Get current step index for progress display
+  const getCurrentStepIndex = () => {
+    return GENERATION_STEPS.findIndex((s) => s.key === currentStep);
   };
 
   // Truncate channel ID for display
   const truncatedChannelId = channelId
     ? `${channelId.slice(0, 8)}...${channelId.slice(-6)}`
     : "";
+
+  // Get description based on current step
+  const getStepDescription = () => {
+    switch (currentStep) {
+      case "signing":
+        return "Please sign the transaction in your wallet";
+      case "synthesizer":
+        return "Running L2 transaction synthesis...";
+      case "making_proof":
+        return "Generating ZK proof... This may take a few minutes";
+      case "verify":
+        return "Verifying the generated proof...";
+      default:
+        return "Processing...";
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -75,8 +127,8 @@ export function ProofGenerationModal({
         className="relative bg-white rounded-lg shadow-xl font-mono"
         style={{ width: 480, padding: 32 }}
       >
-        {/* Close button - only show when not generating */}
-        {modalState !== "generating" && (
+        {/* Close button - only show when not processing */}
+        {modalState !== "processing" && (
           <button
             type="button"
             onClick={handleClose}
@@ -139,8 +191,8 @@ export function ProofGenerationModal({
           </div>
         )}
 
-        {/* Generating State */}
-        {modalState === "generating" && (
+        {/* Processing State */}
+        {modalState === "processing" && (
           <div className="flex flex-col items-center gap-6">
             <Loader2 className="w-16 h-16 text-[#2A72E5] animate-spin" />
             <div className="text-center">
@@ -151,8 +203,40 @@ export function ProofGenerationModal({
                 Generating Proof
               </h3>
               <p className="text-[#666666]" style={{ fontSize: 14 }}>
-                Please wait while your ZK proof is being generated...
+                {getStepDescription()}
               </p>
+            </div>
+
+            {/* Step Progress */}
+            <div className="w-full space-y-3 pt-4 border-t border-[#EEEEEE]">
+              {GENERATION_STEPS.map((step, index) => {
+                const currentIndex = getCurrentStepIndex();
+                const isActive = step.key === currentStep;
+                const isCompleted = currentIndex > index;
+
+                return (
+                  <div key={step.key} className="flex items-center gap-3">
+                    {isCompleted ? (
+                      <CheckCircle2 className="w-5 h-5 text-[#3EB100] flex-shrink-0" />
+                    ) : isActive ? (
+                      <Loader2 className="w-5 h-5 text-[#2A72E5] animate-spin flex-shrink-0" />
+                    ) : (
+                      <Circle className="w-5 h-5 text-[#CCCCCC] flex-shrink-0" />
+                    )}
+                    <span
+                      className={`text-sm ${
+                        isActive
+                          ? "text-[#2A72E5] font-medium"
+                          : isCompleted
+                            ? "text-[#3EB100]"
+                            : "text-[#999999]"
+                      }`}
+                    >
+                      {step.label}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
 
             {/* Transaction Details */}
@@ -270,3 +354,6 @@ export function ProofGenerationModal({
     </div>
   );
 }
+
+// Export the step update function type for external use
+export type SetProofGenerationStep = (step: ProofGenerationStep) => void;
