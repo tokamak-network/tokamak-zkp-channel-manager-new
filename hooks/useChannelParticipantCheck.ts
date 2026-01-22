@@ -170,16 +170,18 @@ export function useChannelParticipantCheck(
 
   // Check for pending withdrawal (for closed channels with state 4 or even state 0 after reset)
   // This allows users who have withdrawable amounts to join even if channel appears closed/reset
+  // NOTE: Check withdrawal regardless of state since withdrawal data might persist even after channel reset
   const withdrawCheckArgs = useMemo(() => {
     if (!isValidChannelId || !address) return undefined;
-    // Check withdrawal for state 4 (Closed) or state 0 (might be reset but still have pending withdrawals)
-    if (channelInfo?.state !== 4 && channelInfo?.state !== 0) return undefined;
     return [channelId as `0x${string}`, address] as const;
-  }, [isValidChannelId, channelId, address, channelInfo?.state]);
+  }, [isValidChannelId, channelId, address]);
 
+  // Always check withdrawable amount - this is key for detecting channels that were closed
+  // but still have pending withdrawals (even if targetContract is reset to zero)
   const {
     data: withdrawableAmountRaw,
     isLoading: isCheckingWithdrawable,
+    error: withdrawCheckError,
   } = useBridgeWithdrawManagerRead({
     functionName: "getWithdrawableAmount",
     args: withdrawCheckArgs,
@@ -188,11 +190,39 @@ export function useChannelParticipantCheck(
         isConnected &&
         !!address &&
         isValidChannelId &&
-        (channelInfo?.state === 4 || channelInfo?.state === 0) &&
         !channelInfo?.isLoading,
       refetchInterval: false,
     },
   });
+
+  // Debug log for withdrawal check
+  useEffect(() => {
+    if (isValidChannelId && address) {
+      console.log("[useChannelParticipantCheck] Withdrawal check:", {
+        channelId,
+        address,
+        withdrawCheckArgs,
+        withdrawableAmountRaw,
+        withdrawableAmountType: typeof withdrawableAmountRaw,
+        isCheckingWithdrawable,
+        withdrawCheckError: withdrawCheckError?.message,
+        channelState: channelInfo?.state,
+        channelExists,
+        targetContract: channelInfo?.targetContract,
+      });
+    }
+  }, [
+    channelId, 
+    address, 
+    withdrawCheckArgs, 
+    withdrawableAmountRaw, 
+    isCheckingWithdrawable, 
+    withdrawCheckError,
+    channelInfo?.state,
+    channelExists,
+    channelInfo?.targetContract,
+    isValidChannelId,
+  ]);
 
   // Check if user has pending withdrawal
   const hasPendingWithdrawal = useMemo(() => {
@@ -200,6 +230,11 @@ export function useChannelParticipantCheck(
     const amount = typeof withdrawableAmountRaw === "bigint" 
       ? withdrawableAmountRaw 
       : BigInt(String(withdrawableAmountRaw || 0));
+    console.log("[useChannelParticipantCheck] hasPendingWithdrawal calculation:", {
+      withdrawableAmountRaw,
+      amount: amount.toString(),
+      result: amount > BigInt(0),
+    });
     return amount > BigInt(0);
   }, [withdrawableAmountRaw]);
 
@@ -228,13 +263,13 @@ export function useChannelParticipantCheck(
 
   // Combined loading state
   const isCheckingParticipant = useMemo(() => {
-    // If checking withdrawable amount for closed/reset channels
-    if ((channelInfo?.state === 4 || channelInfo?.state === 0) && isCheckingWithdrawable) {
+    // Always wait for withdrawal check to complete (important for detecting closed channels)
+    if (isCheckingWithdrawable) {
       return true;
     }
     if (useWhitelistCheck === undefined) return true;
     return useWhitelistCheck ? isCheckingWhitelist : isCheckingParticipants;
-  }, [useWhitelistCheck, isCheckingWhitelist, isCheckingParticipants, channelInfo?.state, isCheckingWithdrawable]);
+  }, [useWhitelistCheck, isCheckingWhitelist, isCheckingParticipants, isCheckingWithdrawable]);
 
   // Combined error state
   const participantCheckError = useMemo(() => {
@@ -311,14 +346,35 @@ export function useChannelParticipantCheck(
     // Channel doesn't exist - but check for pending withdrawals first
     // User might have pending withdrawal even if channel appears reset (state 0)
     if (channelExists === false) {
-      // If checking for withdrawal and found pending amount, don't show not_found error
+      console.log("[useChannelParticipantCheck] Channel doesn't exist check:", {
+        channelExists,
+        hasPendingWithdrawal,
+        isCheckingWithdrawable,
+        withdrawableAmountRaw,
+      });
+      
+      // Still checking withdrawable amount - wait before showing error
+      if (isCheckingWithdrawable) {
+        return { error: null, errorType: null };
+      }
+      
+      // If found pending withdrawal amount, don't show not_found error
       if (hasPendingWithdrawal === true) {
+        console.log("[useChannelParticipantCheck] Has pending withdrawal, allowing join");
         return { error: null, errorType: null };
       }
-      // Still checking withdrawable amount
-      if (hasPendingWithdrawal === undefined && isCheckingWithdrawable) {
-        return { error: null, errorType: null };
+      
+      // Also check raw value directly in case hasPendingWithdrawal calculation failed
+      if (withdrawableAmountRaw !== undefined) {
+        const rawAmount = typeof withdrawableAmountRaw === "bigint" 
+          ? withdrawableAmountRaw 
+          : BigInt(String(withdrawableAmountRaw || 0));
+        if (rawAmount > BigInt(0)) {
+          console.log("[useChannelParticipantCheck] Raw withdrawal amount > 0, allowing join");
+          return { error: null, errorType: null };
+        }
       }
+      
       return {
         error: "Channel not found. Please check the Channel ID and try again.",
         errorType: "not_found",
@@ -359,6 +415,7 @@ export function useChannelParticipantCheck(
     channelInfo.isLoading,
     hasPendingWithdrawal,
     isCheckingWithdrawable,
+    withdrawableAmountRaw,
   ]);
 
   return {
