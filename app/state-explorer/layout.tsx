@@ -36,13 +36,14 @@ export default function StateExplorerLayout({
   const { currentChannelId } = useChannelFlowStore();
   const channelId = currentChannelId;
 
-  // Get channel state from contract
+  // Get channel state from contract - refetch every 5 seconds for real-time updates
   const { data: contractChannelStateData, refetch: refetchChannelState } =
     useBridgeCoreRead({
       functionName: "getChannelState",
       args: channelId ? [channelId as `0x${string}`] : undefined,
       query: {
         enabled: !!channelId && isConnected,
+        refetchInterval: 5000,
       },
     });
 
