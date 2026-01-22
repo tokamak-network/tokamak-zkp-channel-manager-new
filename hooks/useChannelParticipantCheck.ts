@@ -209,18 +209,22 @@ export function useChannelParticipantCheck(
   ]);
 
   // Combine results based on state
-  // For state 4 or 0: allow if has pending withdrawal OR is participant
+  // For state 4 or 0 or channelExists false: allow if has pending withdrawal OR is participant
   const isParticipant = useMemo(() => {
-    // If channel is closed (state 4) or reset (state 0), check pending withdrawal first
-    if (channelInfo?.state === 4 || (channelInfo?.state === 0 && hasPendingWithdrawal !== undefined)) {
-      if (hasPendingWithdrawal === true) {
-        return true; // User can join to withdraw
-      }
-      // If no pending withdrawal for state 0, channel doesn't exist
-      if (channelInfo?.state === 0 && hasPendingWithdrawal === false) {
-        return undefined; // Let channelExists check handle this
-      }
-      // For state 4 without pending withdrawal, fall through to participant check
+    // If user has pending withdrawal, they can join (regardless of channel state)
+    if (hasPendingWithdrawal === true) {
+      return true; // User can join to withdraw
+    }
+    
+    // If channel doesn't exist and no pending withdrawal, let error handling deal with it
+    if (channelExists === false) {
+      return undefined;
+    }
+    
+    // If channel is closed (state 4), check pending withdrawal first
+    if (channelInfo?.state === 4) {
+      // Already checked above, if we're here, no pending withdrawal
+      // Fall through to participant check
     }
     
     if (useWhitelistCheck === undefined) return undefined;
@@ -229,7 +233,7 @@ export function useChannelParticipantCheck(
     } else {
       return isParticipantFromArray;
     }
-  }, [useWhitelistCheck, isWhitelisted, isParticipantFromArray, channelInfo?.state, hasPendingWithdrawal]);
+  }, [useWhitelistCheck, isWhitelisted, isParticipantFromArray, channelInfo?.state, hasPendingWithdrawal, channelExists]);
 
   // Combined loading state
   const isCheckingParticipant = useMemo(() => {
@@ -237,9 +241,20 @@ export function useChannelParticipantCheck(
     if (isCheckingWithdrawable) {
       return true;
     }
+    
+    // If we found pending withdrawal, we're done checking
+    if (hasPendingWithdrawal === true) {
+      return false;
+    }
+    
+    // If channel doesn't exist and no pending withdrawal, we're done checking
+    if (channelExists === false && hasPendingWithdrawal === false) {
+      return false;
+    }
+    
     if (useWhitelistCheck === undefined) return true;
     return useWhitelistCheck ? isCheckingWhitelist : isCheckingParticipants;
-  }, [useWhitelistCheck, isCheckingWhitelist, isCheckingParticipants, isCheckingWithdrawable]);
+  }, [useWhitelistCheck, isCheckingWhitelist, isCheckingParticipants, isCheckingWithdrawable, hasPendingWithdrawal, channelExists]);
 
   // Combined error state
   const participantCheckError = useMemo(() => {
