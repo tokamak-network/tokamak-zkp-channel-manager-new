@@ -13,6 +13,13 @@ import {
 } from "@/hooks/contract";
 import { useBridgeCoreRead } from "@/hooks/contract";
 
+export type WithdrawStep =
+  | "idle"
+  | "signing"
+  | "confirming"
+  | "completed"
+  | "error";
+
 interface UseWithdrawParams {
   channelId: string | null;
 }
@@ -25,6 +32,7 @@ export function useWithdraw({ channelId }: UseWithdrawParams) {
   const [isWithdrawing, setIsWithdrawing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [targetContractFromApi, setTargetContractFromApi] = useState<string | null>(null);
+  const [currentStep, setCurrentStep] = useState<WithdrawStep>("idle");
 
   // Get targetContract from contract (may be 0x0 after cleanupChannel)
   const { data: targetContractFromContract } = useBridgeCoreRead({
@@ -98,16 +106,28 @@ export function useWithdraw({ channelId }: UseWithdrawParams) {
     },
   });
 
-  // Update withdrawing state
+  // Update withdrawing state and step for signing
   useEffect(() => {
     setIsWithdrawing(isWaitingWithdraw || isWithdrawPending);
-  }, [isWaitingWithdraw, isWithdrawPending]);
+    // When pending signature, move to signing step
+    if (isWithdrawPending && currentStep === "idle") {
+      setCurrentStep("signing");
+    }
+  }, [isWaitingWithdraw, isWithdrawPending, currentStep]);
+
+  // When txHash is received, user has signed - move to confirming step
+  useEffect(() => {
+    if (withdrawTxHash && currentStep === "signing") {
+      setCurrentStep("confirming");
+    }
+  }, [withdrawTxHash, currentStep]);
 
   // Handle withdraw success
   useEffect(() => {
     if (withdrawSuccess && withdrawTxHash) {
       setIsWithdrawing(false);
       setError(null);
+      setCurrentStep("completed");
       console.log("✅ Withdraw completed successfully:", withdrawTxHash);
     }
   }, [withdrawSuccess, withdrawTxHash]);
@@ -121,6 +141,7 @@ export function useWithdraw({ channelId }: UseWithdrawParams) {
         "Withdraw transaction failed";
       setError(errorMessage);
       setIsWithdrawing(false);
+      setCurrentStep("error");
       console.error("❌ Withdraw error:", writeError || withdrawTxError);
     }
   }, [writeError, withdrawTxError]);
@@ -187,6 +208,13 @@ export function useWithdraw({ channelId }: UseWithdrawParams) {
     writeWithdraw,
   ]);
 
+  // Reset function
+  const reset = useCallback(() => {
+    setIsWithdrawing(false);
+    setError(null);
+    setCurrentStep("idle");
+  }, []);
+
   return {
     handleWithdraw,
     isWithdrawing: isWithdrawing || isWaitingWithdraw || isWithdrawPending,
@@ -195,5 +223,7 @@ export function useWithdraw({ channelId }: UseWithdrawParams) {
     error: error || writeError?.message || withdrawTxError?.message || null,
     channelTargetContract,
     withdrawableAmount: withdrawableAmount ? BigInt(withdrawableAmount.toString()) : BigInt(0),
+    currentStep,
+    reset,
   };
 }

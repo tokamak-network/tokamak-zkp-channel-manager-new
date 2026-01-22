@@ -35,6 +35,9 @@ export async function getData<T = any>(path: string): Promise<T | null> {
 export async function setData(path: string, data: any): Promise<void> {
   const db = await getDb();
   
+  // Always read from disk first to get latest data (prevents race conditions)
+  await db.read();
+  
   const pathParts = path.split(/[./]/).filter(Boolean);
 
   // Create nested structure
@@ -63,6 +66,9 @@ export async function setData(path: string, data: any): Promise<void> {
  */
 export async function pushData(path: string, data: any): Promise<string> {
   const db = await getDb();
+  
+  // Always read from disk first to get latest data (prevents race conditions)
+  await db.read();
   
   const pathParts = path.split(/[./]/).filter(Boolean);
 
@@ -126,6 +132,9 @@ export async function updateData(
  */
 export async function deleteData(path: string): Promise<void> {
   const db = await getDb();
+  
+  // Always read from disk first to get latest data (prevents race conditions)
+  await db.read();
   
   const pathParts = path.split(/[./]/).filter(Boolean);
 

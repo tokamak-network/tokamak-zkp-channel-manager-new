@@ -36,13 +36,14 @@ export default function StateExplorerLayout({
   const { currentChannelId } = useChannelFlowStore();
   const channelId = currentChannelId;
 
-  // Get channel state from contract
+  // Get channel state from contract - refetch every 5 seconds for real-time updates
   const { data: contractChannelStateData, refetch: refetchChannelState } =
     useBridgeCoreRead({
       functionName: "getChannelState",
       args: channelId ? [channelId as `0x${string}`] : undefined,
       query: {
         enabled: !!channelId && isConnected,
+        refetchInterval: 5000,
       },
     });
 
@@ -150,6 +151,8 @@ export default function StateExplorerLayout({
     initializeTxHash,
     proofStatus,
     error: initializeError,
+    currentStep: initializeCurrentStep,
+    reset: resetInitialize,
   } = useInitializeState({
     channelId: channelId as `0x${string}` | null,
   });
@@ -344,6 +347,7 @@ export default function StateExplorerLayout({
           isProcessing={isProcessing}
           isLoadingChannelData={isLoadingChannelData}
           txHash={initializeTxHash ?? null}
+          currentStep={initializeCurrentStep}
           onClose={handleCloseModal}
         />
       )}

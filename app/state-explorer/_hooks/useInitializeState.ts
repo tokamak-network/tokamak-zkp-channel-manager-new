@@ -8,6 +8,14 @@ import {
 import { useGenerateInitialProof } from "./useGenerateInitialProof";
 import type { ProofData } from "@/stores/useInitializeStore";
 
+export type InitializeStateStep =
+  | "idle"
+  | "generating_proof"
+  | "signing"
+  | "confirming"
+  | "completed"
+  | "error";
+
 interface UseInitializeStateParams {
   channelId: `0x${string}` | null;
 }
@@ -16,6 +24,7 @@ export function useInitializeState({ channelId }: UseInitializeStateParams) {
   const [proofData, setProofData] = useState<ProofData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [currentStep, setCurrentStep] = useState<InitializeStateStep>("idle");
 
   // Proof generation hook
   const {
@@ -46,17 +55,49 @@ export function useInitializeState({ channelId }: UseInitializeStateParams) {
     },
   });
 
+  // Step transitions based on proof generation and contract hooks
+  useEffect(() => {
+    // When generating proof, move to generating_proof step
+    if (isGeneratingProof && currentStep === "idle") {
+      setCurrentStep("generating_proof");
+    }
+  }, [isGeneratingProof, currentStep]);
+
+  useEffect(() => {
+    // When pending signature (proof done, waiting for wallet), move to signing step
+    if (isWriting && (currentStep === "idle" || currentStep === "generating_proof")) {
+      setCurrentStep("signing");
+    }
+  }, [isWriting, currentStep]);
+
+  // When txHash is received, user has signed - move to confirming step
+  useEffect(() => {
+    if (initializeTxHash && currentStep === "signing") {
+      setCurrentStep("confirming");
+    }
+  }, [initializeTxHash, currentStep]);
+
+  // Handle success
+  useEffect(() => {
+    if (initializeSuccess && currentStep === "confirming") {
+      setCurrentStep("completed");
+    }
+  }, [initializeSuccess, currentStep]);
+
   // Update error state and reset processing on error
   useEffect(() => {
     if (proofError) {
       setError(proofError);
       setIsProcessing(false);
+      setCurrentStep("error");
     } else if (writeError) {
       setError(writeError.message);
       setIsProcessing(false);
+      setCurrentStep("error");
     } else if (waitError) {
       setError(waitError.message);
       setIsProcessing(false);
+      setCurrentStep("error");
     } else {
       setError(null);
     }
@@ -185,6 +226,14 @@ export function useInitializeState({ channelId }: UseInitializeStateParams) {
     }
   }, [channelId, isLoadingChannelData, generateProof, writeInitialize]);
 
+  // Reset function
+  const reset = useCallback(() => {
+    setError(null);
+    setIsProcessing(false);
+    setProofData(null);
+    setCurrentStep("idle");
+  }, []);
+
   return {
     initializeState,
     isProcessing: isProcessing || isGeneratingProof || isWriting || isWaiting,
@@ -196,5 +245,7 @@ export function useInitializeState({ channelId }: UseInitializeStateParams) {
     initializeTxHash,
     proofStatus,
     error,
+    currentStep,
+    reset,
   };
 }

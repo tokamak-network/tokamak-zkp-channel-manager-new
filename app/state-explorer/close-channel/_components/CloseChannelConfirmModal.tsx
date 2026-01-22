@@ -1,8 +1,8 @@
 /**
- * Proof Generation Modal
+ * Close Channel Confirm Modal
  *
- * Modal for generating ZK proof with step-by-step progress
- * Steps: 1. Signing -> 2. Synthesizer -> 3. Making Proof -> 4. Verify -> Completed
+ * Modal for confirming and closing channel with step-by-step progress
+ * Steps: 1. Preparing Data -> 2. Generating Proof -> 3. Signing -> 4. Confirming
  */
 
 "use client";
@@ -11,59 +11,53 @@ import { useState, useEffect } from "react";
 import { X, Loader2, CheckCircle2, Circle } from "lucide-react";
 import { Button } from "@/components/ui";
 
-export type ProofGenerationStep =
+export type CloseChannelModalStep =
   | "idle"
+  | "preparing"
+  | "generating_proof"
   | "signing"
-  | "synthesizer"
-  | "making_proof"
-  | "verify"
+  | "confirming"
   | "completed"
   | "error";
 
 // Step definitions for progress display
-const GENERATION_STEPS = [
+const CLOSE_CHANNEL_STEPS = [
+  { key: "preparing", label: "Preparing Data" },
+  { key: "generating_proof", label: "Generating ZK Proof" },
   { key: "signing", label: "Signing Transaction" },
-  { key: "synthesizer", label: "Running Synthesizer" },
-  { key: "making_proof", label: "Generating ZK Proof" },
-  { key: "verify", label: "Verifying Proof" },
+  { key: "confirming", label: "Confirming Transaction" },
 ] as const;
 
-interface ProofGenerationModalProps {
+interface CloseChannelConfirmModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSign: () => Promise<`0x${string}`>; // Returns keySeed
-  onGenerateProof: (keySeed: `0x${string}`) => Promise<void>;
+  onConfirm: () => Promise<void>;
   channelId: string;
-  recipient: string;
-  amount: string;
-  tokenSymbol: string;
-  currentStep?: ProofGenerationStep; // External step state from SSE
-  onStepChange?: (step: ProofGenerationStep) => void; // Callback to update step
+  participantsCount: number;
+  currentStep?: CloseChannelModalStep;
+  onStepChange?: (step: CloseChannelModalStep) => void;
 }
 
 type ModalState = "confirm" | "processing" | "completed" | "error";
 
-export function ProofGenerationModal({
+export function CloseChannelConfirmModal({
   isOpen,
   onClose,
-  onSign,
-  onGenerateProof,
+  onConfirm,
   channelId,
-  recipient,
-  amount,
-  tokenSymbol,
+  participantsCount,
   currentStep: externalStep,
   onStepChange,
-}: ProofGenerationModalProps) {
+}: CloseChannelConfirmModalProps) {
   const [modalState, setModalState] = useState<ModalState>("confirm");
-  const [internalStep, setInternalStep] = useState<ProofGenerationStep>("idle");
+  const [internalStep, setInternalStep] = useState<CloseChannelModalStep>("idle");
   const [error, setError] = useState<string | null>(null);
 
   // Use external step if provided, otherwise use internal
   const currentStep = externalStep ?? internalStep;
 
   // Update step - either via callback or internal state
-  const updateStep = (step: ProofGenerationStep) => {
+  const updateStep = (step: CloseChannelModalStep) => {
     if (onStepChange) {
       onStepChange(step);
     } else {
@@ -84,27 +78,22 @@ export function ProofGenerationModal({
 
   const handleConfirm = async () => {
     setModalState("processing");
-    updateStep("signing");
+    updateStep("preparing");
     setError(null);
 
     try {
-      // Step 1: Sign with MetaMask
-      const keySeed = await onSign();
+      await onConfirm();
 
-      // After signing, step will be updated by SSE via onStepChange
-      // Steps 2-4: Generate proof (progress updates come via SSE)
-      await onGenerateProof(keySeed);
-
-      // If using internal state (no SSE), mark as completed
+      // If using internal state (no external step management), mark as completed
       if (!onStepChange) {
         updateStep("completed");
         setModalState("completed");
       }
     } catch (err) {
-      console.error("Proof generation error:", err);
+      console.error("Close channel error:", err);
       updateStep("error");
       setModalState("error");
-      setError(err instanceof Error ? err.message : "Failed to generate proof");
+      setError(err instanceof Error ? err.message : "Failed to close channel");
     }
   };
 
@@ -119,31 +108,25 @@ export function ProofGenerationModal({
 
   // Get current step index for progress display
   const getCurrentStepIndex = () => {
-    return GENERATION_STEPS.findIndex((s) => s.key === currentStep);
+    return CLOSE_CHANNEL_STEPS.findIndex((s) => s.key === currentStep);
   };
 
   // Truncate channel ID for display
   const truncatedChannelId = channelId
-    ? `${channelId.slice(0, 8)}...${channelId.slice(-6)}`
+    ? `${channelId.slice(0, 10)}...${channelId.slice(-8)}`
     : "";
 
   // Get description based on current step
   const getStepDescription = (): React.ReactNode => {
     switch (currentStep) {
+      case "preparing":
+        return "Preparing final state data and permutation...";
+      case "generating_proof":
+        return "Generating ZK proof...";
       case "signing":
         return "Please sign the transaction in your wallet";
-      case "synthesizer":
-        return "Running L2 transaction synthesis...";
-      case "making_proof":
-        return (
-          <>
-            Generating ZK proof...
-            <br />
-            This may take a few minutes
-          </>
-        );
-      case "verify":
-        return "Verifying the generated proof...";
+      case "confirming":
+        return "Confirming transaction on blockchain...";
       default:
         return "Processing...";
     }
@@ -181,14 +164,14 @@ export function ProofGenerationModal({
                 className="font-medium text-[#111111] mb-2"
                 style={{ fontSize: 24 }}
               >
-                Confirm Transaction
+                Confirm Close Channel
               </h3>
               <p className="text-[#666666]" style={{ fontSize: 14 }}>
-                Please confirm the transaction details below
+                This will permanently close the channel and distribute final balances
               </p>
             </div>
 
-            {/* Transaction Details */}
+            {/* Channel Details */}
             <div className="w-full space-y-3 pt-4 border-t border-[#EEEEEE]">
               <div className="flex justify-between">
                 <span className="text-[#666666]" style={{ fontSize: 14 }}>
@@ -200,18 +183,10 @@ export function ProofGenerationModal({
               </div>
               <div className="flex justify-between">
                 <span className="text-[#666666]" style={{ fontSize: 14 }}>
-                  Recipient
+                  Participants
                 </span>
                 <span className="text-[#111111] font-medium" style={{ fontSize: 14 }}>
-                  {recipient ? `${recipient.slice(0, 8)}...${recipient.slice(-6)}` : "-"}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-[#666666]" style={{ fontSize: 14 }}>
-                  Amount
-                </span>
-                <span className="text-[#111111] font-medium" style={{ fontSize: 14 }}>
-                  {amount} {tokenSymbol}
+                  {participantsCount}
                 </span>
               </div>
             </div>
@@ -221,7 +196,7 @@ export function ProofGenerationModal({
               size="full"
               onClick={handleConfirm}
             >
-              Confirm
+              Confirm & Close Channel
             </Button>
           </div>
         )}
@@ -235,7 +210,7 @@ export function ProofGenerationModal({
                 className="font-medium text-[#111111] mb-2"
                 style={{ fontSize: 24 }}
               >
-                Generating Proof
+                Closing Channel
               </h3>
               <p className="text-[#666666]" style={{ fontSize: 14 }}>
                 {getStepDescription()}
@@ -244,7 +219,7 @@ export function ProofGenerationModal({
 
             {/* Step Progress */}
             <div className="w-full space-y-3 pt-4 border-t border-[#EEEEEE]">
-              {GENERATION_STEPS.map((step, index) => {
+              {CLOSE_CHANNEL_STEPS.map((step, index) => {
                 const currentIndex = getCurrentStepIndex();
                 const isActive = step.key === currentStep;
                 const isCompleted = currentIndex > index;
@@ -274,7 +249,7 @@ export function ProofGenerationModal({
               })}
             </div>
 
-            {/* Transaction Details */}
+            {/* Channel Details */}
             <div className="w-full space-y-3 pt-4 border-t border-[#EEEEEE]">
               <div className="flex justify-between">
                 <span className="text-[#666666]" style={{ fontSize: 14 }}>
@@ -282,22 +257,6 @@ export function ProofGenerationModal({
                 </span>
                 <span className="text-[#111111] font-medium" style={{ fontSize: 14 }}>
                   {truncatedChannelId}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-[#666666]" style={{ fontSize: 14 }}>
-                  Recipient
-                </span>
-                <span className="text-[#111111] font-medium" style={{ fontSize: 14 }}>
-                  {recipient ? `${recipient.slice(0, 8)}...${recipient.slice(-6)}` : "-"}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-[#666666]" style={{ fontSize: 14 }}>
-                  Amount
-                </span>
-                <span className="text-[#111111] font-medium" style={{ fontSize: 14 }}>
-                  {amount} {tokenSymbol}
                 </span>
               </div>
             </div>
@@ -313,14 +272,14 @@ export function ProofGenerationModal({
                 className="font-medium text-[#111111] mb-2"
                 style={{ fontSize: 24 }}
               >
-                Proof Generated
+                Channel Closed
               </h3>
               <p className="text-[#666666]" style={{ fontSize: 14 }}>
-                Your ZK proof has been successfully generated and downloaded.
+                The channel has been successfully closed. Participants can now withdraw their funds.
               </p>
             </div>
 
-            {/* Transaction Details */}
+            {/* Channel Details */}
             <div className="w-full space-y-3 pt-4 border-t border-[#EEEEEE]">
               <div className="flex justify-between">
                 <span className="text-[#666666]" style={{ fontSize: 14 }}>
@@ -328,22 +287,6 @@ export function ProofGenerationModal({
                 </span>
                 <span className="text-[#111111] font-medium" style={{ fontSize: 14 }}>
                   {truncatedChannelId}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-[#666666]" style={{ fontSize: 14 }}>
-                  Recipient
-                </span>
-                <span className="text-[#111111] font-medium" style={{ fontSize: 14 }}>
-                  {recipient ? `${recipient.slice(0, 8)}...${recipient.slice(-6)}` : "-"}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-[#666666]" style={{ fontSize: 14 }}>
-                  Amount
-                </span>
-                <span className="text-[#111111] font-medium" style={{ fontSize: 14 }}>
-                  {amount} {tokenSymbol}
                 </span>
               </div>
             </div>
@@ -369,10 +312,10 @@ export function ProofGenerationModal({
                 className="font-medium text-[#111111] mb-2"
                 style={{ fontSize: 24 }}
               >
-                Generation Failed
+                Failed to Close Channel
               </h3>
               <p className="text-[#CD0003]" style={{ fontSize: 14 }}>
-                {error || "An error occurred while generating the proof."}
+                {error || "An error occurred while closing the channel."}
               </p>
             </div>
 
@@ -389,6 +332,3 @@ export function ProofGenerationModal({
     </div>
   );
 }
-
-// Export the step update function type for external use
-export type SetProofGenerationStep = (step: ProofGenerationStep) => void;

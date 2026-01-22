@@ -2,14 +2,14 @@
  * Calculate Maximum Participants Utility
  *
  * Dynamically calculates the maximum number of participants
- * based on Merkle tree configuration.
+ * based on Merkle tree configuration and selected tokens.
  *
- * Formula: N = (L - P) / S
+ * Formula: N = (L - P_total) / S
  *
  * Where:
- * - L: Number of Merkle tree leaves
- * - P: Number of pre-allocated keys (reserved slots)
- * - S: Number of storage slots per user
+ * - L: Number of Merkle tree leaves (16)
+ * - P_total: Sum of pre-allocated keys for all selected tokens (from contract)
+ * - S: Number of selected tokens (storage slots per user)
  */
 
 import { MERKLE_TREE_CONFIG } from "@tokamak/config";
@@ -17,18 +17,26 @@ import { MERKLE_TREE_CONFIG } from "@tokamak/config";
 /**
  * Calculate maximum participants for a channel
  *
- * @param tokenCount - Number of tokens in the channel (default: 1)
- * @returns Maximum number of participants
+ * @param totalPreAllocatedCount - Sum of pre-allocated keys for all selected tokens (P)
+ * @param selectedTokenCount - Number of selected tokens (S)
+ * @returns Maximum number of participants (N)
  *
  * @example
- * // Single token (e.g., TON only)
- * calculateMaxParticipants(1) // Returns 16
+ * // Single token (TON with P=1)
+ * calculateMaxParticipants(1, 1) // Returns (16-1)/1 = 15
  *
- * // Multiple tokens (e.g., TON + USDT)
- * calculateMaxParticipants(2) // Returns 8
+ * // Multiple tokens (TON + USDT, each with P=1)
+ * calculateMaxParticipants(2, 2) // Returns (16-2)/2 = 7
  */
-export function calculateMaxParticipants(tokenCount: number = 1): number {
-  const { LEAVES, PRE_ALLOCATED_KEYS, USER_STORAGE_SLOTS } = MERKLE_TREE_CONFIG;
-  const totalStorageSlotsPerUser = USER_STORAGE_SLOTS * tokenCount;
-  return Math.floor((LEAVES - PRE_ALLOCATED_KEYS) / totalStorageSlotsPerUser);
+export function calculateMaxParticipants(
+  totalPreAllocatedCount: number,
+  selectedTokenCount: number
+): number {
+  const { LEAVES } = MERKLE_TREE_CONFIG;
+
+  // Ensure at least 1 token is selected
+  const tokenCount = Math.max(1, selectedTokenCount);
+
+  // N = (L - P_total) / S
+  return Math.floor((LEAVES - totalPreAllocatedCount) / tokenCount);
 }

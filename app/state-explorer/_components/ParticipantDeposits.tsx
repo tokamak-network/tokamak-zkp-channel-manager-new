@@ -206,7 +206,7 @@ export function ParticipantDeposits({
                           <span className="ml-2 text-[#2A72E5]">(You)</span>
                         )}
                       </span>
-                      {index === 0 && (
+                      {channelLeader && participant.address.toLowerCase() === String(channelLeader).toLowerCase() && (
                         <span
                           className="text-[#666666]"
                           style={{ fontSize: compact ? 10 : 12 }}
@@ -280,88 +280,88 @@ function useParticipantDeposits(
   // We need to call getParticipantDeposit and getL2MptKey for each participant
   // Using individual hooks for up to 8 participants
   
-  // Deposits
+  // Deposits - refetch every 5 seconds to get latest on-chain data
   const deposit0 = useBridgeCoreRead({
     functionName: "getParticipantDeposit",
     args: channelId && participants[0] ? [channelId as `0x${string}`, participants[0]] : undefined,
-    query: { enabled: !!channelId && !!participants[0] },
+    query: { enabled: !!channelId && !!participants[0], refetchInterval: 5000 },
   });
   const deposit1 = useBridgeCoreRead({
     functionName: "getParticipantDeposit",
     args: channelId && participants[1] ? [channelId as `0x${string}`, participants[1]] : undefined,
-    query: { enabled: !!channelId && !!participants[1] },
+    query: { enabled: !!channelId && !!participants[1], refetchInterval: 5000 },
   });
   const deposit2 = useBridgeCoreRead({
     functionName: "getParticipantDeposit",
     args: channelId && participants[2] ? [channelId as `0x${string}`, participants[2]] : undefined,
-    query: { enabled: !!channelId && !!participants[2] },
+    query: { enabled: !!channelId && !!participants[2], refetchInterval: 5000 },
   });
   const deposit3 = useBridgeCoreRead({
     functionName: "getParticipantDeposit",
     args: channelId && participants[3] ? [channelId as `0x${string}`, participants[3]] : undefined,
-    query: { enabled: !!channelId && !!participants[3] },
+    query: { enabled: !!channelId && !!participants[3], refetchInterval: 5000 },
   });
   const deposit4 = useBridgeCoreRead({
     functionName: "getParticipantDeposit",
     args: channelId && participants[4] ? [channelId as `0x${string}`, participants[4]] : undefined,
-    query: { enabled: !!channelId && !!participants[4] },
+    query: { enabled: !!channelId && !!participants[4], refetchInterval: 5000 },
   });
   const deposit5 = useBridgeCoreRead({
     functionName: "getParticipantDeposit",
     args: channelId && participants[5] ? [channelId as `0x${string}`, participants[5]] : undefined,
-    query: { enabled: !!channelId && !!participants[5] },
+    query: { enabled: !!channelId && !!participants[5], refetchInterval: 5000 },
   });
   const deposit6 = useBridgeCoreRead({
     functionName: "getParticipantDeposit",
     args: channelId && participants[6] ? [channelId as `0x${string}`, participants[6]] : undefined,
-    query: { enabled: !!channelId && !!participants[6] },
+    query: { enabled: !!channelId && !!participants[6], refetchInterval: 5000 },
   });
   const deposit7 = useBridgeCoreRead({
     functionName: "getParticipantDeposit",
     args: channelId && participants[7] ? [channelId as `0x${string}`, participants[7]] : undefined,
-    query: { enabled: !!channelId && !!participants[7] },
+    query: { enabled: !!channelId && !!participants[7], refetchInterval: 5000 },
   });
 
-  // MPT Keys (to check registration status)
+  // MPT Keys (to check registration status) - refetch every 5 seconds
   const mptKey0 = useBridgeCoreRead({
     functionName: "getL2MptKey",
     args: channelId && participants[0] ? [channelId as `0x${string}`, participants[0]] : undefined,
-    query: { enabled: !!channelId && !!participants[0] },
+    query: { enabled: !!channelId && !!participants[0], refetchInterval: 5000 },
   });
   const mptKey1 = useBridgeCoreRead({
     functionName: "getL2MptKey",
     args: channelId && participants[1] ? [channelId as `0x${string}`, participants[1]] : undefined,
-    query: { enabled: !!channelId && !!participants[1] },
+    query: { enabled: !!channelId && !!participants[1], refetchInterval: 5000 },
   });
   const mptKey2 = useBridgeCoreRead({
     functionName: "getL2MptKey",
     args: channelId && participants[2] ? [channelId as `0x${string}`, participants[2]] : undefined,
-    query: { enabled: !!channelId && !!participants[2] },
+    query: { enabled: !!channelId && !!participants[2], refetchInterval: 5000 },
   });
   const mptKey3 = useBridgeCoreRead({
     functionName: "getL2MptKey",
     args: channelId && participants[3] ? [channelId as `0x${string}`, participants[3]] : undefined,
-    query: { enabled: !!channelId && !!participants[3] },
+    query: { enabled: !!channelId && !!participants[3], refetchInterval: 5000 },
   });
   const mptKey4 = useBridgeCoreRead({
     functionName: "getL2MptKey",
     args: channelId && participants[4] ? [channelId as `0x${string}`, participants[4]] : undefined,
-    query: { enabled: !!channelId && !!participants[4] },
+    query: { enabled: !!channelId && !!participants[4], refetchInterval: 5000 },
   });
   const mptKey5 = useBridgeCoreRead({
     functionName: "getL2MptKey",
     args: channelId && participants[5] ? [channelId as `0x${string}`, participants[5]] : undefined,
-    query: { enabled: !!channelId && !!participants[5] },
+    query: { enabled: !!channelId && !!participants[5], refetchInterval: 5000 },
   });
   const mptKey6 = useBridgeCoreRead({
     functionName: "getL2MptKey",
     args: channelId && participants[6] ? [channelId as `0x${string}`, participants[6]] : undefined,
-    query: { enabled: !!channelId && !!participants[6] },
+    query: { enabled: !!channelId && !!participants[6], refetchInterval: 5000 },
   });
   const mptKey7 = useBridgeCoreRead({
     functionName: "getL2MptKey",
     args: channelId && participants[7] ? [channelId as `0x${string}`, participants[7]] : undefined,
-    query: { enabled: !!channelId && !!participants[7] },
+    query: { enabled: !!channelId && !!participants[7], refetchInterval: 5000 },
   });
 
   const deposits = [deposit0, deposit1, deposit2, deposit3, deposit4, deposit5, deposit6, deposit7];

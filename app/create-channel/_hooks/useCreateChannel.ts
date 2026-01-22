@@ -14,6 +14,13 @@ import {
 import { FIXED_TARGET_CONTRACT } from "@tokamak/config";
 import { saveChannelToDatabase, type AppType } from "../_utils/saveChannel";
 
+export type CreateChannelStep =
+  | "idle"
+  | "signing"
+  | "confirming"
+  | "completed"
+  | "error";
+
 interface UseCreateChannelParams {
   participants: Array<{ address: `0x${string}` }>;
   isValid: () => boolean;
@@ -34,6 +41,7 @@ export function useCreateChannel({
   const [error, setError] = useState<string | null>(null);
   const [createdChannelId, setCreatedChannelId] = useState<string | null>(null);
   const [txHash, setTxHash] = useState<string>("");
+  const [currentStep, setCurrentStep] = useState<CreateChannelStep>("idle");
 
   // Contract write hook (address and abi are pre-configured)
   const {
@@ -63,26 +71,36 @@ export function useCreateChannel({
   // Update states based on contract hooks
   useEffect(() => {
     setIsCreating(isWriting);
-  }, [isWriting]);
+    // When writing starts (pending signature), move to signing step
+    if (isWriting && currentStep === "idle") {
+      setCurrentStep("signing");
+    }
+  }, [isWriting, currentStep]);
 
   useEffect(() => {
     setIsConfirming(isWaiting);
   }, [isWaiting]);
 
+  // When txHash is received, user has signed - move to confirming step
   useEffect(() => {
     if (writeTxHash) {
       setTxHash(writeTxHash);
+      if (currentStep === "signing") {
+        setCurrentStep("confirming");
+      }
     }
-  }, [writeTxHash]);
+  }, [writeTxHash, currentStep]);
 
   useEffect(() => {
     if (writeError) {
       setError(writeError.message);
       setIsCreating(false);
+      setCurrentStep("error");
     } else if (waitError) {
       setError(waitError.message);
       setIsConfirming(false);
       setIsCreating(false);
+      setCurrentStep("error");
     }
   }, [writeError, waitError]);
 
@@ -185,6 +203,7 @@ export function useCreateChannel({
       setTxHash(receipt.transactionHash); // Ensure txHash is set from receipt
       setIsConfirming(false);
       setIsCreating(false);
+      setCurrentStep("completed");
     } catch (error) {
       const errorMessage =
         error instanceof Error
@@ -193,6 +212,7 @@ export function useCreateChannel({
       setError(errorMessage);
       setIsConfirming(false);
       setIsCreating(false);
+      setCurrentStep("error");
     }
   }, [receipt, isSuccess, abi, participants, appType]);
 
@@ -258,6 +278,7 @@ export function useCreateChannel({
     setError(null);
     setCreatedChannelId(null);
     setTxHash("");
+    setCurrentStep("idle");
   }, []);
 
   return {
@@ -267,6 +288,7 @@ export function useCreateChannel({
     error,
     createdChannelId,
     txHash,
+    currentStep,
     reset,
   };
 }

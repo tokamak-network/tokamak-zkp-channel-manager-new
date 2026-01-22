@@ -7,6 +7,8 @@ import { Button, Card } from "@tokamak/ui";
 import {
   AlertCircle,
   CheckCircle,
+  CheckCircle2,
+  Circle,
   Loader2,
   ChevronRight,
   FileText,
@@ -17,6 +19,7 @@ import { useCloseChannel } from "../_hooks/useCloseChannel";
 import { useBridgeCoreRead, useBridgeProofManagerRead } from "@/hooks/contract";
 import { generateClientSideProof } from "@/lib/clientProofGeneration";
 import { keccak256, encodePacked } from "viem";
+import { CloseChannelConfirmModal, type CloseChannelModalStep } from "./_components/CloseChannelConfirmModal";
 
 interface VerifiedProof {
   key: string;
@@ -70,6 +73,7 @@ export default function CloseChannelPage() {
     isSubmitting: isSubmittingTransaction,
     isTransactionSuccess: submitProofSuccess,
     error: submitProofError,
+    currentStep: submitProofStep,
   } = useSubmitProof(channelId);
 
   // Phase 2 states
@@ -84,6 +88,10 @@ export default function CloseChannelPage() {
     pB: [bigint, bigint, bigint, bigint, bigint, bigint, bigint, bigint];
     pC: [bigint, bigint, bigint, bigint];
   } | null>(null);
+
+  // Modal state for Phase 2
+  const [showCloseChannelModal, setShowCloseChannelModal] = useState(false);
+  const [closeChannelModalStep, setCloseChannelModalStep] = useState<CloseChannelModalStep>("idle");
 
   // Get channel data for Phase 2
   const { data: channelParticipantsRaw } = useBridgeCoreRead({
@@ -134,6 +142,7 @@ export default function CloseChannelPage() {
     isProcessing: isClosingChannelProcessing,
     closeSuccess,
     error: closeChannelHookError,
+    currentStep: closeChannelStep,
   } = useCloseChannel({
     channelId: channelId as `0x${string}` | null,
     finalBalances: finalBalances.length > 0 ? finalBalances : undefined,
@@ -141,44 +150,66 @@ export default function CloseChannelPage() {
     proof: groth16Proof || undefined,
   });
 
-  // Load verified proofs from DB
-  useEffect(() => {
-    const fetchVerifiedProofs = async () => {
-      try {
-        setIsLoadingProofs(true);
-        const response = await fetch(
-          `/api/channels/${channelId}/proofs?type=verified`
-        );
-        const data = await response.json();
+  // Step definitions for inline progress display
+  const TRANSACTION_STEPS = [
+    { key: "signing", label: "Signing Transaction" },
+    { key: "confirming", label: "Confirming Transaction" },
+  ] as const;
 
-        if (data.success && data.data) {
-          let proofsArray: VerifiedProof[] = [];
-          if (Array.isArray(data.data)) {
-            proofsArray = data.data;
-          } else if (data.data && typeof data.data === "object") {
-            proofsArray = Object.entries(data.data).map(
-              ([key, value]: [string, any]) => ({
-                key,
-                ...value,
-              })
-            );
-          }
-          // Sort by sequence number descending (most recent first)
-          proofsArray.sort((a, b) => b.sequenceNumber - a.sequenceNumber);
-          setVerifiedProofs(proofsArray);
+  // Fetch verified proofs from DB - extracted as callback for reuse
+  const fetchVerifiedProofs = useCallback(async (options?: { silent?: boolean }) => {
+    const silent = options?.silent ?? false;
+    
+    if (!channelId) return;
+
+    try {
+      if (!silent) setIsLoadingProofs(true);
+      const response = await fetch(
+        `/api/channels/${channelId}/proofs?type=verified${silent ? "&silent=true" : ""}`
+      );
+      const data = await response.json();
+
+      if (data.success && data.data) {
+        let proofsArray: VerifiedProof[] = [];
+        if (Array.isArray(data.data)) {
+          proofsArray = data.data;
+        } else if (data.data && typeof data.data === "object") {
+          proofsArray = Object.entries(data.data).map(
+            ([key, value]: [string, any]) => ({
+              key,
+              ...value,
+            })
+          );
         }
-      } catch (error) {
-        console.error("Error fetching verified proofs:", error);
-        setProofsError("Failed to load verified proofs");
-      } finally {
-        setIsLoadingProofs(false);
+        // Sort by sequence number descending (most recent first)
+        proofsArray.sort((a, b) => b.sequenceNumber - a.sequenceNumber);
+        setVerifiedProofs(proofsArray);
       }
-    };
+    } catch (error) {
+      console.error("Error fetching verified proofs:", error);
+      if (!silent) setProofsError("Failed to load verified proofs");
+    } finally {
+      if (!silent) setIsLoadingProofs(false);
+    }
+  }, [channelId]);
 
+  // Initial load of verified proofs
+  useEffect(() => {
     if (channelId) {
       fetchVerifiedProofs();
     }
-  }, [channelId]);
+  }, [channelId, fetchVerifiedProofs]);
+
+  // Poll for verified proofs updates every 5 seconds (silent mode)
+  useEffect(() => {
+    if (!channelId) return;
+
+    const intervalId = setInterval(() => {
+      fetchVerifiedProofs({ silent: true });
+    }, 5000);
+
+    return () => clearInterval(intervalId);
+  }, [channelId, fetchVerifiedProofs]);
 
   // Check if user is leader
   useEffect(() => {
@@ -412,10 +443,17 @@ export default function CloseChannelPage() {
     preAllocatedKeys,
   ]);
 
-  // Phase 2: Verify final balances and close channel
+  // Open modal to start Phase 2
+  const handleOpenCloseChannelModal = useCallback(() => {
+    setCloseChannelModalStep("idle");
+    setShowCloseChannelModal(true);
+  }, []);
+
+  // Phase 2: Verify final balances and close channel (called from modal)
   const handleVerifyAndClose = useCallback(async () => {
     setIsClosingChannel(true);
     setCloseChannelError("");
+    setCloseChannelModalStep("preparing");
     setFinalProofStatus("Preparing final state data...");
 
     try {
@@ -423,21 +461,27 @@ export default function CloseChannelPage() {
       await buildPermutation();
 
       // Step 2: Generate Groth16 proof
+      setCloseChannelModalStep("generating_proof");
       await generateGroth16ProofForClose();
 
-      // Step 3: Close channel
+      // Step 3: Sign and submit transaction
+      setCloseChannelModalStep("signing");
       setFinalProofStatus("Submitting to blockchain...");
       await closeChannel();
 
+      // Note: confirming step will be set by useCloseChannel hook
       // Success - redirect to withdraw after a delay
+      setCloseChannelModalStep("completed");
       setTimeout(() => {
         router.push(`/state-explorer?channelId=${channelId}`);
       }, 2000);
     } catch (error) {
       console.error("Error closing channel:", error);
+      setCloseChannelModalStep("error");
       setCloseChannelError(
         error instanceof Error ? error.message : "Failed to close channel"
       );
+      throw error; // Re-throw so modal can catch it
     } finally {
       setIsClosingChannel(false);
       setFinalProofStatus("");
@@ -449,6 +493,25 @@ export default function CloseChannelPage() {
     channelId,
     router,
   ]);
+
+  // Handle modal close
+  const handleCloseChannelModalClose = useCallback(() => {
+    if (!isClosingChannel && !isClosingChannelProcessing) {
+      setShowCloseChannelModal(false);
+      setCloseChannelModalStep("idle");
+    }
+  }, [isClosingChannel, isClosingChannelProcessing]);
+
+  // Update modal step based on close channel hook step
+  useEffect(() => {
+    if (closeChannelStep === "signing" && closeChannelModalStep === "generating_proof") {
+      setCloseChannelModalStep("signing");
+    } else if (closeChannelStep === "confirming") {
+      setCloseChannelModalStep("confirming");
+    } else if (closeChannelStep === "completed") {
+      setCloseChannelModalStep("completed");
+    }
+  }, [closeChannelStep, closeChannelModalStep]);
 
   // Update error state from hook
   useEffect(() => {
@@ -601,6 +664,45 @@ export default function CloseChannelPage() {
               </div>
             )}
 
+            {/* Step Progress for Phase 1 */}
+            {isSubmittingTransaction && (
+              <div className="p-4 bg-blue-50 rounded-lg space-y-3">
+                <div className="text-sm font-medium text-blue-700 mb-2">
+                  Transaction Progress
+                </div>
+                {TRANSACTION_STEPS.map((step, index) => {
+                  const currentIndex = TRANSACTION_STEPS.findIndex(
+                    (s) => s.key === submitProofStep
+                  );
+                  const isActive = step.key === submitProofStep;
+                  const isCompleted = currentIndex > index;
+
+                  return (
+                    <div key={step.key} className="flex items-center gap-3">
+                      {isCompleted ? (
+                        <CheckCircle2 className="w-5 h-5 text-[#3EB100] flex-shrink-0" />
+                      ) : isActive ? (
+                        <Loader2 className="w-5 h-5 text-[#2A72E5] animate-spin flex-shrink-0" />
+                      ) : (
+                        <Circle className="w-5 h-5 text-[#CCCCCC] flex-shrink-0" />
+                      )}
+                      <span
+                        className={`text-sm ${
+                          isActive
+                            ? "text-[#2A72E5] font-medium"
+                            : isCompleted
+                              ? "text-[#3EB100]"
+                              : "text-[#999999]"
+                        }`}
+                      >
+                        {step.label}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
             <div className="flex justify-end gap-3">
               <Button
                 variant="outline"
@@ -717,6 +819,45 @@ export default function CloseChannelPage() {
               </div>
             )}
 
+            {/* Step Progress for Phase 2 - Close Channel Transaction */}
+            {isClosingChannelProcessing && (
+              <div className="p-4 bg-blue-50 rounded-lg space-y-3">
+                <div className="text-sm font-medium text-blue-700 mb-2">
+                  Transaction Progress
+                </div>
+                {TRANSACTION_STEPS.map((step, index) => {
+                  const currentIndex = TRANSACTION_STEPS.findIndex(
+                    (s) => s.key === closeChannelStep
+                  );
+                  const isActive = step.key === closeChannelStep;
+                  const isCompleted = currentIndex > index;
+
+                  return (
+                    <div key={step.key} className="flex items-center gap-3">
+                      {isCompleted ? (
+                        <CheckCircle2 className="w-5 h-5 text-[#3EB100] flex-shrink-0" />
+                      ) : isActive ? (
+                        <Loader2 className="w-5 h-5 text-[#2A72E5] animate-spin flex-shrink-0" />
+                      ) : (
+                        <Circle className="w-5 h-5 text-[#CCCCCC] flex-shrink-0" />
+                      )}
+                      <span
+                        className={`text-sm ${
+                          isActive
+                            ? "text-[#2A72E5] font-medium"
+                            : isCompleted
+                              ? "text-[#3EB100]"
+                              : "text-[#999999]"
+                        }`}
+                      >
+                        {step.label}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
             {closeChannelError && (
               <div className="flex items-center gap-2 text-red-500 bg-red-50 p-4 rounded-lg">
                 <AlertCircle className="h-5 w-5" />
@@ -740,7 +881,7 @@ export default function CloseChannelPage() {
                 Back to Phase 1
               </Button>
               <Button
-                onClick={handleVerifyAndClose}
+                onClick={handleOpenCloseChannelModal}
                 disabled={
                   isClosingChannel ||
                   isClosingChannelProcessing ||
@@ -749,16 +890,24 @@ export default function CloseChannelPage() {
                   !channelTreeSize
                 }
               >
-                {(isClosingChannel || isClosingChannelProcessing) && (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                )}
-                {isClosingChannel || isClosingChannelProcessing
-                  ? "Closing Channel..."
-                  : "Verify & Close Channel"}
+                Verify & Close Channel
               </Button>
             </div>
           </div>
         </Card>
+      )}
+
+      {/* Close Channel Confirm Modal */}
+      {channelId && (
+        <CloseChannelConfirmModal
+          isOpen={showCloseChannelModal}
+          onClose={handleCloseChannelModalClose}
+          onConfirm={handleVerifyAndClose}
+          channelId={channelId}
+          participantsCount={channelParticipants?.length || 0}
+          currentStep={closeChannelModalStep}
+          onStepChange={setCloseChannelModalStep}
+        />
       )}
     </div>
   );

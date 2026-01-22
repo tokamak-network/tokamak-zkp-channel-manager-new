@@ -9,20 +9,21 @@
 
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Image from "next/image";
 import {
   useAccount,
   useConnect,
   useDisconnect,
 } from "wagmi";
-import { Copy, ChevronDown, LogOut, Loader2, AlertCircle, CheckCircle } from "lucide-react";
+import { Copy, ChevronDown, LogOut, Loader2, AlertCircle, CheckCircle, Plus, Check } from "lucide-react";
 import { formatAddress } from "@/lib/utils/format";
 import { isValidBytes32 } from "@/lib/channelId";
 import { useGenerateMptKey } from "@/hooks/useGenerateMptKey";
 import { useTransactionHistory } from "@/hooks/useTransactionHistory";
 import { useChannelParticipantCheck } from "@/hooks/useChannelParticipantCheck";
 import { useChannelUserBalance } from "@/hooks/useChannelUserBalance";
+import { useConnectedAccounts } from "@/hooks/useConnectedAccounts";
 
 // Token symbol images
 import TONSymbol from "@/assets/symbols/TON.svg";
@@ -35,6 +36,35 @@ export function AccountPanel({ onClose }: AccountPanelProps) {
   const { address, isConnected } = useAccount();
   const { connect, connectors, isPending } = useConnect();
   const { disconnect } = useDisconnect();
+
+  // Multi-account support
+  const {
+    accounts,
+    isLoading: isLoadingAccounts,
+    requestMoreAccounts,
+    isRequestingAccounts,
+    refreshAccounts,
+  } = useConnectedAccounts();
+
+  // Account dropdown state
+  const [isAccountDropdownOpen, setIsAccountDropdownOpen] = useState(false);
+  const accountDropdownRef = useRef<HTMLDivElement>(null);
+  const [copiedDropdownAddress, setCopiedDropdownAddress] = useState<string | null>(null);
+
+  // Handle copy address in dropdown
+  const handleCopyDropdownAddress = async (address: string, e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent dropdown from closing
+    try {
+      await navigator.clipboard.writeText(address);
+      setCopiedDropdownAddress(address);
+      setTimeout(() => setCopiedDropdownAddress(null), 2000);
+    } catch (err) {
+      console.error("Failed to copy address:", err);
+    }
+  };
+
+  // Track previous address to detect account changes
+  const prevAddressRef = useRef<string | undefined>(address);
 
   // L2 Address calculation state - Channel ID input
   const [channelIdInput, setChannelIdInput] = useState("");
@@ -97,6 +127,20 @@ export function AccountPanel({ onClose }: AccountPanelProps) {
 
   // Copy states
   const [copiedMptKey, setCopiedMptKey] = useState(false);
+
+  // Reset channel data when account changes
+  useEffect(() => {
+    if (prevAddressRef.current !== address) {
+      // Account changed - reset all channel-related state
+      setChannelIdInput("");
+      setIsChannelLoaded(false);
+      setCopiedL2Address(false);
+      setCopiedMptKey(false);
+      setL1Transactions([]);
+      setTxNetworkType("channel");
+      prevAddressRef.current = address;
+    }
+  }, [address]);
 
   const handleCopyL2Address = async () => {
     if (!l2Address) return;
@@ -237,6 +281,29 @@ export function AccountPanel({ onClose }: AccountPanelProps) {
     }
   }, [channelIdInput, fetchL1Transactions]);
 
+  // Close account dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        accountDropdownRef.current &&
+        !accountDropdownRef.current.contains(event.target as Node)
+      ) {
+        setIsAccountDropdownOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
+  // Handle add account request
+  const handleAddAccount = async () => {
+    await requestMoreAccounts();
+    setIsAccountDropdownOpen(false);
+  };
+
   // Fetch real transaction history from verified proofs (Channel transactions - sent only)
   const {
     transactions: transactionHistory,
@@ -286,15 +353,133 @@ export function AccountPanel({ onClose }: AccountPanelProps) {
       className="font-mono flex flex-col gap-6"
       style={{ width: "100%" }}
     >
-      {/* Header: Address + Copy + Disconnect */}
+      {/* Header: Account Dropdown + Copy + Disconnect */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <span
-            className="font-semibold text-[#111111]"
-            style={{ fontSize: 24, lineHeight: "1.3em" }}
-          >
-            {formatAddress(address)}
-          </span>
+          {/* Account Dropdown */}
+          <div className="relative" ref={accountDropdownRef}>
+            <button
+              onClick={() => setIsAccountDropdownOpen(!isAccountDropdownOpen)}
+              className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+            >
+              <span
+                className="font-semibold text-[#111111]"
+                style={{ fontSize: 24, lineHeight: "1.3em" }}
+              >
+                {formatAddress(address)}
+              </span>
+              <ChevronDown
+                className={`w-5 h-5 text-[#111111] transition-transform ${
+                  isAccountDropdownOpen ? "rotate-180" : ""
+                }`}
+              />
+            </button>
+
+            {/* Dropdown Menu */}
+            {isAccountDropdownOpen && (
+              <div
+                className="absolute left-0 mt-2 bg-white shadow-lg z-20"
+                style={{
+                  minWidth: 280,
+                  border: "1px solid #DDDDDD",
+                  borderRadius: 4,
+                }}
+              >
+                {/* Account List */}
+                <div className="py-1">
+                  {isLoadingAccounts ? (
+                    <div className="flex items-center justify-center py-3 px-4">
+                      <Loader2 className="w-4 h-4 animate-spin text-[#999999]" />
+                      <span className="ml-2 text-[#999999]" style={{ fontSize: 14 }}>
+                        Loading accounts...
+                      </span>
+                    </div>
+                  ) : accounts.length > 0 ? (
+                    accounts.map((account) => (
+                      <div
+                        key={account.address}
+                        className={`flex items-center justify-between px-4 py-2.5 ${
+                          account.isActive
+                            ? "bg-[#F5F9FF]"
+                            : "hover:bg-gray-50"
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          {account.isActive && (
+                            <Check className="w-4 h-4 text-[#2A72E5]" />
+                          )}
+                          <span
+                            className={`font-mono ${
+                              account.isActive ? "text-[#2A72E5] font-medium" : "text-[#111111]"
+                            }`}
+                            style={{ fontSize: 14 }}
+                          >
+                            {formatAddress(account.address)}
+                          </span>
+                          {account.isActive && (
+                            <span
+                              className="text-[#2A72E5]"
+                              style={{ fontSize: 12 }}
+                            >
+                              (current)
+                            </span>
+                          )}
+                        </div>
+                        <button
+                          onClick={(e) => handleCopyDropdownAddress(account.address, e)}
+                          className="p-1 hover:bg-gray-200 rounded transition-colors"
+                          title={copiedDropdownAddress === account.address ? "Copied!" : "Copy address"}
+                        >
+                          {copiedDropdownAddress === account.address ? (
+                            <Check className="w-4 h-4 text-green-600" />
+                          ) : (
+                            <Copy className="w-4 h-4 text-[#666666]" />
+                          )}
+                        </button>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="px-4 py-2 text-[#999999]" style={{ fontSize: 14 }}>
+                      No accounts found
+                    </div>
+                  )}
+                </div>
+
+                {/* Divider */}
+                <div className="border-t border-[#EEEEEE]" />
+
+                {/* Switch Account Info */}
+                {accounts.length > 1 && (
+                  <div className="px-4 py-2 bg-[#F9F9F9]">
+                    <p className="text-[#666666]" style={{ fontSize: 12, lineHeight: "1.4em" }}>
+                      To switch accounts, click the account icon in MetaMask and select a different account.
+                    </p>
+                  </div>
+                )}
+
+                {/* Divider */}
+                {accounts.length > 1 && <div className="border-t border-[#EEEEEE]" />}
+
+                {/* Add Account Button */}
+                <button
+                  onClick={handleAddAccount}
+                  disabled={isRequestingAccounts}
+                  className="w-full flex items-center gap-2 px-4 py-2.5 hover:bg-gray-50 transition-colors disabled:opacity-50"
+                >
+                  {isRequestingAccounts ? (
+                    <Loader2 className="w-4 h-4 animate-spin text-[#2A72E5]" />
+                  ) : (
+                    <Plus className="w-4 h-4 text-[#2A72E5]" />
+                  )}
+                  <span className="text-[#2A72E5]" style={{ fontSize: 14 }}>
+                    {isRequestingAccounts ? "Requesting..." : "Add Account"}
+                  </span>
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Copy Address Button */}
           <button
             onClick={handleCopyAddress}
             className="hover:opacity-70 transition-opacity"

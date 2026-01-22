@@ -33,13 +33,20 @@ interface UseProofActionsReturn {
   deletingProofKey: string | null;
 
   // Approve actions
-  handleApproveSelected: () => Promise<void>;
+  handleApproveClick: () => void;
+  handleApproveConfirm: () => Promise<void>;
   selectedProofForApproval: string | null;
   setSelectedProofForApproval: (key: string | null) => void;
-  isVerifying: boolean;
+  showApproveConfirm: boolean;
+  setShowApproveConfirm: (show: boolean) => void;
+  proofToApprove: Proof | null;
+  isApproving: boolean;
+  isApproveSuccess: boolean;
+  approveError: string | null;
 
   // Verify actions
   handleVerifyProof: (proof: Proof) => Promise<void>;
+  isVerifying: boolean;
 }
 
 /**
@@ -64,6 +71,13 @@ export function useProofActions({
 
   // Approve state
   const [selectedProofForApproval, setSelectedProofForApproval] = useState<string | null>(null);
+  const [showApproveConfirm, setShowApproveConfirm] = useState(false);
+  const [proofToApprove, setProofToApprove] = useState<Proof | null>(null);
+  const [isApproving, setIsApproving] = useState(false);
+  const [isApproveSuccess, setIsApproveSuccess] = useState(false);
+  const [approveError, setApproveError] = useState<string | null>(null);
+
+  // Verify state (separate from approve)
   const [isVerifying, setIsVerifying] = useState(false);
 
   // Handle download all approved proofs
@@ -266,22 +280,55 @@ export function useProofActions({
     }
   }, [address]);
 
-  // Handle approve selected proof (leader only - persists to DB)
-  const handleApproveSelected = useCallback(async () => {
-    if (!selectedProofForApproval || !isLeader || !address) return;
+  // Handle approve button click - shows confirmation modal
+  const handleApproveClick = useCallback(() => {
+    console.log("[handleApproveClick] Opening approval modal...");
+    console.log("[handleApproveClick] selectedProofForApproval:", selectedProofForApproval);
 
-    const proofToApprove = proofs.find(
-      (p) => p.key === selectedProofForApproval
-    );
-
-    if (!proofToApprove || !proofToApprove.sequenceNumber) {
+    // Validate prerequisites
+    if (!selectedProofForApproval) {
+      alert("Please select a proof to approve");
+      return;
+    }
+    if (!isLeader) {
+      alert("Only the channel leader can approve proofs");
+      return;
+    }
+    if (!address) {
+      alert("Wallet not connected");
       return;
     }
 
-    setIsVerifying(true);
+    const proof = proofs.find((p) => p.key === selectedProofForApproval);
+
+    if (!proof) {
+      alert("Selected proof not found in proof list");
+      return;
+    }
+
+    // Check for sequenceNumber - allow 0 but not undefined/null
+    if (proof.sequenceNumber === undefined || proof.sequenceNumber === null) {
+      alert("Proof is missing sequence number. Please try refreshing the page.");
+      return;
+    }
+
+    // Set proof to approve and show modal
+    setProofToApprove(proof);
+    setApproveError(null);
+    setIsApproveSuccess(false);
+    setShowApproveConfirm(true);
+  }, [selectedProofForApproval, isLeader, address, proofs]);
+
+  // Handle approve confirmation - executes the approval
+  const handleApproveConfirm = useCallback(async () => {
+    if (!proofToApprove || !address) return;
+
+    console.log("[handleApproveConfirm] Starting approval...");
+    setIsApproving(true);
+    setApproveError(null);
 
     try {
-      // Call the approve-proof API which persists to DB
+      console.log("[handleApproveConfirm] Calling approve-proof API...");
       const response = await fetch("/api/tokamak-zk-evm", {
         method: "POST",
         headers: {
@@ -296,28 +343,32 @@ export function useProofActions({
         }),
       });
 
+      console.log("[handleApproveConfirm] API response status:", response.status);
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
+        console.error("[handleApproveConfirm] API error:", errorData);
         throw new Error(errorData.error || "Failed to approve proof");
       }
 
       const result = await response.json();
-      console.log("Proof approved successfully:", result);
+      console.log("[handleApproveConfirm] Proof approved successfully:", result);
 
       // Refresh proof list
       await onRefresh();
       setSelectedProofForApproval(null);
+      
+      // Show success state in modal
+      setIsApproveSuccess(true);
     } catch (error) {
-      console.error("Error approving proof:", error);
-      alert(
-        `Failed to approve proof: ${
-          error instanceof Error ? error.message : "Unknown error"
-        }`
+      console.error("[handleApproveConfirm] Error:", error);
+      setApproveError(
+        error instanceof Error ? error.message : "Failed to approve proof"
       );
     } finally {
-      setIsVerifying(false);
+      setIsApproving(false);
     }
-  }, [selectedProofForApproval, isLeader, address, proofs, channelId, onRefresh]);
+  }, [proofToApprove, address, channelId, onRefresh]);
 
   // Handle confirmed delete
   const handleDeleteConfirm = useCallback(async () => {
@@ -372,12 +423,19 @@ export function useProofActions({
     deletingProofKey,
 
     // Approve actions
-    handleApproveSelected,
+    handleApproveClick,
+    handleApproveConfirm,
     selectedProofForApproval,
     setSelectedProofForApproval,
-    isVerifying,
+    showApproveConfirm,
+    setShowApproveConfirm,
+    proofToApprove,
+    isApproving,
+    isApproveSuccess,
+    approveError,
 
     // Verify actions
     handleVerifyProof,
+    isVerifying,
   };
 }

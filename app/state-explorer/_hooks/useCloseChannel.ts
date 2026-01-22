@@ -13,6 +13,13 @@ import {
   useBridgeProofManagerWaitForReceipt,
 } from "@/hooks/contract";
 
+export type CloseChannelStep =
+  | "idle"
+  | "signing"
+  | "confirming"
+  | "completed"
+  | "error";
+
 interface ChannelFinalizationProof {
   pA: [bigint, bigint, bigint, bigint];
   pB: [bigint, bigint, bigint, bigint, bigint, bigint, bigint, bigint];
@@ -45,6 +52,7 @@ export function useCloseChannel({
 }: UseCloseChannelParams) {
   const [error, setError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [currentStep, setCurrentStep] = useState<CloseChannelStep>("idle");
 
   // Prepare close channel transaction (address and abi are pre-configured)
   const {
@@ -66,10 +74,28 @@ export function useCloseChannel({
     },
   });
 
-  // Update processing state
+  // Update processing state and step for signing
   useEffect(() => {
     setIsProcessing(isWriting || isWaiting);
-  }, [isWriting, isWaiting]);
+    // When pending signature, move to signing step
+    if (isWriting && currentStep === "idle") {
+      setCurrentStep("signing");
+    }
+  }, [isWriting, isWaiting, currentStep]);
+
+  // When txHash is received, user has signed - move to confirming step
+  useEffect(() => {
+    if (closeTxHash && currentStep === "signing") {
+      setCurrentStep("confirming");
+    }
+  }, [closeTxHash, currentStep]);
+
+  // Handle success
+  useEffect(() => {
+    if (closeSuccess && currentStep === "confirming") {
+      setCurrentStep("completed");
+    }
+  }, [closeSuccess, currentStep]);
 
   // Handle errors and reset processing state
   useEffect(() => {
@@ -80,6 +106,7 @@ export function useCloseChannel({
           : "Failed to submit close channel transaction";
       setError(errorMessage);
       setIsProcessing(false);
+      setCurrentStep("error");
       console.error("❌ Close channel write error:", writeError);
     }
   }, [writeError]);
@@ -92,6 +119,7 @@ export function useCloseChannel({
           : "Close channel transaction failed";
       setError(errorMessage);
       setIsProcessing(false);
+      setCurrentStep("error");
       console.error("❌ Close channel wait error:", waitError);
     }
   }, [waitError]);
@@ -206,6 +234,13 @@ export function useCloseChannel({
     [channelId, finalBalances, permutation, proof, writeCloseChannel]
   );
 
+  // Reset function
+  const reset = useCallback(() => {
+    setError(null);
+    setIsProcessing(false);
+    setCurrentStep("idle");
+  }, []);
+
   return {
     closeChannel,
     isProcessing,
@@ -214,5 +249,7 @@ export function useCloseChannel({
     closeSuccess,
     closeTxHash,
     error,
+    currentStep,
+    reset,
   };
 }

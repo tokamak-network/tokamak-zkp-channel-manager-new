@@ -63,3 +63,13 @@ export function parseInputAmount(amount: string, decimals: number = 18): bigint 
     return BigInt(0);
   }
 }
+
+/**
+ * Format number string with thousand separators (commas)
+ * e.g., "1234567.89" -> "1,234,567.89"
+ */
+export function formatWithCommas(value: string): string {
+  const parts = value.split('.');
+  parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  return parts.join('.');
+}

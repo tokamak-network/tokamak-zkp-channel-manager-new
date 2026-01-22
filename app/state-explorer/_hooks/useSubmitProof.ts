@@ -15,6 +15,13 @@ import {
   useBridgeProofManagerWaitForReceipt,
 } from "@/hooks/contract";
 
+export type SubmitProofStep =
+  | "idle"
+  | "signing"
+  | "confirming"
+  | "completed"
+  | "error";
+
 interface VerifiedProof {
   key: string;
   proofId: string;
@@ -37,6 +44,7 @@ export function useSubmitProof(channelId: string | null) {
   const [verifiedProofsList, setVerifiedProofsList] = useState<VerifiedProof[]>(
     []
   );
+  const [currentStep, setCurrentStep] = useState<SubmitProofStep>("idle");
 
   // Contract write hook
   const {
@@ -301,10 +309,33 @@ export function useSubmitProof(channelId: string | null) {
     }
   }, [channelId, writeContract, loadAndFormatProofs]);
 
+  // Step transitions based on contract hooks
+  useEffect(() => {
+    // When pending signature, move to signing step
+    if (isWritePending && currentStep === "idle") {
+      setCurrentStep("signing");
+    }
+  }, [isWritePending, currentStep]);
+
+  // When txHash is received, user has signed - move to confirming step
+  useEffect(() => {
+    if (txHash && currentStep === "signing") {
+      setCurrentStep("confirming");
+    }
+  }, [txHash, currentStep]);
+
+  // Handle success
+  useEffect(() => {
+    if (isTransactionSuccess && currentStep === "confirming") {
+      setCurrentStep("completed");
+    }
+  }, [isTransactionSuccess, currentStep]);
+
   // Reset submitting state when write error occurs
   useEffect(() => {
     if (writeError || receiptError) {
       setIsSubmitting(false);
+      setCurrentStep("error");
 
       // Log detailed error information
       if (writeError) {
@@ -400,6 +431,13 @@ export function useSubmitProof(channelId: string | null) {
   // Update error state
   const transactionError = writeError || receiptError;
 
+  // Reset function
+  const reset = useCallback(() => {
+    setError(null);
+    setIsSubmitting(false);
+    setCurrentStep("idle");
+  }, []);
+
   return {
     loadAndFormatProofs,
     submitProofs,
@@ -410,5 +448,7 @@ export function useSubmitProof(channelId: string | null) {
     formattedProofs,
     verifiedProofsList,
     txHash,
+    currentStep,
+    reset,
   };
 }

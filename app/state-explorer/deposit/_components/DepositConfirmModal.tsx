@@ -2,14 +2,15 @@
  * Deposit Confirm Modal
  *
  * Modal for confirming and completing deposit transaction
- * States: confirm -> processing -> completed
+ * Integrated flow: Sign for MPT key -> (Approve if needed) -> Sign for Deposit
  */
 
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, Loader2, CheckCircle2, Copy } from "lucide-react";
+import { X, Loader2, CheckCircle2, Copy, Circle } from "lucide-react";
 import { Button } from "@/components/ui";
+import type { DepositStep } from "../_hooks";
 
 interface DepositConfirmModalProps {
   channelId: string;
@@ -19,6 +20,7 @@ interface DepositConfirmModalProps {
   isProcessing: boolean;
   txHash: string | null;
   onClose: () => void;
+  currentStep?: DepositStep;
 }
 
 type ModalState = "confirm" | "processing" | "completed";
@@ -31,6 +33,7 @@ export function DepositConfirmModal({
   isProcessing,
   txHash,
   onClose,
+  currentStep = "idle",
 }: DepositConfirmModalProps) {
   const [modalState, setModalState] = useState<ModalState>("confirm");
   const [copiedChannelId, setCopiedChannelId] = useState(false);
@@ -38,15 +41,29 @@ export function DepositConfirmModal({
 
   // Update modal state based on props
   useEffect(() => {
-    if (isProcessing) {
+    if (currentStep === "completed") {
+      setModalState("completed");
+    } else if (isProcessing) {
       setModalState("processing");
     } else if (txHash) {
       setModalState("completed");
-    } else if (modalState === "processing") {
-      // If not processing anymore and no txHash, go back to confirm
+    } else if (modalState === "processing" && currentStep === "error") {
+      // If error occurred, go back to confirm
       setModalState("confirm");
     }
-  }, [isProcessing, txHash, modalState]);
+  }, [isProcessing, txHash, modalState, currentStep]);
+
+  // Get step progress info
+  const getStepInfo = (step: DepositStep) => {
+    const steps = [
+      { key: "signing_mpt", label: "Generating L2 MPT Key" },
+      { key: "signing_deposit", label: "Signing Deposit" },
+      { key: "confirming", label: "Confirming Transaction" },
+    ];
+
+    const currentIndex = steps.findIndex((s) => s.key === step);
+    return { steps, currentIndex };
+  };
 
   const handleConfirm = async () => {
     setModalState("processing");
@@ -183,8 +200,40 @@ export function DepositConfirmModal({
                 Processing Deposit
               </h3>
               <p className="text-[#666666]" style={{ fontSize: 14 }}>
-                Please wait while your deposit is being processed...
+                Please sign the transactions in your wallet
               </p>
+            </div>
+
+            {/* Step Progress */}
+            <div className="w-full space-y-3 pt-4 border-t border-[#EEEEEE]">
+              {getStepInfo(currentStep).steps.map((step, index) => {
+                const { currentIndex } = getStepInfo(currentStep);
+                const isActive = step.key === currentStep;
+                const isCompleted = currentIndex > index;
+
+                return (
+                  <div key={step.key} className="flex items-center gap-3">
+                    {isCompleted ? (
+                      <CheckCircle2 className="w-5 h-5 text-[#3EB100] flex-shrink-0" />
+                    ) : isActive ? (
+                      <Loader2 className="w-5 h-5 text-[#2A72E5] animate-spin flex-shrink-0" />
+                    ) : (
+                      <Circle className="w-5 h-5 text-[#CCCCCC] flex-shrink-0" />
+                    )}
+                    <span
+                      className={`text-sm ${
+                        isActive
+                          ? "text-[#2A72E5] font-medium"
+                          : isCompleted
+                            ? "text-[#3EB100]"
+                            : "text-[#999999]"
+                      }`}
+                    >
+                      {step.label}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
 
             {/* Transaction Details */}
