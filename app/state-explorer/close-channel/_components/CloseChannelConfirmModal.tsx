@@ -122,13 +122,7 @@ export function CloseChannelConfirmModal({
       case "preparing":
         return "Preparing final state data and permutation...";
       case "generating_proof":
-        return (
-          <>
-            Generating ZK proof...
-            <br />
-            This may take a few minutes
-          </>
-        );
+        return "Generating ZK proof...";
       case "signing":
         return "Please sign the transaction in your wallet";
       case "confirming":

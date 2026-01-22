@@ -283,6 +283,7 @@ function State3Page() {
     verifyFinalBalances,
     isProcessing: isVerifying,
     isTransactionSuccess,
+    txHash,
     error: hookError,
   } = useVerifyFinalBalances({
     channelId: currentChannelId as `0x${string}` | null,
@@ -295,8 +296,17 @@ function State3Page() {
   useEffect(() => {
     if (hookError) {
       setError(hookError);
+      setCloseChannelModalStep("error");
     }
   }, [hookError]);
+
+  // Update modal step based on transaction progress
+  useEffect(() => {
+    // When txHash is received, signing is done -> move to confirming
+    if (txHash && closeChannelModalStep === "signing") {
+      setCloseChannelModalStep("confirming");
+    }
+  }, [txHash, closeChannelModalStep]);
 
   // Dispatch event when transaction succeeds to trigger channel state refetch in parent
   useEffect(() => {
@@ -304,6 +314,8 @@ function State3Page() {
       console.log(
         "[State3Page] ✅ Transaction success, dispatching channel-close-success event"
       );
+      setCloseChannelModalStep("completed");
+      setIsProcessing(false);
       window.dispatchEvent(new CustomEvent("channel-close-success"));
     }
   }, [isTransactionSuccess]);
@@ -1005,7 +1017,9 @@ function State3Page() {
       setStatus("Submitting to blockchain...");
 
       // Pass the values directly to verifyFinalBalances instead of relying on state
-      await verifyFinalBalances({
+      // Note: verifyFinalBalances returns immediately after calling writeContract
+      // The actual completion is tracked via isTransactionSuccess in useEffect
+      verifyFinalBalances({
         finalBalances: permResult.finalBalances,
         permutation: permResult.permutation,
         proof: {
@@ -1024,8 +1038,8 @@ function State3Page() {
         },
       });
 
-      setCloseChannelModalStep("completed");
-      console.log("[State3Page] ✅ Close channel completed successfully");
+      // Don't set completed here - it will be set by useEffect watching isTransactionSuccess
+      console.log("[State3Page] ✅ Transaction submitted, waiting for confirmation...");
     } catch (err) {
       console.error("[State3Page] ❌ Error closing channel:", err);
       console.error("[State3Page] 📊 Error details:", {
@@ -1037,10 +1051,10 @@ function State3Page() {
       setError(err instanceof Error ? err.message : "Failed to close channel");
       setCloseChannelModalStep("error");
       setStatus("");
-      throw err; // Re-throw so modal can catch it
-    } finally {
       setIsProcessing(false);
+      throw err; // Re-throw so modal can catch it
     }
+    // Note: Don't set isProcessing to false here - it will be set when isTransactionSuccess becomes true
   };
 
   // Token balance from latest verified proof's state_snapshot
