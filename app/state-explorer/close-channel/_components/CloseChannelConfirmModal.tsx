@@ -197,13 +197,6 @@ export function CloseChannelConfirmModal({
               </div>
             </div>
 
-            {/* Warning */}
-            <div className="p-3 bg-[#FFF8E6] border border-[#FFE0B2] rounded-lg">
-              <p className="text-sm text-[#8B6914]">
-                This action cannot be undone. Make sure all participants have agreed to close the channel.
-              </p>
-            </div>
-
             <Button
               variant="primary"
               size="full"
