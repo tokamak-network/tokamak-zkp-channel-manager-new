@@ -26,6 +26,7 @@ import {
 } from "@/hooks/contract";
 import { generateClientSideProof } from "@/lib/clientProofGeneration";
 import JSZip from "jszip";
+import { CloseChannelConfirmModal, type CloseChannelModalStep } from "../close-channel/_components/CloseChannelConfirmModal";
 
 // Token symbol images
 import TONSymbol from "@/assets/symbols/TON.svg";
@@ -120,6 +121,10 @@ function State3Page() {
   // State for user balance from latest verified proof
   const [userBalanceFromSnapshot, setUserBalanceFromSnapshot] = useState<bigint>(BigInt(0));
   const [isLoadingBalance, setIsLoadingBalance] = useState(false);
+
+  // Modal state for close channel
+  const [showCloseChannelModal, setShowCloseChannelModal] = useState(false);
+  const [closeChannelModalStep, setCloseChannelModalStep] = useState<CloseChannelModalStep>("idle");
 
   // Load user balance from latest verified proof's state_snapshot
   useEffect(() => {
@@ -918,7 +923,21 @@ function State3Page() {
     channelTargetContract,
   ]);
 
-  // Handle close channel
+  // Open modal to start close channel process
+  const handleOpenCloseChannelModal = useCallback(() => {
+    setCloseChannelModalStep("idle");
+    setShowCloseChannelModal(true);
+  }, []);
+
+  // Handle modal close
+  const handleCloseChannelModalClose = useCallback(() => {
+    if (!isProcessing && !isVerifying) {
+      setShowCloseChannelModal(false);
+      setCloseChannelModalStep("idle");
+    }
+  }, [isProcessing, isVerifying]);
+
+  // Handle close channel (called from modal)
   const handleCloseChannel = async () => {
     console.log("[State3Page] 🚀 handleCloseChannel called");
     console.log("[State3Page] 📋 Initial state check:", {
@@ -938,7 +957,7 @@ function State3Page() {
     if (!currentChannelId) {
       setError("Channel ID is required");
       console.error("[State3Page] ❌ No channel ID");
-      return;
+      throw new Error("Channel ID is required");
     }
 
     console.log(
@@ -948,6 +967,7 @@ function State3Page() {
 
     setIsProcessing(true);
     setError(null);
+    setCloseChannelModalStep("preparing");
     setStatus("Preparing final state data...");
 
     try {
@@ -960,6 +980,7 @@ function State3Page() {
       });
 
       // Step 2: Generate Groth16 proof
+      setCloseChannelModalStep("generating_proof");
       console.log("[State3Page] 🔐 Step 2: Generating Groth16 proof...");
       const proofResult = await generateGroth16ProofForClose();
       console.log("[State3Page] ✅ Groth16 proof generated:", {
@@ -969,6 +990,7 @@ function State3Page() {
       });
 
       // Step 3: Verify final balances and close channel
+      setCloseChannelModalStep("signing");
       console.log("[State3Page] 🔗 Step 3: Verifying final balances...");
       console.log("[State3Page] 📋 Data to submit:", {
         finalBalances: permResult.finalBalances,
@@ -1002,6 +1024,7 @@ function State3Page() {
         },
       });
 
+      setCloseChannelModalStep("completed");
       console.log("[State3Page] ✅ Close channel completed successfully");
     } catch (err) {
       console.error("[State3Page] ❌ Error closing channel:", err);
@@ -1012,7 +1035,9 @@ function State3Page() {
         err,
       });
       setError(err instanceof Error ? err.message : "Failed to close channel");
+      setCloseChannelModalStep("error");
       setStatus("");
+      throw err; // Re-throw so modal can catch it
     } finally {
       setIsProcessing(false);
     }
@@ -1030,7 +1055,7 @@ function State3Page() {
       <div className="flex flex-col gap-12">
         {isLeader && (
           <button
-            onClick={handleCloseChannel}
+            onClick={handleOpenCloseChannelModal}
             disabled={
               isProcessing ||
               isVerifying ||
@@ -1046,19 +1071,13 @@ function State3Page() {
               padding: "16px 24px",
               borderRadius: 4,
               border: "1px solid #111111",
-              backgroundColor:
-                isProcessing || isVerifying ? "#BBBBBB" : "#0FBCBC",
+              backgroundColor: isTransactionSuccess ? "#3EB100" : "#0FBCBC",
               color: "#FFFFFF",
               fontSize: 18,
               lineHeight: "1.3em",
             }}
           >
-            {isProcessing || isVerifying ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Processing...
-              </>
-            ) : isTransactionSuccess ? (
+            {isTransactionSuccess ? (
               <>
                 <CheckCircle className="w-4 h-4 mr-2" />
                 Closed
@@ -1168,6 +1187,19 @@ function State3Page() {
         <p className="mt-6 text-sm text-[#999999] text-center">
           Please connect your wallet to close the channel.
         </p>
+      )}
+
+      {/* Close Channel Confirm Modal */}
+      {currentChannelId && (
+        <CloseChannelConfirmModal
+          isOpen={showCloseChannelModal}
+          onClose={handleCloseChannelModalClose}
+          onConfirm={handleCloseChannel}
+          channelId={currentChannelId}
+          participantsCount={(channelParticipants as unknown as `0x${string}`[])?.length || 0}
+          currentStep={closeChannelModalStep}
+          onStepChange={setCloseChannelModalStep}
+        />
       )}
     </div>
   );
