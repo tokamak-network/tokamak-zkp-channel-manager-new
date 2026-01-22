@@ -18,7 +18,7 @@ import { usePreAllocatedLeavesCount } from "../_hooks/usePreAllocatedLeavesCount
 import { useChannelIdExists } from "../_hooks/useChannelIdExists";
 import { calculateMaxParticipants } from "../_utils";
 import { getL1NetworkName, SUPPORTED_TOKENS, type TokenSymbol } from "@tokamak/config";
-import { Info, Check, Copy, ChevronDown, AlertTriangle } from "lucide-react";
+import { Info, Check, Copy, ChevronDown, AlertTriangle, Circle, CheckCircle2 } from "lucide-react";
 import { Button, Input, TokenButton, Label } from "@/components/ui";
 
 // Token symbol images
@@ -412,6 +412,69 @@ export function CreateChannelForm() {
             })}
           </div>
         </div>
+
+        {/* Validation Checklist */}
+        {!isFormValid && (
+          <div className="space-y-2 p-4 bg-[#F8F9FA] rounded border border-[#E5E5E5]">
+            <p className="text-sm font-medium text-[#666666] mb-3">Requirements:</p>
+            
+            {/* App Selection */}
+            <div className="flex items-center gap-2">
+              {selectedApp ? (
+                <CheckCircle2 className="w-4 h-4 text-[#3EB100]" />
+              ) : (
+                <Circle className="w-4 h-4 text-[#999999]" />
+              )}
+              <span className={`text-sm ${selectedApp ? "text-[#3EB100]" : "text-[#666666]"}`}>
+                Select an app type
+              </span>
+            </div>
+
+            {/* Channel ID Generation */}
+            <div className="flex items-center gap-2">
+              {generatedChannelId && !channelIdExists ? (
+                <CheckCircle2 className="w-4 h-4 text-[#3EB100]" />
+              ) : generatedChannelId && channelIdExists ? (
+                <AlertTriangle className="w-4 h-4 text-[#DC3545]" />
+              ) : (
+                <Circle className="w-4 h-4 text-[#999999]" />
+              )}
+              <span className={`text-sm ${
+                generatedChannelId && !channelIdExists 
+                  ? "text-[#3EB100]" 
+                  : generatedChannelId && channelIdExists
+                    ? "text-[#DC3545]"
+                    : "text-[#666666]"
+              }`}>
+                {generatedChannelId && channelIdExists 
+                  ? "Channel ID already exists - change salt"
+                  : "Generate a Channel ID"}
+              </span>
+            </div>
+
+            {/* Participant Address */}
+            <div className="flex items-center gap-2">
+              {validAddressCount >= 1 ? (
+                <CheckCircle2 className="w-4 h-4 text-[#3EB100]" />
+              ) : (
+                <Circle className="w-4 h-4 text-[#999999]" />
+              )}
+              <span className={`text-sm ${validAddressCount >= 1 ? "text-[#3EB100]" : "text-[#666666]"}`}>
+                Add at least one participant address
+              </span>
+            </div>
+
+            {/* Wallet Connection */}
+            {!isConnected && (
+              <div className="flex items-center gap-2">
+                <Circle className="w-4 h-4 text-[#999999]" />
+                <span className="text-sm text-[#666666]">
+                  Connect your wallet
+                </span>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Create Channel Button */}
         <Button size="full" onClick={handleOpenConfirmModal} disabled={!isFormValid}>
