@@ -5,7 +5,7 @@
  * Flow: Amount input -> Click Deposit -> Sign for MPT key -> Sign for Deposit
  */
 
-import { useCallback, useState } from "react";
+import { useCallback, useState, useEffect } from "react";
 import { useAccount, useSignMessage } from "wagmi";
 import { parseUnits } from "viem";
 import { L2_PRV_KEY_MESSAGE } from "@/lib/l2KeyMessage";
@@ -85,23 +85,35 @@ export function useIntegratedDeposit({
     },
   });
 
-  // Handle deposit success
-  if (depositSuccess && currentStep === "confirming") {
-    setCurrentStep("completed");
-    if (onDepositSuccess) {
-      onDepositSuccess();
+  // Move to "confirming" step when tx hash is received (user signed in MetaMask)
+  useEffect(() => {
+    if (depositTxHash && currentStep === "signing_deposit") {
+      setCurrentStep("confirming");
+      console.log("✅ [Step 2] Transaction signed, waiting for confirmation...");
     }
-  }
+  }, [depositTxHash, currentStep]);
+
+  // Handle deposit success
+  useEffect(() => {
+    if (depositSuccess && currentStep === "confirming") {
+      setCurrentStep("completed");
+      if (onDepositSuccess) {
+        onDepositSuccess();
+      }
+    }
+  }, [depositSuccess, currentStep, onDepositSuccess]);
 
   // Handle deposit errors
-  if ((depositWriteError || depositTxError) && currentStep !== "error") {
-    setCurrentStep("error");
-    setError(
-      depositWriteError?.message ||
-        depositTxError?.message ||
-        "Deposit transaction failed"
-    );
-  }
+  useEffect(() => {
+    if ((depositWriteError || depositTxError) && currentStep !== "error" && currentStep !== "idle") {
+      setCurrentStep("error");
+      setError(
+        depositWriteError?.message ||
+          depositTxError?.message ||
+          "Deposit transaction failed"
+      );
+    }
+  }, [depositWriteError, depositTxError, currentStep]);
 
   const reset = useCallback(() => {
     setCurrentStep("idle");
@@ -164,13 +176,12 @@ export function useIntegratedDeposit({
         throw new Error("Invalid channel ID");
       }
 
+      // This triggers MetaMask popup - step changes to "confirming" when txHash is received
       writeDeposit({
         functionName: "depositToken",
         args: [channelIdBytes32, amount, generatedMptKey],
       });
-
-      setCurrentStep("confirming");
-      console.log("✅ [Step 2b] Deposit transaction submitted");
+      // Don't set "confirming" here - wait for depositTxHash in useEffect
     } catch (err) {
       console.error("❌ Error in deposit flow:", err);
 
@@ -201,7 +212,6 @@ export function useIntegratedDeposit({
 
   const isProcessing =
     currentStep === "signing_mpt" ||
-    currentStep === "approving" ||
     currentStep === "signing_deposit" ||
     currentStep === "confirming" ||
     isDepositPending ||
