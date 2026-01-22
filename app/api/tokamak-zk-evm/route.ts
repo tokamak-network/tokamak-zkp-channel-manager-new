@@ -133,8 +133,8 @@ async function handleApproveProof(body: ApproveProofRequest) {
       );
     }
 
-    // Perform all operations atomically
-    const operations: Promise<any>[] = [];
+    // Perform operations SEQUENTIALLY to avoid race conditions
+    // (Parallel writes with lowdb can cause data loss)
 
     // 1. Move verified proof to verifiedProofs
     // Use Unix timestamp instead of ISO string to avoid timezone issues
@@ -144,7 +144,7 @@ async function handleApproveProof(body: ApproveProofRequest) {
       verifiedAt: Date.now(), // Unix timestamp (milliseconds)
       verifiedBy: verifierAddress,
     };
-    operations.push(saveProof(channelId, "verified", verifiedProof));
+    await saveProof(channelId, "verified", verifiedProof);
 
     // 2. Move other proofs with same sequenceNumber to rejectedProofs
     const rejectedProofs = sameSequenceProofs
@@ -158,18 +158,15 @@ async function handleApproveProof(body: ApproveProofRequest) {
       }));
 
     for (const rejectedProof of rejectedProofs) {
-      operations.push(saveProof(channelId, "rejected", rejectedProof));
+      await saveProof(channelId, "rejected", rejectedProof);
     }
 
     // 3. Remove all proofs from submittedProofs
     for (const proofToRemove of sameSequenceProofs) {
       if (proofToRemove.key) {
-        operations.push(deleteProof(channelId, "submitted", proofToRemove.key));
+        await deleteProof(channelId, "submitted", proofToRemove.key);
       }
     }
-
-    // Execute all operations
-    await Promise.all(operations);
 
     return NextResponse.json({
       success: true,

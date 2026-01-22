@@ -156,44 +156,60 @@ export default function CloseChannelPage() {
     { key: "confirming", label: "Confirming Transaction" },
   ] as const;
 
-  // Load verified proofs from DB
-  useEffect(() => {
-    const fetchVerifiedProofs = async () => {
-      try {
-        setIsLoadingProofs(true);
-        const response = await fetch(
-          `/api/channels/${channelId}/proofs?type=verified`
-        );
-        const data = await response.json();
+  // Fetch verified proofs from DB - extracted as callback for reuse
+  const fetchVerifiedProofs = useCallback(async (options?: { silent?: boolean }) => {
+    const silent = options?.silent ?? false;
+    
+    if (!channelId) return;
 
-        if (data.success && data.data) {
-          let proofsArray: VerifiedProof[] = [];
-          if (Array.isArray(data.data)) {
-            proofsArray = data.data;
-          } else if (data.data && typeof data.data === "object") {
-            proofsArray = Object.entries(data.data).map(
-              ([key, value]: [string, any]) => ({
-                key,
-                ...value,
-              })
-            );
-          }
-          // Sort by sequence number descending (most recent first)
-          proofsArray.sort((a, b) => b.sequenceNumber - a.sequenceNumber);
-          setVerifiedProofs(proofsArray);
+    try {
+      if (!silent) setIsLoadingProofs(true);
+      const response = await fetch(
+        `/api/channels/${channelId}/proofs?type=verified${silent ? "&silent=true" : ""}`
+      );
+      const data = await response.json();
+
+      if (data.success && data.data) {
+        let proofsArray: VerifiedProof[] = [];
+        if (Array.isArray(data.data)) {
+          proofsArray = data.data;
+        } else if (data.data && typeof data.data === "object") {
+          proofsArray = Object.entries(data.data).map(
+            ([key, value]: [string, any]) => ({
+              key,
+              ...value,
+            })
+          );
         }
-      } catch (error) {
-        console.error("Error fetching verified proofs:", error);
-        setProofsError("Failed to load verified proofs");
-      } finally {
-        setIsLoadingProofs(false);
+        // Sort by sequence number descending (most recent first)
+        proofsArray.sort((a, b) => b.sequenceNumber - a.sequenceNumber);
+        setVerifiedProofs(proofsArray);
       }
-    };
+    } catch (error) {
+      console.error("Error fetching verified proofs:", error);
+      if (!silent) setProofsError("Failed to load verified proofs");
+    } finally {
+      if (!silent) setIsLoadingProofs(false);
+    }
+  }, [channelId]);
 
+  // Initial load of verified proofs
+  useEffect(() => {
     if (channelId) {
       fetchVerifiedProofs();
     }
-  }, [channelId]);
+  }, [channelId, fetchVerifiedProofs]);
+
+  // Poll for verified proofs updates every 5 seconds (silent mode)
+  useEffect(() => {
+    if (!channelId) return;
+
+    const intervalId = setInterval(() => {
+      fetchVerifiedProofs({ silent: true });
+    }, 5000);
+
+    return () => clearInterval(intervalId);
+  }, [channelId, fetchVerifiedProofs]);
 
   // Check if user is leader
   useEffect(() => {

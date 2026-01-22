@@ -303,25 +303,41 @@ function TransactionPage() {
     }
 
     // Save proof metadata to DB
-    await fetch("/api/db", {
+    const metadataPayload = {
+      proofId,
+      sequenceNumber: proofNumber,
+      subNumber,
+      submittedAt: Date.now(),
+      submitter: address,
+      timestamp: Date.now(),
+      uploadStatus: "complete",
+      status: "pending",
+      channelId: normalizedChannelId,
+    };
+
+    console.log("[handleGenerateProof] Saving proof metadata:", {
+      path: `channels.${normalizedChannelId}.submittedProofs.${storageProofId}`,
+      data: metadataPayload,
+    });
+
+    const metadataResponse = await fetch("/api/db", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         path: `channels.${normalizedChannelId}.submittedProofs.${storageProofId}`,
-        data: {
-          proofId,
-          sequenceNumber: proofNumber,
-          subNumber,
-          submittedAt: Date.now(),
-          submitter: address,
-          timestamp: Date.now(),
-          uploadStatus: "complete",
-          status: "pending",
-          channelId: normalizedChannelId,
-        },
+        data: metadataPayload,
         operation: "update",
       }),
     });
+
+    if (!metadataResponse.ok) {
+      const errorData = await metadataResponse.json().catch(() => ({}));
+      console.error("[handleGenerateProof] Failed to save metadata:", errorData);
+      throw new Error("Failed to save proof metadata to database");
+    }
+
+    const metadataResult = await metadataResponse.json();
+    console.log("[handleGenerateProof] Metadata saved successfully:", metadataResult);
 
     // Download the ZIP file
     const url = URL.createObjectURL(reconstructedZipBlob);

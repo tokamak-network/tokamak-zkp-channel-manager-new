@@ -268,19 +268,46 @@ export function useProofActions({
 
   // Handle approve selected proof (leader only - persists to DB)
   const handleApproveSelected = useCallback(async () => {
-    if (!selectedProofForApproval || !isLeader || !address) return;
+    console.log("[handleApproveSelected] Starting approval...");
+    console.log("[handleApproveSelected] selectedProofForApproval:", selectedProofForApproval);
+    console.log("[handleApproveSelected] isLeader:", isLeader);
+    console.log("[handleApproveSelected] address:", address);
+
+    // Validate prerequisites
+    if (!selectedProofForApproval) {
+      alert("Please select a proof to approve");
+      return;
+    }
+    if (!isLeader) {
+      alert("Only the channel leader can approve proofs");
+      return;
+    }
+    if (!address) {
+      alert("Wallet not connected");
+      return;
+    }
 
     const proofToApprove = proofs.find(
       (p) => p.key === selectedProofForApproval
     );
 
-    if (!proofToApprove || !proofToApprove.sequenceNumber) {
+    console.log("[handleApproveSelected] proofToApprove:", proofToApprove);
+
+    if (!proofToApprove) {
+      alert("Selected proof not found in proof list");
+      return;
+    }
+
+    // Check for sequenceNumber - allow 0 but not undefined/null
+    if (proofToApprove.sequenceNumber === undefined || proofToApprove.sequenceNumber === null) {
+      alert("Proof is missing sequence number. Please try refreshing the page.");
       return;
     }
 
     setIsVerifying(true);
 
     try {
+      console.log("[handleApproveSelected] Calling approve-proof API...");
       // Call the approve-proof API which persists to DB
       const response = await fetch("/api/tokamak-zk-evm", {
         method: "POST",
@@ -296,19 +323,23 @@ export function useProofActions({
         }),
       });
 
+      console.log("[handleApproveSelected] API response status:", response.status);
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
+        console.error("[handleApproveSelected] API error:", errorData);
         throw new Error(errorData.error || "Failed to approve proof");
       }
 
       const result = await response.json();
-      console.log("Proof approved successfully:", result);
+      console.log("[handleApproveSelected] Proof approved successfully:", result);
 
       // Refresh proof list
       await onRefresh();
       setSelectedProofForApproval(null);
+      alert("Proof approved successfully!");
     } catch (error) {
-      console.error("Error approving proof:", error);
+      console.error("[handleApproveSelected] Error:", error);
       alert(
         `Failed to approve proof: ${
           error instanceof Error ? error.message : "Unknown error"
