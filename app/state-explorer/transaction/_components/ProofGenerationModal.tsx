@@ -128,14 +128,20 @@ export function ProofGenerationModal({
     : "";
 
   // Get description based on current step
-  const getStepDescription = () => {
+  const getStepDescription = (): React.ReactNode => {
     switch (currentStep) {
       case "signing":
         return "Please sign the transaction in your wallet";
       case "synthesizer":
         return "Running L2 transaction synthesis...";
       case "making_proof":
-        return "Generating ZK proof... This may take a few minutes";
+        return (
+          <>
+            Generating ZK proof...
+            <br />
+            This may take a few minutes
+          </>
+        );
       case "verify":
         return "Verifying the generated proof...";
       default:
