@@ -1,0 +1,239 @@
+/**
+ * Custom Hook: useIntegratedDeposit
+ *
+ * Combines MPT key generation and deposit into a single integrated flow.
+ * Flow: Amount input -> Click Deposit -> Sign for MPT key -> Sign for Deposit
+ */
+
+import { useCallback, useState } from "react";
+import { useAccount, useSignMessage } from "wagmi";
+import { parseUnits } from "viem";
+import { L2_PRV_KEY_MESSAGE } from "@/lib/l2KeyMessage";
+import { deriveL2KeysAndAddressFromSignature } from "@/lib/tokamakl2js";
+import { toBytes32 } from "@/lib/channelId";
+import {
+  useBridgeDepositManagerWrite,
+  useBridgeDepositManagerWaitForReceipt,
+} from "@/hooks/contract";
+
+export type DepositStep =
+  | "idle"
+  | "signing_mpt" // Step 1: Signing for MPT key generation
+  | "mpt_generated" // MPT key generated, ready for deposit
+  | "approving" // Step 2a: Approving token (if needed)
+  | "signing_deposit" // Step 2b: Signing deposit transaction
+  | "confirming" // Waiting for transaction confirmation
+  | "completed" // Deposit completed
+  | "error"; // Error occurred
+
+interface UseIntegratedDepositParams {
+  channelId: string | null;
+  depositAmount: string;
+  tokenDecimals: number;
+  needsApproval: boolean;
+  approvalSuccess: boolean;
+  handleApprove: () => Promise<void>;
+  onDepositSuccess?: () => void;
+}
+
+interface UseIntegratedDepositReturn {
+  /** Start the integrated deposit flow */
+  startDeposit: () => Promise<void>;
+  /** Current step in the flow */
+  currentStep: DepositStep;
+  /** Generated MPT key */
+  mptKey: `0x${string}` | null;
+  /** Whether any operation is in progress */
+  isProcessing: boolean;
+  /** Error message if any */
+  error: string | null;
+  /** Deposit transaction hash */
+  txHash: `0x${string}` | undefined;
+  /** Reset the flow state */
+  reset: () => void;
+}
+
+/**
+ * Integrated deposit hook that combines MPT key generation and deposit
+ */
+export function useIntegratedDeposit({
+  channelId,
+  depositAmount,
+  tokenDecimals,
+  needsApproval,
+  approvalSuccess,
+  handleApprove,
+  onDepositSuccess,
+}: UseIntegratedDepositParams): UseIntegratedDepositReturn {
+  const { address, isConnected } = useAccount();
+  const { signMessageAsync } = useSignMessage();
+
+  const [currentStep, setCurrentStep] = useState<DepositStep>("idle");
+  const [mptKey, setMptKey] = useState<`0x${string}` | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  // Deposit transaction hooks
+  const {
+    writeContract: writeDeposit,
+    data: depositTxHash,
+    isPending: isDepositPending,
+    error: depositWriteError,
+    reset: resetDepositWrite,
+  } = useBridgeDepositManagerWrite();
+
+  const {
+    isLoading: isWaitingDeposit,
+    isSuccess: depositSuccess,
+    error: depositTxError,
+  } = useBridgeDepositManagerWaitForReceipt({
+    hash: depositTxHash,
+    query: {
+      enabled: !!depositTxHash,
+    },
+  });
+
+  // Handle deposit success
+  if (depositSuccess && currentStep === "confirming") {
+    setCurrentStep("completed");
+    if (onDepositSuccess) {
+      onDepositSuccess();
+    }
+  }
+
+  // Handle deposit errors
+  if ((depositWriteError || depositTxError) && currentStep !== "error") {
+    setCurrentStep("error");
+    setError(
+      depositWriteError?.message ||
+        depositTxError?.message ||
+        "Deposit transaction failed"
+    );
+  }
+
+  const reset = useCallback(() => {
+    setCurrentStep("idle");
+    setMptKey(null);
+    setError(null);
+    resetDepositWrite();
+  }, [resetDepositWrite]);
+
+  const startDeposit = useCallback(async () => {
+    // Validation
+    if (!isConnected || !address) {
+      setError("Please connect your wallet first");
+      setCurrentStep("error");
+      return;
+    }
+
+    if (!channelId) {
+      setError("Channel ID is required");
+      setCurrentStep("error");
+      return;
+    }
+
+    if (!depositAmount || parseFloat(depositAmount) < 0) {
+      setError("Please enter a valid deposit amount");
+      setCurrentStep("error");
+      return;
+    }
+
+    setError(null);
+
+    try {
+      // ========================================
+      // Step 1: Generate MPT Key (First Signature)
+      // ========================================
+      setCurrentStep("signing_mpt");
+
+      const message = L2_PRV_KEY_MESSAGE + channelId.toString();
+      console.log("📝 [Step 1] Signing for MPT key generation...");
+
+      const signature = await signMessageAsync({ message });
+      console.log("✅ [Step 1] Signature received");
+
+      // Generate MPT key from signature
+      const accountL2 = deriveL2KeysAndAddressFromSignature(signature, 0);
+      const generatedMptKey = accountL2.mptKey;
+      setMptKey(generatedMptKey);
+      console.log("✅ [Step 1] MPT key generated:", generatedMptKey);
+
+      setCurrentStep("mpt_generated");
+
+      // ========================================
+      // Step 2a: Handle Approval if needed
+      // ========================================
+      if (needsApproval && !approvalSuccess) {
+        setCurrentStep("approving");
+        console.log("📝 [Step 2a] Requesting token approval...");
+        await handleApprove();
+        console.log("✅ [Step 2a] Token approval completed");
+      }
+
+      // ========================================
+      // Step 2b: Execute Deposit (Second/Third Signature)
+      // ========================================
+      setCurrentStep("signing_deposit");
+      console.log("📝 [Step 2b] Executing deposit transaction...");
+
+      const amount = parseUnits(depositAmount, tokenDecimals);
+      const channelIdBytes32 = toBytes32(channelId);
+      if (!channelIdBytes32) {
+        throw new Error("Invalid channel ID");
+      }
+
+      writeDeposit({
+        functionName: "depositToken",
+        args: [channelIdBytes32, amount, generatedMptKey],
+      });
+
+      setCurrentStep("confirming");
+      console.log("✅ [Step 2b] Deposit transaction submitted");
+    } catch (err) {
+      console.error("❌ Error in deposit flow:", err);
+
+      if (err instanceof Error) {
+        if (
+          err.message.includes("User rejected") ||
+          err.message.includes("rejected")
+        ) {
+          setError("Transaction cancelled by user");
+        } else {
+          setError(err.message);
+        }
+      } else {
+        setError("An unexpected error occurred");
+      }
+
+      setCurrentStep("error");
+    }
+  }, [
+    isConnected,
+    address,
+    channelId,
+    depositAmount,
+    tokenDecimals,
+    needsApproval,
+    approvalSuccess,
+    signMessageAsync,
+    handleApprove,
+    writeDeposit,
+  ]);
+
+  const isProcessing =
+    currentStep === "signing_mpt" ||
+    currentStep === "approving" ||
+    currentStep === "signing_deposit" ||
+    currentStep === "confirming" ||
+    isDepositPending ||
+    isWaitingDeposit;
+
+  return {
+    startDeposit,
+    currentStep,
+    mptKey,
+    isProcessing,
+    error,
+    txHash: depositTxHash,
+    reset,
+  };
+}
