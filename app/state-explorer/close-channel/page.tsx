@@ -19,6 +19,7 @@ import { useCloseChannel } from "../_hooks/useCloseChannel";
 import { useBridgeCoreRead, useBridgeProofManagerRead } from "@/hooks/contract";
 import { generateClientSideProof } from "@/lib/clientProofGeneration";
 import { keccak256, encodePacked } from "viem";
+import { CloseChannelConfirmModal, type CloseChannelModalStep } from "./_components/CloseChannelConfirmModal";
 
 interface VerifiedProof {
   key: string;
@@ -87,6 +88,10 @@ export default function CloseChannelPage() {
     pB: [bigint, bigint, bigint, bigint, bigint, bigint, bigint, bigint];
     pC: [bigint, bigint, bigint, bigint];
   } | null>(null);
+
+  // Modal state for Phase 2
+  const [showCloseChannelModal, setShowCloseChannelModal] = useState(false);
+  const [closeChannelModalStep, setCloseChannelModalStep] = useState<CloseChannelModalStep>("idle");
 
   // Get channel data for Phase 2
   const { data: channelParticipantsRaw } = useBridgeCoreRead({
@@ -422,10 +427,17 @@ export default function CloseChannelPage() {
     preAllocatedKeys,
   ]);
 
-  // Phase 2: Verify final balances and close channel
+  // Open modal to start Phase 2
+  const handleOpenCloseChannelModal = useCallback(() => {
+    setCloseChannelModalStep("idle");
+    setShowCloseChannelModal(true);
+  }, []);
+
+  // Phase 2: Verify final balances and close channel (called from modal)
   const handleVerifyAndClose = useCallback(async () => {
     setIsClosingChannel(true);
     setCloseChannelError("");
+    setCloseChannelModalStep("preparing");
     setFinalProofStatus("Preparing final state data...");
 
     try {
@@ -433,21 +445,27 @@ export default function CloseChannelPage() {
       await buildPermutation();
 
       // Step 2: Generate Groth16 proof
+      setCloseChannelModalStep("generating_proof");
       await generateGroth16ProofForClose();
 
-      // Step 3: Close channel
+      // Step 3: Sign and submit transaction
+      setCloseChannelModalStep("signing");
       setFinalProofStatus("Submitting to blockchain...");
       await closeChannel();
 
+      // Note: confirming step will be set by useCloseChannel hook
       // Success - redirect to withdraw after a delay
+      setCloseChannelModalStep("completed");
       setTimeout(() => {
         router.push(`/state-explorer?channelId=${channelId}`);
       }, 2000);
     } catch (error) {
       console.error("Error closing channel:", error);
+      setCloseChannelModalStep("error");
       setCloseChannelError(
         error instanceof Error ? error.message : "Failed to close channel"
       );
+      throw error; // Re-throw so modal can catch it
     } finally {
       setIsClosingChannel(false);
       setFinalProofStatus("");
@@ -459,6 +477,25 @@ export default function CloseChannelPage() {
     channelId,
     router,
   ]);
+
+  // Handle modal close
+  const handleCloseChannelModalClose = useCallback(() => {
+    if (!isClosingChannel && !isClosingChannelProcessing) {
+      setShowCloseChannelModal(false);
+      setCloseChannelModalStep("idle");
+    }
+  }, [isClosingChannel, isClosingChannelProcessing]);
+
+  // Update modal step based on close channel hook step
+  useEffect(() => {
+    if (closeChannelStep === "signing" && closeChannelModalStep === "generating_proof") {
+      setCloseChannelModalStep("signing");
+    } else if (closeChannelStep === "confirming") {
+      setCloseChannelModalStep("confirming");
+    } else if (closeChannelStep === "completed") {
+      setCloseChannelModalStep("completed");
+    }
+  }, [closeChannelStep, closeChannelModalStep]);
 
   // Update error state from hook
   useEffect(() => {
@@ -828,7 +865,7 @@ export default function CloseChannelPage() {
                 Back to Phase 1
               </Button>
               <Button
-                onClick={handleVerifyAndClose}
+                onClick={handleOpenCloseChannelModal}
                 disabled={
                   isClosingChannel ||
                   isClosingChannelProcessing ||
@@ -837,16 +874,24 @@ export default function CloseChannelPage() {
                   !channelTreeSize
                 }
               >
-                {(isClosingChannel || isClosingChannelProcessing) && (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                )}
-                {isClosingChannel || isClosingChannelProcessing
-                  ? "Closing Channel..."
-                  : "Verify & Close Channel"}
+                Verify & Close Channel
               </Button>
             </div>
           </div>
         </Card>
+      )}
+
+      {/* Close Channel Confirm Modal */}
+      {channelId && (
+        <CloseChannelConfirmModal
+          isOpen={showCloseChannelModal}
+          onClose={handleCloseChannelModalClose}
+          onConfirm={handleVerifyAndClose}
+          channelId={channelId}
+          participantsCount={channelParticipants?.length || 0}
+          currentStep={closeChannelModalStep}
+          onStepChange={setCloseChannelModalStep}
+        />
       )}
     </div>
   );
