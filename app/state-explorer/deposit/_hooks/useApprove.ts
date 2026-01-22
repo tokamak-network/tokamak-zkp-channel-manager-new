@@ -54,7 +54,7 @@ export function useApprove({ tokenAddress, depositAmount }: UseApproveParams) {
     },
   });
 
-  // Check current allowance
+  // Check current allowance - refetch every block (12 seconds)
   const {
     data: allowance,
     isLoading: isLoadingAllowance,
@@ -69,7 +69,8 @@ export function useApprove({ tokenAddress, depositAmount }: UseApproveParams) {
         : undefined,
     query: {
       enabled: !!address && !!tokenAddress && !!depositManagerAddress,
-      // Don't cache - always fetch fresh data
+      // Refetch every 5 seconds for responsive UX
+      refetchInterval: 5_000,
       staleTime: 0,
       gcTime: 0,
     },

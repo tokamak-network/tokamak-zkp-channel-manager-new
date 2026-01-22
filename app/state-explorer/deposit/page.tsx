@@ -53,7 +53,6 @@ function DepositPage() {
   const {
     needsApproval,
     isApproving,
-    approvalSuccess,
     allowance,
     handleApprove,
     refetchAllowance,
@@ -111,13 +110,14 @@ function DepositPage() {
     return formatUnits(userTokenBalance, tokenDecimals);
   }, [userTokenBalance, tokenDecimals]);
 
-  // Form is valid when deposit amount is entered, no balance issues, and approval done (if needed)
+  // Form is valid when deposit amount is entered, no balance issues, and sufficient allowance
+  // needsApproval is recalculated every block based on current allowance vs deposit amount
   const isFormValid =
     depositAmount &&
     parseFloat(depositAmount) >= 0 &&
     !isInsufficientBalance &&
     !isProcessing &&
-    (!needsApproval || approvalSuccess);
+    !needsApproval; // Just check needsApproval - it's always up-to-date via refetchInterval
 
   // Modal state
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -259,7 +259,7 @@ function DepositPage() {
         </div>
 
         {/* Approve Button - Show when approval is needed */}
-        {needsApproval && !approvalSuccess && (
+        {needsApproval && (
           <div className="relative group">
             <Button
               variant="success"
@@ -295,7 +295,7 @@ function DepositPage() {
         )}
 
         {/* Deposit Button - Show when approval is done or not needed */}
-        {(!needsApproval || approvalSuccess) && (
+        {!needsApproval && (
           <Button
             variant="primary"
             size="full"
