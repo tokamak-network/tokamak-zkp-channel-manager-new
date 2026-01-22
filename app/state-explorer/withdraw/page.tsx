@@ -3,148 +3,102 @@
  *
  * Component for withdrawing tokens from closed channel
  * Shows when channel is closed
- *
- * Design:
- * - https://www.figma.com/design/0R11fVZOkNSTJjhTKvUjc7/Ooo?node-id=3148-243134
  */
 
 "use client";
 
-import Image from "next/image";
-import { Loader2, CheckCircle } from "lucide-react";
+import { useState } from "react";
+import { Button, Card, CardContent } from "@tokamak/ui";
 import { useChannelFlowStore } from "@/stores/useChannelFlowStore";
 import { useWithdraw } from "./_hooks";
+import { WithdrawConfirmModal } from "./_components";
 import { formatUnits } from "viem";
 
-// Token symbol images
-import TONSymbol from "@/assets/symbols/TON.svg";
-
-function WithdrawPage() {
+export function WithdrawPage() {
   const { currentChannelId } = useChannelFlowStore();
   const {
     handleWithdraw,
     isWithdrawing,
+    withdrawTxHash,
     withdrawSuccess,
+    error,
     withdrawableAmount,
-    channelTargetContract,
+    currentStep,
+    reset,
   } = useWithdraw({ channelId: currentChannelId });
+
+  // Modal state
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
 
   // Format withdrawable amount (assuming 18 decimals for ERC20 tokens)
   const formattedAmount = formatUnits(withdrawableAmount, 18);
+  const tokenSymbol = "TON";
 
-  // Token info for the channel's target contract
-  // Currently channels support single token (targetContract)
-  const tokenInfo = channelTargetContract
-    ? { symbol: "TON", amount: formattedAmount }
-    : null;
+  const handleOpenModal = () => {
+    setShowConfirmModal(true);
+  };
+
+  const handleCloseModal = () => {
+    setShowConfirmModal(false);
+    reset();
+  };
 
   return (
-    <div className="font-mono" style={{ width: 544 }}>
-      <div className="flex flex-col gap-6">
-        {/* Title */}
-        <h2
-          className="font-medium text-[#111111]"
-          style={{ fontSize: 32, lineHeight: "1.3em" }}
-        >
-          Withdraw
-        </h2>
+    <>
+      {/* Withdraw Confirm Modal */}
+      {showConfirmModal && currentChannelId && (
+        <WithdrawConfirmModal
+          channelId={currentChannelId}
+          amount={formattedAmount}
+          tokenSymbol={tokenSymbol}
+          onWithdraw={handleWithdraw}
+          isProcessing={isWithdrawing}
+          txHash={withdrawTxHash ?? null}
+          currentStep={currentStep}
+          onClose={handleCloseModal}
+        />
+      )}
 
-        {/* Amount Section */}
-        <div className="flex flex-col gap-3">
-          <span
-            className="font-medium text-[#111111]"
-            style={{ fontSize: 18, lineHeight: "1.3em" }}
-          >
-            Amount
-          </span>
+      <Card className="max-w-2xl">
+        <CardContent className="space-y-6 pt-6">
+          <div>
+            <h3 className="text-xl font-semibold mb-2">Withdraw Tokens</h3>
+            <p className="text-gray-600 text-sm">
+              Channel is closed. You can now withdraw your tokens.
+            </p>
+          </div>
 
-          {/* Token Balance Card */}
-          {tokenInfo && (
-            <div
-              className="flex items-center justify-between"
-              style={{
-                padding: "16px 24px",
-                borderRadius: 4,
-                border: "1px solid #5F5F5F",
-              }}
-            >
-              {/* Amount */}
-              <span
-                className="font-medium"
-                style={{
-                  fontSize: 24,
-                  lineHeight: "1.3em",
-                  color: "#2A72E5",
-                }}
-              >
-                {tokenInfo.amount}
-              </span>
+          {/* Withdrawable Amount */}
+          <div className="p-6 bg-gray-50 rounded-lg">
+            <p className="text-sm text-gray-600 mb-2">Available to Withdraw</p>
+            <p className="text-3xl font-bold text-gray-900">
+              {formattedAmount} {tokenSymbol}
+            </p>
+          </div>
 
-              {/* Token Pill */}
-              <div
-                className="flex items-center gap-2"
-                style={{
-                  height: 40,
-                  padding: "8px 12px",
-                  backgroundColor: "#DDDDDD",
-                  borderRadius: "46px 40px 40px 46px",
-                  border: "1px solid #9A9A9A",
-                }}
-              >
-                {/* Token Icon */}
-                <Image
-                  src={TONSymbol}
-                  alt={tokenInfo.symbol}
-                  width={24}
-                  height={24}
-                  className="rounded-full"
-                />
-                {/* Token Symbol */}
-                <span
-                  className="text-[#111111]"
-                  style={{ fontSize: 18, lineHeight: "1.3em" }}
-                >
-                  {tokenInfo.symbol}
-                </span>
-              </div>
+          {/* Status Messages */}
+          {withdrawSuccess && (
+            <div className="p-4 bg-green-50 border border-green-200 rounded text-green-700">
+              ✓ Tokens have been withdrawn successfully
             </div>
           )}
-        </div>
 
-        {/* Confirm Button */}
-        <button
-          onClick={handleWithdraw}
-          disabled={isWithdrawing || withdrawSuccess}
-          className="flex items-center justify-center font-mono font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          style={{
-            height: 40,
-            padding: "16px 24px",
-            borderRadius: 4,
-            border: "1px solid #111111",
-            backgroundColor: isWithdrawing ? "#BBBBBB" : "#2A72E5",
-            color: "#FFFFFF",
-            fontSize: 20,
-            lineHeight: "1.3em",
-          }}
-        >
-          {isWithdrawing ? (
-            <>
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              Processing...
-            </>
-          ) : withdrawSuccess ? (
-            <>
-              <CheckCircle className="w-4 h-4 mr-2" />
-              Withdrawn
-            </>
-          ) : (
-            "Confirm"
+          {error && (
+            <div className="p-4 bg-red-50 border border-red-200 rounded text-red-700">
+              {error}
+            </div>
           )}
-        </button>
-      </div>
 
-    </div>
+          {/* Withdraw Button */}
+          <Button
+            onClick={handleOpenModal}
+            disabled={isWithdrawing || withdrawSuccess}
+            className="w-full"
+          >
+            {withdrawSuccess ? "Already Withdrawn" : "Withdraw"}
+          </Button>
+        </CardContent>
+      </Card>
+    </>
   );
 }
-
-export default WithdrawPage;

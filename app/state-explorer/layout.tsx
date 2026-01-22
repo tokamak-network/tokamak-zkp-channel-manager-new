@@ -150,6 +150,8 @@ export default function StateExplorerLayout({
     initializeTxHash,
     proofStatus,
     error: initializeError,
+    currentStep: initializeCurrentStep,
+    reset: resetInitialize,
   } = useInitializeState({
     channelId: channelId as `0x${string}` | null,
   });
@@ -344,6 +346,7 @@ export default function StateExplorerLayout({
           isProcessing={isProcessing}
           isLoadingChannelData={isLoadingChannelData}
           txHash={initializeTxHash ?? null}
+          currentStep={initializeCurrentStep}
           onClose={handleCloseModal}
         />
       )}

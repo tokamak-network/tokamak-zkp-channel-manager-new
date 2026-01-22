@@ -7,6 +7,8 @@ import { Button, Card } from "@tokamak/ui";
 import {
   AlertCircle,
   CheckCircle,
+  CheckCircle2,
+  Circle,
   Loader2,
   ChevronRight,
   FileText,
@@ -70,6 +72,7 @@ export default function CloseChannelPage() {
     isSubmitting: isSubmittingTransaction,
     isTransactionSuccess: submitProofSuccess,
     error: submitProofError,
+    currentStep: submitProofStep,
   } = useSubmitProof(channelId);
 
   // Phase 2 states
@@ -134,12 +137,19 @@ export default function CloseChannelPage() {
     isProcessing: isClosingChannelProcessing,
     closeSuccess,
     error: closeChannelHookError,
+    currentStep: closeChannelStep,
   } = useCloseChannel({
     channelId: channelId as `0x${string}` | null,
     finalBalances: finalBalances.length > 0 ? finalBalances : undefined,
     permutation: permutation.length > 0 ? permutation : undefined,
     proof: groth16Proof || undefined,
   });
+
+  // Step definitions for inline progress display
+  const TRANSACTION_STEPS = [
+    { key: "signing", label: "Signing Transaction" },
+    { key: "confirming", label: "Confirming Transaction" },
+  ] as const;
 
   // Load verified proofs from DB
   useEffect(() => {
@@ -601,6 +611,45 @@ export default function CloseChannelPage() {
               </div>
             )}
 
+            {/* Step Progress for Phase 1 */}
+            {isSubmittingTransaction && (
+              <div className="p-4 bg-blue-50 rounded-lg space-y-3">
+                <div className="text-sm font-medium text-blue-700 mb-2">
+                  Transaction Progress
+                </div>
+                {TRANSACTION_STEPS.map((step, index) => {
+                  const currentIndex = TRANSACTION_STEPS.findIndex(
+                    (s) => s.key === submitProofStep
+                  );
+                  const isActive = step.key === submitProofStep;
+                  const isCompleted = currentIndex > index;
+
+                  return (
+                    <div key={step.key} className="flex items-center gap-3">
+                      {isCompleted ? (
+                        <CheckCircle2 className="w-5 h-5 text-[#3EB100] flex-shrink-0" />
+                      ) : isActive ? (
+                        <Loader2 className="w-5 h-5 text-[#2A72E5] animate-spin flex-shrink-0" />
+                      ) : (
+                        <Circle className="w-5 h-5 text-[#CCCCCC] flex-shrink-0" />
+                      )}
+                      <span
+                        className={`text-sm ${
+                          isActive
+                            ? "text-[#2A72E5] font-medium"
+                            : isCompleted
+                              ? "text-[#3EB100]"
+                              : "text-[#999999]"
+                        }`}
+                      >
+                        {step.label}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
             <div className="flex justify-end gap-3">
               <Button
                 variant="outline"
@@ -714,6 +763,45 @@ export default function CloseChannelPage() {
               <div className="flex items-center gap-3 p-4 bg-blue-50 rounded-lg">
                 <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
                 <span className="text-blue-600">{finalProofStatus}</span>
+              </div>
+            )}
+
+            {/* Step Progress for Phase 2 - Close Channel Transaction */}
+            {isClosingChannelProcessing && (
+              <div className="p-4 bg-blue-50 rounded-lg space-y-3">
+                <div className="text-sm font-medium text-blue-700 mb-2">
+                  Transaction Progress
+                </div>
+                {TRANSACTION_STEPS.map((step, index) => {
+                  const currentIndex = TRANSACTION_STEPS.findIndex(
+                    (s) => s.key === closeChannelStep
+                  );
+                  const isActive = step.key === closeChannelStep;
+                  const isCompleted = currentIndex > index;
+
+                  return (
+                    <div key={step.key} className="flex items-center gap-3">
+                      {isCompleted ? (
+                        <CheckCircle2 className="w-5 h-5 text-[#3EB100] flex-shrink-0" />
+                      ) : isActive ? (
+                        <Loader2 className="w-5 h-5 text-[#2A72E5] animate-spin flex-shrink-0" />
+                      ) : (
+                        <Circle className="w-5 h-5 text-[#CCCCCC] flex-shrink-0" />
+                      )}
+                      <span
+                        className={`text-sm ${
+                          isActive
+                            ? "text-[#2A72E5] font-medium"
+                            : isCompleted
+                              ? "text-[#3EB100]"
+                              : "text-[#999999]"
+                        }`}
+                      >
+                        {step.label}
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
             )}
 

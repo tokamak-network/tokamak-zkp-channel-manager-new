@@ -16,6 +16,7 @@ import { useTokenBalance } from "@/hooks/useTokenBalance";
 import { FIXED_TARGET_CONTRACT } from "@tokamak/config";
 import { formatUnits } from "viem";
 import { Copy, Info, CheckCircle2, Loader2, HelpCircle } from "lucide-react";
+import { formatWithCommas } from "@/lib/utils/format";
 import { Button, AmountInput } from "@/components/ui";
 import { DepositConfirmModal } from "./_components/DepositConfirmModal";
 
@@ -53,6 +54,7 @@ function DepositPage() {
   const {
     needsApproval,
     isApproving,
+    approvalSuccess,
     allowance,
     handleApprove,
     refetchAllowance,
@@ -65,7 +67,7 @@ function DepositPage() {
   // Format allowance for display
   const formattedAllowance = useMemo(() => {
     if (allowance === undefined) return "0";
-    return formatUnits(allowance, tokenDecimals);
+    return formatWithCommas(formatUnits(allowance, tokenDecimals));
   }, [allowance, tokenDecimals]);
 
   // Refetch allowance when deposit amount changes
@@ -107,17 +109,16 @@ function DepositPage() {
   // Format balance for display
   const formattedBalance = useMemo(() => {
     if (userTokenBalance === undefined) return "0";
-    return formatUnits(userTokenBalance, tokenDecimals);
+    return formatWithCommas(formatUnits(userTokenBalance, tokenDecimals));
   }, [userTokenBalance, tokenDecimals]);
 
-  // Form is valid when deposit amount is entered, no balance issues, and sufficient allowance
-  // needsApproval is recalculated every block based on current allowance vs deposit amount
+  // Form is valid when deposit amount is entered, no balance issues, and approval done (if needed)
   const isFormValid =
     depositAmount &&
     parseFloat(depositAmount) >= 0 &&
     !isInsufficientBalance &&
     !isProcessing &&
-    !needsApproval; // Just check needsApproval - it's always up-to-date via refetchInterval
+    (!needsApproval || approvalSuccess);
 
   // Modal state
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -259,7 +260,7 @@ function DepositPage() {
         </div>
 
         {/* Approve Button - Show when approval is needed */}
-        {needsApproval && (
+        {needsApproval && !approvalSuccess && (
           <div className="relative group">
             <Button
               variant="success"
@@ -295,7 +296,7 @@ function DepositPage() {
         )}
 
         {/* Deposit Button - Show when approval is done or not needed */}
-        {!needsApproval && (
+        {(!needsApproval || approvalSuccess) && (
           <Button
             variant="primary"
             size="full"

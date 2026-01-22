@@ -124,6 +124,7 @@ export function CreateChannelForm() {
     isConfirming,
     error: createError,
     txHash,
+    currentStep,
     reset,
   } = useCreateChannel({
     participants,
@@ -209,6 +210,7 @@ export function CreateChannelForm() {
           isCreating={isCreating}
           isConfirming={isConfirming}
           txHash={txHash}
+          currentStep={currentStep}
           onClose={() => {
             setShowConfirmModal(false);
             reset();

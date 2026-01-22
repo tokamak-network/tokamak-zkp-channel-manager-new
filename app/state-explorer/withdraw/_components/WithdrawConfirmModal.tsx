@@ -1,7 +1,7 @@
 /**
- * Initialize State Confirm Modal
+ * Withdraw Confirm Modal
  *
- * Modal for confirming and completing state initialization
+ * Modal for confirming and completing withdraw transaction
  * States: confirm -> processing -> completed
  */
 
@@ -10,8 +10,7 @@
 import { useState, useEffect } from "react";
 import { X, Loader2, CheckCircle2, Copy, Circle } from "lucide-react";
 import { Button } from "@/components/ui";
-import { ParticipantDeposits } from "./ParticipantDeposits";
-import type { InitializeStateStep } from "../_hooks/useInitializeState";
+import type { WithdrawStep } from "../_hooks";
 
 // Step definitions for progress display
 const TRANSACTION_STEPS = [
@@ -19,27 +18,29 @@ const TRANSACTION_STEPS = [
   { key: "confirming", label: "Confirming Transaction" },
 ] as const;
 
-interface InitializeStateConfirmModalProps {
+interface WithdrawConfirmModalProps {
   channelId: string;
-  onInitialize: () => Promise<void>;
+  amount: string;
+  tokenSymbol?: string;
+  onWithdraw: () => Promise<void>;
   isProcessing: boolean;
-  isLoadingChannelData: boolean;
   txHash: string | null;
   onClose: () => void;
-  currentStep?: InitializeStateStep;
+  currentStep?: WithdrawStep;
 }
 
 type ModalState = "confirm" | "processing" | "completed";
 
-export function InitializeStateConfirmModal({
+export function WithdrawConfirmModal({
   channelId,
-  onInitialize,
+  amount,
+  tokenSymbol = "TON",
+  onWithdraw,
   isProcessing,
-  isLoadingChannelData,
   txHash,
   onClose,
   currentStep = "idle",
-}: InitializeStateConfirmModalProps) {
+}: WithdrawConfirmModalProps) {
   const [modalState, setModalState] = useState<ModalState>("confirm");
   const [copiedChannelId, setCopiedChannelId] = useState(false);
   const [copiedTxHash, setCopiedTxHash] = useState(false);
@@ -51,20 +52,22 @@ export function InitializeStateConfirmModal({
 
   // Update modal state based on props
   useEffect(() => {
-    if (isProcessing) {
-      setModalState("processing");
-    } else if (txHash) {
+    if (currentStep === "completed") {
       setModalState("completed");
-    } else if (modalState === "processing") {
-      // If not processing anymore and no txHash, go back to confirm
+    } else if (isProcessing) {
+      setModalState("processing");
+    } else if (txHash && currentStep !== "error") {
+      setModalState("completed");
+    } else if (modalState === "processing" && currentStep === "error") {
+      // If error occurred, go back to confirm
       setModalState("confirm");
     }
-  }, [isProcessing, txHash, modalState]);
+  }, [isProcessing, txHash, modalState, currentStep]);
 
   const handleConfirm = async () => {
     setModalState("processing");
     try {
-      await onInitialize();
+      await onWithdraw();
     } catch (err) {
       // If user rejected or error occurred, go back to confirm state
       setModalState("confirm");
@@ -138,10 +141,10 @@ export function InitializeStateConfirmModal({
                 className="font-medium text-[#111111] mb-2"
                 style={{ fontSize: 24 }}
               >
-                Confirm Initialize
+                Confirm Withdraw
               </h3>
               <p className="text-[#666666]" style={{ fontSize: 14 }}>
-                Please confirm to initialize the channel state
+                Please confirm the withdrawal details below
               </p>
             </div>
 
@@ -164,35 +167,22 @@ export function InitializeStateConfirmModal({
                   </button>
                 </div>
               </div>
-            </div>
-
-            {/* Participant Deposits Summary - Leader only */}
-            <div className="w-full pt-2 border-t border-[#EEEEEE]">
-              <ParticipantDeposits
-                channelId={channelId}
-                tokenSymbol="TON"
-                tokenDecimals={18}
-                collapsible={false}
-                showLeaderCheck={true}
-                compact={true}
-              />
-            </div>
-
-            {isLoadingChannelData && (
-              <div className="text-center py-2">
-                <p className="text-[#666666]" style={{ fontSize: 12 }}>
-                  Loading channel data...
-                </p>
+              <div className="flex justify-between">
+                <span className="text-[#666666]" style={{ fontSize: 14 }}>
+                  Amount
+                </span>
+                <span className="text-[#111111] font-medium" style={{ fontSize: 14 }}>
+                  {amount} {tokenSymbol}
+                </span>
               </div>
-            )}
+            </div>
 
             <Button
               variant="primary"
               size="full"
               onClick={handleConfirm}
-              disabled={isLoadingChannelData}
             >
-              {isLoadingChannelData ? "Loading..." : "Confirm"}
+              Confirm
             </Button>
           </div>
         )}
@@ -206,7 +196,7 @@ export function InitializeStateConfirmModal({
                 className="font-medium text-[#111111] mb-2"
                 style={{ fontSize: 24 }}
               >
-                Initializing State
+                Processing Withdraw
               </h3>
               <p className="text-[#666666]" style={{ fontSize: 14 }}>
                 Please sign the transaction in your wallet
@@ -255,6 +245,14 @@ export function InitializeStateConfirmModal({
                   {truncatedChannelId}
                 </span>
               </div>
+              <div className="flex justify-between">
+                <span className="text-[#666666]" style={{ fontSize: 14 }}>
+                  Amount
+                </span>
+                <span className="text-[#111111] font-medium" style={{ fontSize: 14 }}>
+                  {amount} {tokenSymbol}
+                </span>
+              </div>
             </div>
           </div>
         )}
@@ -268,10 +266,10 @@ export function InitializeStateConfirmModal({
                 className="font-medium text-[#111111] mb-2"
                 style={{ fontSize: 24 }}
               >
-                State Initialized
+                Withdraw Completed
               </h3>
               <p className="text-[#666666]" style={{ fontSize: 14 }}>
-                The channel state has been successfully initialized.
+                Your tokens have been successfully withdrawn.
               </p>
             </div>
 
@@ -293,6 +291,14 @@ export function InitializeStateConfirmModal({
                     <Copy className={`w-4 h-4 ${copiedChannelId ? "text-[#3EB100]" : "text-[#666666]"}`} />
                   </button>
                 </div>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-[#666666]" style={{ fontSize: 14 }}>
+                  Amount
+                </span>
+                <span className="text-[#111111] font-medium" style={{ fontSize: 14 }}>
+                  {amount} {tokenSymbol}
+                </span>
               </div>
               {txHash && (
                 <div className="flex justify-between items-center">

@@ -9,9 +9,10 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { X, Loader2, CheckCircle2, Copy } from "lucide-react";
+import { X, Loader2, CheckCircle2, Copy, Circle } from "lucide-react";
 import { useChannelFlowStore } from "@/stores/useChannelFlowStore";
 import { Button } from "@/components/ui";
+import type { CreateChannelStep } from "../_hooks/useCreateChannel";
 
 interface TransactionConfirmModalProps {
   channelId: string;
@@ -21,9 +22,16 @@ interface TransactionConfirmModalProps {
   isConfirming: boolean;
   txHash: string | null;
   onClose: () => void;
+  currentStep?: CreateChannelStep;
 }
 
 type ModalState = "confirm" | "processing" | "completed";
+
+// Step definitions for progress display
+const TRANSACTION_STEPS = [
+  { key: "signing", label: "Signing Transaction" },
+  { key: "confirming", label: "Confirming Transaction" },
+] as const;
 
 export function TransactionConfirmModal({
   channelId,
@@ -33,11 +41,17 @@ export function TransactionConfirmModal({
   isConfirming,
   txHash,
   onClose,
+  currentStep = "idle",
 }: TransactionConfirmModalProps) {
   const router = useRouter();
   const [modalState, setModalState] = useState<ModalState>("confirm");
   const [copiedChannelId, setCopiedChannelId] = useState(false);
   const [copiedTxHash, setCopiedTxHash] = useState(false);
+
+  // Get current step index for progress display
+  const getCurrentStepIndex = () => {
+    return TRANSACTION_STEPS.findIndex((s) => s.key === currentStep);
+  };
 
   // Update modal state based on props
   useEffect(() => {
@@ -193,8 +207,40 @@ export function TransactionConfirmModal({
                 Creating Channel
               </h3>
               <p className="text-[#666666]" style={{ fontSize: 14 }}>
-                Please wait while your channel is being created...
+                Please sign the transaction in your wallet
               </p>
+            </div>
+
+            {/* Step Progress */}
+            <div className="w-full space-y-3 pt-4 border-t border-[#EEEEEE]">
+              {TRANSACTION_STEPS.map((step, index) => {
+                const currentIndex = getCurrentStepIndex();
+                const isActive = step.key === currentStep;
+                const isCompleted = currentIndex > index;
+
+                return (
+                  <div key={step.key} className="flex items-center gap-3">
+                    {isCompleted ? (
+                      <CheckCircle2 className="w-5 h-5 text-[#3EB100] flex-shrink-0" />
+                    ) : isActive ? (
+                      <Loader2 className="w-5 h-5 text-[#2A72E5] animate-spin flex-shrink-0" />
+                    ) : (
+                      <Circle className="w-5 h-5 text-[#CCCCCC] flex-shrink-0" />
+                    )}
+                    <span
+                      className={`text-sm ${
+                        isActive
+                          ? "text-[#2A72E5] font-medium"
+                          : isCompleted
+                            ? "text-[#3EB100]"
+                            : "text-[#999999]"
+                      }`}
+                    >
+                      {step.label}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
 
             {/* Transaction Details */}
