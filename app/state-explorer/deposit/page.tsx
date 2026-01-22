@@ -54,6 +54,7 @@ function DepositPage() {
     needsApproval,
     isApproving,
     approvalSuccess,
+    allowance,
     handleApprove,
     refetchAllowance,
     refetchBalance,
@@ -61,6 +62,12 @@ function DepositPage() {
     tokenAddress: tokenAddress as `0x${string}`,
     depositAmount,
   });
+
+  // Format allowance for display
+  const formattedAllowance = useMemo(() => {
+    if (allowance === undefined) return "0";
+    return formatUnits(allowance, tokenDecimals);
+  }, [allowance, tokenDecimals]);
 
   // Refetch allowance when deposit amount changes
   useEffect(() => {
@@ -243,6 +250,14 @@ function DepositPage() {
           </div>
         )}
 
+        {/* Current Allowance Display */}
+        <div className="flex justify-between items-center text-sm">
+          <span className="text-[#666666]">Current Approval</span>
+          <span className="text-[#111111] font-medium">
+            {formattedAllowance} {tokenSymbol}
+          </span>
+        </div>
+
         {/* Approve Button - Show when approval is needed */}
         {needsApproval && !approvalSuccess && (
           <div className="relative group">
@@ -250,7 +265,7 @@ function DepositPage() {
               variant="success"
               size="full"
               onClick={handleApprove}
-              disabled={!depositAmount || isApproving || isInsufficientBalance}
+              disabled={!depositAmount || isApproving}
             >
               <span className="flex items-center justify-center gap-2">
                 {isApproving
@@ -258,13 +273,13 @@ function DepositPage() {
                   : !depositAmount
                     ? "Enter Amount"
                     : "Approve"}
-                {!isApproving && depositAmount && !isInsufficientBalance && (
+                {!isApproving && depositAmount && (
                   <HelpCircle className="w-5 h-5 text-white/80" />
                 )}
               </span>
             </Button>
             {/* Tooltip - only show when ready to approve */}
-            {depositAmount && !isInsufficientBalance && (
+            {depositAmount && (
               <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-4 py-3 bg-[#333333] text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-10" style={{ width: 320 }}>
                 <p className="font-medium mb-1">Token Approval Required</p>
                 <p className="text-white/80 leading-relaxed">
