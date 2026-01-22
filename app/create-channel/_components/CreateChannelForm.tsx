@@ -7,15 +7,16 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Image from "next/image";
 import { useAccount } from "wagmi";
 import { useChannelFormStore } from "@/stores";
 import { TransactionConfirmModal } from "./TransactionConfirmModal";
 import { useCreateChannel } from "../_hooks/useCreateChannel";
 import { useChannelId } from "../_hooks/useChannelId";
+import { usePreAllocatedLeavesCount } from "../_hooks/usePreAllocatedLeavesCount";
 import { calculateMaxParticipants } from "../_utils";
-import { getL1NetworkName } from "@tokamak/config";
+import { getL1NetworkName, SUPPORTED_TOKENS, type TokenSymbol } from "@tokamak/config";
 import { Info, Check, Copy, ChevronDown } from "lucide-react";
 import { Button, Input, TokenButton, Label } from "@/components/ui";
 
@@ -44,6 +45,9 @@ export function CreateChannelForm() {
   const [selectedApp, setSelectedApp] = useState<AppType>(null);
   const [isAppDropdownOpen, setIsAppDropdownOpen] = useState(false);
 
+  // Selected tokens state (supports multiple tokens in future)
+  const [selectedTokens, setSelectedTokens] = useState<TokenSymbol[]>(["TON"]);
+
   // Modal state
   const [showConfirmModal, setShowConfirmModal] = useState(false);
 
@@ -56,10 +60,36 @@ export function CreateChannelForm() {
     generateChannelId,
   } = useChannelId({ participants });
 
-  // Calculate max participants dynamically based on Merkle tree config
-  // For multiple tokens in the future, pass the token count here
-  const tokenCount = 1; // Currently single token (TON)
-  const maxParticipants = calculateMaxParticipants(tokenCount);
+  // Get token addresses for selected tokens
+  const selectedTokenAddresses = useMemo(
+    () => selectedTokens.map((symbol) => SUPPORTED_TOKENS[symbol].address),
+    [selectedTokens]
+  );
+
+  // Fetch pre-allocated leaves count from contract (cached)
+  const { totalPreAllocatedCount, isLoading: isLoadingPreAllocated } =
+    usePreAllocatedLeavesCount(selectedTokenAddresses);
+
+  // Calculate max participants dynamically: N = (L - P) / S
+  // L = 16 (Merkle tree leaves), P = totalPreAllocatedCount, S = selectedTokens.length
+  const maxParticipants = calculateMaxParticipants(
+    totalPreAllocatedCount,
+    selectedTokens.length
+  );
+
+  // Toggle token selection (for future multi-token support)
+  const toggleToken = (symbol: TokenSymbol) => {
+    if (!SUPPORTED_TOKENS[symbol].enabled) return;
+
+    setSelectedTokens((prev) => {
+      if (prev.includes(symbol)) {
+        // Don't allow deselecting if it's the only token
+        if (prev.length === 1) return prev;
+        return prev.filter((s) => s !== symbol);
+      }
+      return [...prev, symbol];
+    });
+  };
 
   const [channelIdError, setChannelIdError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -229,19 +259,25 @@ export function CreateChannelForm() {
             <Label>Target</Label>
             <div className="flex gap-4">
               <TokenButton
-                selected
+                selected={selectedTokens.includes("TON")}
+                onClick={() => toggleToken("TON")}
+                disabled={!SUPPORTED_TOKENS.TON.enabled}
                 icon={<Image src={TONSymbol} alt="TON" width={24} height={24} />}
               >
                 TON
               </TokenButton>
               <TokenButton
-                disabled
+                selected={selectedTokens.includes("USDT")}
+                onClick={() => toggleToken("USDT")}
+                disabled={!SUPPORTED_TOKENS.USDT.enabled}
                 icon={<Image src={USDTSymbol} alt="USDT" width={24} height={24} />}
               >
                 USDT
               </TokenButton>
               <TokenButton
-                disabled
+                selected={selectedTokens.includes("USDC")}
+                onClick={() => toggleToken("USDC")}
+                disabled={!SUPPORTED_TOKENS.USDC.enabled}
                 icon={<Image src={USDCSymbol} alt="USDC" width={24} height={24} />}
               >
                 USDC
@@ -307,7 +343,7 @@ export function CreateChannelForm() {
 
         {/* Number of Participants */}
         <div className="space-y-4">
-          <Label hint={`Max ${maxParticipants}`}>
+          <Label hint={isLoadingPreAllocated ? "Loading..." : `Max ${maxParticipants}`}>
             Number of Participants
           </Label>
           <div className="w-full h-12 px-4 py-2 bg-[#F2F2F2] rounded flex items-center">

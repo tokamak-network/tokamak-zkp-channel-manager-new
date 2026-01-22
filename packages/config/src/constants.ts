@@ -26,17 +26,42 @@ export type ChannelStatus =
  *
  * Where:
  * - L: Number of Merkle tree leaves
- * - P: Number of pre-allocated keys (reserved slots)
- * - S: Number of storage slots per user
+ * - P: Number of pre-allocated keys (fetched from contract per token)
+ * - S: Number of selected tokens (storage slots per user)
  */
 export const MERKLE_TREE_CONFIG = {
   /** Number of Merkle tree leaves (L) */
   LEAVES: 16,
-  /** Number of pre-allocated keys / reserved slots (P) */
-  PRE_ALLOCATED_KEYS: 0,
-  /** Number of storage slots per user (S) */
-  USER_STORAGE_SLOTS: 1,
 } as const;
+
+/**
+ * Supported Tokens Configuration
+ *
+ * Token addresses for each supported token.
+ * Pre-allocated keys (P) are fetched from contract dynamically.
+ */
+export const SUPPORTED_TOKENS = {
+  TON: {
+    symbol: "TON",
+    name: "Tokamak Network",
+    address: "0xa30fe40285B8f5c0457DbC3B7C8A280373c40044" as `0x${string}`,
+    enabled: true,
+  },
+  USDT: {
+    symbol: "USDT",
+    name: "Tether USD",
+    address: "0x0000000000000000000000000000000000000000" as `0x${string}`, // TODO: Add real address
+    enabled: false, // Not yet supported
+  },
+  USDC: {
+    symbol: "USDC",
+    name: "USD Coin",
+    address: "0x0000000000000000000000000000000000000000" as `0x${string}`, // TODO: Add real address
+    enabled: false, // Not yet supported
+  },
+} as const;
+
+export type TokenSymbol = keyof typeof SUPPORTED_TOKENS;
 
 /**
  * DKG Status
