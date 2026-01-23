@@ -79,6 +79,10 @@ function TransactionPage() {
   // Ref to store keySeed for proof generation
   const keySeedRef = useRef<`0x${string}` | null>(null);
 
+  // State for storing generated proof for optional download
+  const [generatedProofBlob, setGeneratedProofBlob] = useState<Blob | null>(null);
+  const [generatedProofFileName, setGeneratedProofFileName] = useState<string | null>(null);
+
   // Proof actions from ProofList
   const [proofActions, setProofActions] = useState<{
     downloadAllApproved: () => void;
@@ -339,19 +343,27 @@ function TransactionPage() {
     const metadataResult = await metadataResponse.json();
     console.log("[handleGenerateProof] Metadata saved successfully:", metadataResult);
 
-    // Download the ZIP file
-    const url = URL.createObjectURL(reconstructedZipBlob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `l2-transaction-channel-${currentChannelId}.zip`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    // Store the ZIP blob for optional download
+    setGeneratedProofBlob(reconstructedZipBlob);
+    setGeneratedProofFileName(`l2-transaction-channel-${currentChannelId}.zip`);
 
     // Refresh proof list
     setProofListRefreshKey((prev) => prev + 1);
   }, [currentChannelId, address, recipient, tokenAmount, fetchSnapshot]);
+
+  // Handle proof download
+  const handleDownloadProof = useCallback(() => {
+    if (!generatedProofBlob || !generatedProofFileName) return;
+
+    const url = URL.createObjectURL(generatedProofBlob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = generatedProofFileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }, [generatedProofBlob, generatedProofFileName]);
 
   // Handle modal close
   const handleModalClose = () => {
@@ -361,6 +373,9 @@ function TransactionPage() {
     // Reset form
     setRecipient(null);
     setTokenAmount("");
+    // Reset proof download state
+    setGeneratedProofBlob(null);
+    setGeneratedProofFileName(null);
   };
 
   // Validation checks
@@ -518,6 +533,7 @@ function TransactionPage() {
           tokenSymbol="TON"
           currentStep={currentProofStep}
           onStepChange={setCurrentProofStep}
+          onDownload={generatedProofBlob ? handleDownloadProof : undefined}
         />
       )}
     </div>
