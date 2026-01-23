@@ -45,7 +45,17 @@ export function useChannelIdExists(
   });
 
   // If channel state is not 0 (NonExistent), the channel exists
-  const exists = channelState !== undefined && channelState !== CHANNEL_STATE_NON_EXISTENT;
+  // Convert to BigInt for safe comparison (handles both number and bigint returns)
+  let exists = false;
+  if (channelState !== undefined && channelState !== null) {
+    try {
+      const stateAsBigInt = BigInt(channelState.toString());
+      exists = stateAsBigInt !== CHANNEL_STATE_NON_EXISTENT;
+    } catch {
+      // If conversion fails, assume it doesn't exist
+      exists = false;
+    }
+  }
 
   return {
     exists,

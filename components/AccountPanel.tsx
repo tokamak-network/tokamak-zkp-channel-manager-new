@@ -108,13 +108,6 @@ export function AccountPanel({ onClose }: AccountPanelProps) {
   const l2Address = accountInfo?.l2Address || null;
   const mptKey = accountInfo?.mptKey || null;
 
-  // Log MPT Key to console when it's generated
-  useEffect(() => {
-    if (mptKey && isChannelLoaded && isChannelValid) {
-      console.log("[AccountPanel] MPT Key:", mptKey);
-    }
-  }, [mptKey, isChannelLoaded, isChannelValid]);
-
   // Use shared hook for channel balance (from verified proof or initial deposit)
   const {
     balance: channelBalance,
@@ -131,6 +124,13 @@ export function AccountPanel({ onClose }: AccountPanelProps) {
   const hasInput = Boolean(channelIdInput && channelIdInput.trim() !== "");
   const isFormatValid = hasInput && isValidBytes32(channelIdInput);
   const isChannelValid = isFormatValid && channelExists === true && isParticipant === true;
+
+  // Log MPT Key to console when it's generated
+  useEffect(() => {
+    if (mptKey && isChannelLoaded && isChannelValid) {
+      console.log("[AccountPanel] MPT Key:", mptKey);
+    }
+  }, [mptKey, isChannelLoaded, isChannelValid]);
 
   // Reset channel data when account changes
   useEffect(() => {

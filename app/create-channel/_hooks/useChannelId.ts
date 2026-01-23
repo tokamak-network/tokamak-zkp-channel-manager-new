@@ -22,6 +22,8 @@ export function useChannelId({ participants }: UseChannelIdParams) {
   const [hasInitialGeneration, setHasInitialGeneration] = useState(false);
   // Track the last used salt for comparison (to avoid unnecessary re-renders)
   const lastUsedSaltRef = useRef<string>("");
+  // Track the previous wallet address to detect changes
+  const prevAddressRef = useRef<Address | undefined>(undefined);
 
   // Determine leader address (the account that calls openChannel() transaction)
   const leaderAddress = useMemo(() => {
@@ -58,6 +60,31 @@ export function useChannelId({ participants }: UseChannelIdParams) {
       }
     }
   }, [salt, leaderAddress, hasInitialGeneration, computeChannelId]);
+
+  // Auto-regenerate channel ID when connected wallet changes
+  useEffect(() => {
+    // Skip on initial mount
+    if (prevAddressRef.current === undefined) {
+      prevAddressRef.current = connectedAddress;
+      return;
+    }
+
+    // Detect wallet change
+    if (prevAddressRef.current !== connectedAddress) {
+      prevAddressRef.current = connectedAddress;
+
+      // If channel ID was already generated, regenerate with new wallet
+      if (hasInitialGeneration && connectedAddress && lastUsedSaltRef.current) {
+        try {
+          const channelId = computeChannelId(connectedAddress, lastUsedSaltRef.current);
+          setGeneratedChannelId(channelId);
+          console.log("[useChannelId] Wallet changed, regenerated Channel ID:", channelId);
+        } catch (error) {
+          console.error("Error regenerating channel ID on wallet change:", error);
+        }
+      }
+    }
+  }, [connectedAddress, hasInitialGeneration, computeChannelId]);
 
   // Generate channel ID (initial generation or manual trigger)
   const generateChannelId = useCallback(() => {
