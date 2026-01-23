@@ -125,8 +125,12 @@ export function AccountPanel({ onClose }: AccountPanelProps) {
   const isFormatValid = hasInput && isValidBytes32(channelIdInput);
   const isChannelValid = isFormatValid && channelExists === true && isParticipant === true;
 
-  // Copy states
-  const [copiedMptKey, setCopiedMptKey] = useState(false);
+  // Log MPT Key to console when it's generated
+  useEffect(() => {
+    if (mptKey && isChannelLoaded && isChannelValid) {
+      console.log("[AccountPanel] MPT Key:", mptKey);
+    }
+  }, [mptKey, isChannelLoaded, isChannelValid]);
 
   // Reset channel data when account changes
   useEffect(() => {
@@ -135,7 +139,6 @@ export function AccountPanel({ onClose }: AccountPanelProps) {
       setChannelIdInput("");
       setIsChannelLoaded(false);
       setCopiedL2Address(false);
-      setCopiedMptKey(false);
       setL1Transactions([]);
       setTxNetworkType("channel");
       prevAddressRef.current = address;
@@ -150,17 +153,6 @@ export function AccountPanel({ onClose }: AccountPanelProps) {
       setTimeout(() => setCopiedL2Address(false), 2000);
     } catch (err) {
       console.error("Failed to copy L2 address:", err);
-    }
-  };
-
-  const handleCopyMptKey = async () => {
-    if (!mptKey) return;
-    try {
-      await navigator.clipboard.writeText(mptKey);
-      setCopiedMptKey(true);
-      setTimeout(() => setCopiedMptKey(false), 2000);
-    } catch (err) {
-      console.error("Failed to copy MPT key:", err);
     }
   };
 
@@ -632,45 +624,6 @@ export function AccountPanel({ onClose }: AccountPanelProps) {
           </div>
         )}
 
-        {/* MPT Key Result - Only show if channel is valid and loaded */}
-        {isChannelLoaded && isChannelValid && mptKey && (
-          <div className="flex flex-col gap-2">
-            <span
-              className="text-[#666666]"
-              style={{ fontSize: 14, lineHeight: "1.3em" }}
-            >
-              MPT Key
-            </span>
-            <div
-              className="relative"
-              style={{
-                padding: "14px 16px",
-                paddingRight: 48,
-                backgroundColor: "#F2F2F2",
-                borderRadius: 4,
-              }}
-            >
-              <span
-                className="text-[#111111] break-all"
-                style={{
-                  fontSize: 16,
-                  lineHeight: "1.3em",
-                }}
-              >
-                {mptKey}
-              </span>
-              <button
-                onClick={handleCopyMptKey}
-                className="absolute top-3 right-3 hover:opacity-70 transition-opacity"
-                title={copiedMptKey ? "Copied!" : "Copy MPT key"}
-              >
-                <Copy
-                  className={`w-6 h-6 ${copiedMptKey ? "text-green-600" : "text-[#111111]"}`}
-                />
-              </button>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Channel Balance Section (shows after channel ID is loaded and validated) */}

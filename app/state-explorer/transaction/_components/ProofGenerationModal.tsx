@@ -8,7 +8,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, Loader2, CheckCircle2, Circle } from "lucide-react";
+import { X, Loader2, CheckCircle2, Circle, Download } from "lucide-react";
 import { Button } from "@/components/ui";
 
 export type ProofGenerationStep =
@@ -39,6 +39,7 @@ interface ProofGenerationModalProps {
   tokenSymbol: string;
   currentStep?: ProofGenerationStep; // External step state from SSE
   onStepChange?: (step: ProofGenerationStep) => void; // Callback to update step
+  onDownload?: () => void; // Optional callback to download the generated proof
 }
 
 type ModalState = "confirm" | "processing" | "completed" | "error";
@@ -54,6 +55,7 @@ export function ProofGenerationModal({
   tokenSymbol,
   currentStep: externalStep,
   onStepChange,
+  onDownload,
 }: ProofGenerationModalProps) {
   const [modalState, setModalState] = useState<ModalState>("confirm");
   const [internalStep, setInternalStep] = useState<ProofGenerationStep>("idle");
@@ -316,7 +318,7 @@ export function ProofGenerationModal({
                 Proof Generated
               </h3>
               <p className="text-[#666666]" style={{ fontSize: 14 }}>
-                Your ZK proof has been successfully generated and downloaded.
+                Your ZK proof has been successfully generated and uploaded.
               </p>
             </div>
 
@@ -348,13 +350,25 @@ export function ProofGenerationModal({
               </div>
             </div>
 
-            <Button
-              variant="primary"
-              size="full"
-              onClick={handleClose}
-            >
-              Close
-            </Button>
+            <div className="w-full flex gap-3">
+              {onDownload && (
+                <Button
+                  variant="secondary"
+                  className="flex-1 flex items-center justify-center gap-2"
+                  onClick={onDownload}
+                >
+                  <Download className="w-4 h-4" />
+                  Download
+                </Button>
+              )}
+              <Button
+                variant="primary"
+                className="flex-1"
+                onClick={handleClose}
+              >
+                Close
+              </Button>
+            </div>
           </div>
         )}
 

@@ -28,6 +28,8 @@ interface UseProofGenerationReturn {
   isGenerating: boolean;
   error: string | null;
   reset: () => void;
+  downloadProof: () => void;
+  hasGeneratedProof: boolean;
 }
 
 export function useProofGeneration({
@@ -39,6 +41,8 @@ export function useProofGeneration({
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const [generatedProofBlob, setGeneratedProofBlob] = useState<Blob | null>(null);
+  const [generatedProofFileName, setGeneratedProofFileName] = useState<string | null>(null);
 
   const updateStep = useCallback(
     (step: ProofGenerationStep) => {
@@ -223,15 +227,9 @@ export function useProofGeneration({
           }),
         });
 
-        // Download the ZIP file
-        const url = URL.createObjectURL(reconstructedZipBlob);
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = `l2-transaction-channel-${channelId}.zip`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
+        // Store the ZIP blob for optional download
+        setGeneratedProofBlob(reconstructedZipBlob);
+        setGeneratedProofFileName(`l2-transaction-channel-${channelId}.zip`);
 
         updateStep("completed");
       } catch (err) {
@@ -258,7 +256,22 @@ export function useProofGeneration({
     setCurrentStep("idle");
     setIsGenerating(false);
     setError(null);
+    setGeneratedProofBlob(null);
+    setGeneratedProofFileName(null);
   }, []);
+
+  const downloadProof = useCallback(() => {
+    if (!generatedProofBlob || !generatedProofFileName) return;
+
+    const url = URL.createObjectURL(generatedProofBlob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = generatedProofFileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }, [generatedProofBlob, generatedProofFileName]);
 
   return {
     generateProofWithProgress,
@@ -266,6 +279,8 @@ export function useProofGeneration({
     isGenerating,
     error,
     reset,
+    downloadProof,
+    hasGeneratedProof: generatedProofBlob !== null,
   };
 }
 

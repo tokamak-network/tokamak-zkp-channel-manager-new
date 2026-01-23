@@ -12,7 +12,7 @@ import { useBridgeCoreRead } from "@/hooks/contract";
  * 0 = NonExistent (channel doesn't exist)
  * Other values = channel exists in various states
  */
-const CHANNEL_STATE_NON_EXISTENT = 0;
+const CHANNEL_STATE_NON_EXISTENT = 0n;
 
 interface UseChannelIdExistsResult {
   /** Whether the channel ID already exists */
@@ -41,11 +41,21 @@ export function useChannelIdExists(
   const { data: channelState, isLoading, isError } = useBridgeCoreRead({
     functionName: "getChannelState",
     args: channelId ? [channelId] : undefined,
-    enabled: !!channelId,
+    query: { enabled: !!channelId },
   });
 
   // If channel state is not 0 (NonExistent), the channel exists
-  const exists = channelState !== undefined && channelState !== CHANNEL_STATE_NON_EXISTENT;
+  // Convert to BigInt for safe comparison (handles both number and bigint returns)
+  let exists = false;
+  if (channelState !== undefined && channelState !== null) {
+    try {
+      const stateAsBigInt = BigInt(channelState.toString());
+      exists = stateAsBigInt !== CHANNEL_STATE_NON_EXISTENT;
+    } catch {
+      // If conversion fails, assume it doesn't exist
+      exists = false;
+    }
+  }
 
   return {
     exists,
