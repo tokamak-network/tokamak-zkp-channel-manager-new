@@ -51,6 +51,57 @@ const AmountInput = forwardRef<HTMLInputElement, AmountInputProps>(
     },
     ref
   ) => {
+    // Handle input change - only allow numbers and decimal point
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const inputValue = e.target.value;
+      
+      // Allow empty string
+      if (inputValue === "") {
+        onChange("");
+        return;
+      }
+      
+      // Only allow digits and one decimal point
+      // Regex: optional digits, optional decimal point, optional digits after decimal
+      const regex = /^[0-9]*\.?[0-9]*$/;
+      
+      if (regex.test(inputValue)) {
+        onChange(inputValue);
+      }
+    };
+
+    // Handle key down - prevent non-numeric keys
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+      // Allow: backspace, delete, tab, escape, enter, arrows
+      const allowedKeys = [
+        "Backspace", "Delete", "Tab", "Escape", "Enter",
+        "ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown",
+        "Home", "End"
+      ];
+      
+      if (allowedKeys.includes(e.key)) {
+        return;
+      }
+      
+      // Allow Ctrl/Cmd + A, C, V, X
+      if ((e.ctrlKey || e.metaKey) && ["a", "c", "v", "x"].includes(e.key.toLowerCase())) {
+        return;
+      }
+      
+      // Allow numbers
+      if (/^[0-9]$/.test(e.key)) {
+        return;
+      }
+      
+      // Allow decimal point (only one)
+      if (e.key === "." && !value.includes(".")) {
+        return;
+      }
+      
+      // Block everything else
+      e.preventDefault();
+    };
+
     return (
       <div className="flex flex-col gap-3 font-mono w-full">
         {/* Label */}
@@ -74,12 +125,14 @@ const AmountInput = forwardRef<HTMLInputElement, AmountInputProps>(
           {/* Left: Amount Input */}
           <input
             ref={ref}
-            type="number"
+            type="text"
+            inputMode="decimal"
             value={value}
-            onChange={(e) => onChange(e.target.value)}
+            onChange={handleChange}
+            onKeyDown={handleKeyDown}
             placeholder="0"
             disabled={disabled}
-            className="font-medium bg-transparent outline-none flex-1 min-w-0 disabled:cursor-not-allowed [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            className="font-medium bg-transparent outline-none flex-1 min-w-0 disabled:cursor-not-allowed"
             style={{
               fontSize: 48,
               lineHeight: "1em",
