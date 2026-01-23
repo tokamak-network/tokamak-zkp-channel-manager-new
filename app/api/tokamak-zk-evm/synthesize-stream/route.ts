@@ -234,10 +234,11 @@ export async function POST(req: NextRequest) {
           timeout: 300000,
         });
 
+        const verifyOutput = verifyStdout.toString();
         const isVerified =
-          verifyStdout.includes("Verify: verify output => true") ||
-          verifyStdout.includes("✓") ||
-          verifyStdout.toLowerCase().includes("success");
+          verifyOutput.includes("Verify: verify output => true") ||
+          verifyOutput.includes("✓") ||
+          verifyOutput.toLowerCase().includes("success");
 
         if (!isVerified) {
           throw new Error("Proof verification failed: The generated proof is invalid.");

@@ -15,9 +15,7 @@ import { AppLayout } from "@/components/AppLayout";
 import { formatAddress } from "@/lib/utils/format";
 import { useInitializeState } from "./_hooks/useInitializeState";
 import { InitializeStateConfirmModal } from "./_components/InitializeStateConfirmModal";
-import { CloseChannelConfirmModal } from "./_components/CloseChannelConfirmModal";
 import { ParticipantDeposits } from "./_components/ParticipantDeposits";
-import { useCloseChannel } from "./_hooks/useCloseChannel";
 import { useBridgeCoreRead } from "@/hooks/contract";
 import { Copy, Check } from "lucide-react";
 import { ChannelStepper } from "./_components/ChannelStepper";
@@ -157,29 +155,8 @@ export default function StateExplorerLayout({
     channelId: channelId as `0x${string}` | null,
   });
 
-  // Close channel hook
-  const {
-    closeChannel,
-    isProcessing: isClosingChannel,
-    isWriting: isWritingClose,
-    isWaiting: isWaitingClose,
-    closeSuccess,
-    closeTxHash,
-    error: closeError,
-  } = useCloseChannel({
-    channelId: channelId as `0x${string}` | null,
-  });
-
   // Modal state
   const [showConfirmModal, setShowConfirmModal] = useState(false);
-  const [showCloseChannelModal, setShowCloseChannelModal] = useState(false);
-
-  // Refetch channel state when close succeeds
-  useEffect(() => {
-    if (closeSuccess) {
-      refetchChannelState();
-    }
-  }, [closeSuccess, refetchChannelState]);
 
   // Redirect to home if no channel selected
   useEffect(() => {
@@ -214,36 +191,6 @@ export default function StateExplorerLayout({
     // Refetch channel state to check if it's now active
     // The page will automatically show transaction component when state changes
     await refetchChannelState();
-  };
-
-  const handleOpenCloseChannelModal = () => {
-    if (!channelId) return;
-    setShowCloseChannelModal(true);
-  };
-
-  const handleCloseChannel = async () => {
-    if (!channelId) return;
-
-    // TODO: Implement actual close channel logic
-    // This should:
-    // 1. Get final balances from state snapshot
-    // 2. Generate permutation
-    // 3. Generate Groth16 proof
-    // 4. Call closeChannel with proper params
-    
-    // For now, just show a placeholder
-    // await closeChannel({
-    //   finalBalances: [...],
-    //   permutation: [...],
-    //   proof: { pA: [...], pB: [...], pC: [...] }
-    // });
-  };
-
-  const handleCloseChannelModalClose = async () => {
-    setShowCloseChannelModal(false);
-    if (closeSuccess) {
-      await refetchChannelState();
-    }
   };
 
   const handleCopyChannelId = async () => {
@@ -349,17 +296,6 @@ export default function StateExplorerLayout({
           txHash={initializeTxHash ?? null}
           currentStep={initializeCurrentStep}
           onClose={handleCloseModal}
-        />
-      )}
-
-      {/* Close Channel Confirm Modal */}
-      {showCloseChannelModal && channelId && (
-        <CloseChannelConfirmModal
-          channelId={channelId}
-          onCloseChannel={handleCloseChannel}
-          isProcessing={isClosingChannel}
-          txHash={closeTxHash ?? null}
-          onClose={handleCloseChannelModalClose}
         />
       )}
     </AppLayout>
