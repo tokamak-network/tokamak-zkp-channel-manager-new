@@ -2,6 +2,7 @@
  * Custom Hook: Deposit
  *
  * Handles deposit transaction flow and state management
+ * Updated for multi-token support with MPT keys array
  */
 
 import { useEffect, useCallback } from "react";
@@ -17,7 +18,10 @@ import {
 interface UseDepositParams {
   channelId: bigint | null;
   depositAmount: string;
-  mptKey: string;
+  /** Array of MPT keys for multi-token support */
+  mptKeys: string[];
+  /** @deprecated Use mptKeys instead. Single MPT key for backward compatibility */
+  mptKey?: string;
   needsApproval: boolean;
   approvalSuccess: boolean;
 }
@@ -28,10 +32,13 @@ interface UseDepositParams {
 export function useDeposit({
   channelId,
   depositAmount,
+  mptKeys,
   mptKey,
   needsApproval,
   approvalSuccess,
 }: UseDepositParams) {
+  // Use mptKeys if provided, otherwise convert single mptKey to array for backward compatibility
+  const effectiveMptKeys = mptKeys.length > 0 ? mptKeys : (mptKey ? [mptKey] : []);
   const { address } = useAccount();
   const {
     setDeposit,
@@ -65,11 +72,12 @@ export function useDeposit({
 
   // Handle deposit success
   useEffect(() => {
-    if (depositSuccess && depositTxHash && channelId && address) {
+    if (depositSuccess && depositTxHash && channelId && address && effectiveMptKeys.length > 0) {
       const amount = parseInputAmount(depositAmount);
       setDeposit(address.toLowerCase(), {
         amount,
-        mptKey,
+        mptKey: effectiveMptKeys[0], // First key for backward compatibility
+        mptKeys: effectiveMptKeys,
         completed: true,
         txHash: depositTxHash,
       });
@@ -82,7 +90,7 @@ export function useDeposit({
     channelId,
     address,
     depositAmount,
-    mptKey,
+    effectiveMptKeys,
     setDeposit,
     setDepositing,
   ]);
@@ -100,7 +108,7 @@ export function useDeposit({
 
   // Handle deposit
   const handleDeposit = useCallback(async () => {
-    if (!depositAmount || !mptKey || !channelId || !address) {
+    if (!depositAmount || effectiveMptKeys.length === 0 || !channelId || !address) {
       console.error("Missing required fields for deposit");
       return;
     }
@@ -114,7 +122,7 @@ export function useDeposit({
     console.log("Depositing...", {
       channelId: channelId.toString(),
       amount: depositAmount,
-      mptKey,
+      mptKeys: effectiveMptKeys,
     });
 
     setDepositing(true);
@@ -122,17 +130,19 @@ export function useDeposit({
 
     try {
       const amount = parseInputAmount(depositAmount);
-      const mptKeyBytes32 = mptKey as `0x${string}`;
       
       // Convert channelId to bytes32 format (contract expects bytes32)
       const channelIdBytes32 = toBytes32(channelId);
       if (!channelIdBytes32) {
         throw new Error("Invalid channel ID");
       }
+      
+      // Convert MPT keys to bytes32 array
+      const mptKeysBytes32 = effectiveMptKeys.map(key => key as `0x${string}`);
 
       writeDeposit({
         functionName: "depositToken",
-        args: [channelIdBytes32, amount, mptKeyBytes32],
+        args: [channelIdBytes32, amount, mptKeysBytes32],
       });
     } catch (error) {
       console.error("Error depositing token:", error);
@@ -145,7 +155,7 @@ export function useDeposit({
     }
   }, [
     depositAmount,
-    mptKey,
+    effectiveMptKeys,
     channelId,
     address,
     needsApproval,

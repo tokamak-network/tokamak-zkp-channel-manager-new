@@ -6,15 +6,18 @@
  */
 
 import { useCallback, useState, useEffect } from "react";
-import { useAccount, useSignMessage } from "wagmi";
+import { useAccount, useSignMessage, usePublicClient } from "wagmi";
 import { parseUnits } from "viem";
 import { L2_PRV_KEY_MESSAGE } from "@/lib/l2KeyMessage";
-import { deriveL2KeysAndAddressFromSignature } from "@/lib/tokamakl2js";
+import { deriveL2AccountWithMultipleMptKeys } from "@/lib/tokamakl2js";
 import { toBytes32 } from "@/lib/channelId";
 import {
   useBridgeDepositManagerWrite,
   useBridgeDepositManagerWaitForReceipt,
+  useBridgeCoreRead,
 } from "@/hooks/contract";
+import { getContractAddress, getContractAbi } from "@tokamak/config";
+import { useNetworkId } from "@/hooks/contract/utils";
 
 export type DepositStep =
   | "idle"
@@ -37,7 +40,9 @@ interface UseIntegratedDepositReturn {
   startDeposit: () => Promise<void>;
   /** Current step in the flow */
   currentStep: DepositStep;
-  /** Generated MPT key */
+  /** Generated MPT keys (one per token slot) */
+  mptKeys: `0x${string}`[] | null;
+  /** Generated MPT key (first key, for backward compatibility) */
   mptKey: `0x${string}` | null;
   /** Whether any operation is in progress */
   isProcessing: boolean;
@@ -60,9 +65,11 @@ export function useIntegratedDeposit({
 }: UseIntegratedDepositParams): UseIntegratedDepositReturn {
   const { address, isConnected } = useAccount();
   const { signMessageAsync } = useSignMessage();
+  const publicClient = usePublicClient();
+  const networkId = useNetworkId();
 
   const [currentStep, setCurrentStep] = useState<DepositStep>("idle");
-  const [mptKey, setMptKey] = useState<`0x${string}` | null>(null);
+  const [mptKeys, setMptKeys] = useState<`0x${string}`[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   // Deposit transaction hooks
@@ -117,7 +124,7 @@ export function useIntegratedDeposit({
 
   const reset = useCallback(() => {
     setCurrentStep("idle");
-    setMptKey(null);
+    setMptKeys(null);
     setError(null);
     resetDepositWrite();
   }, [resetDepositWrite]);
@@ -142,11 +149,51 @@ export function useIntegratedDeposit({
       return;
     }
 
+    if (!publicClient) {
+      setError("Public client not available");
+      setCurrentStep("error");
+      return;
+    }
+
     setError(null);
 
     try {
       // ========================================
-      // Step 1: Generate MPT Key (First Signature)
+      // Step 0: Get number of user storage slots from contract
+      // ========================================
+      const channelIdBytes32 = toBytes32(channelId);
+      if (!channelIdBytes32) {
+        throw new Error("Invalid channel ID");
+      }
+
+      // Get target contract for this channel
+      const bridgeCoreAddress = getContractAddress("BridgeCore", networkId);
+      const bridgeCoreAbi = getContractAbi("BridgeCore");
+      
+      const targetContract = await publicClient.readContract({
+        address: bridgeCoreAddress,
+        abi: bridgeCoreAbi,
+        functionName: "getChannelTargetContract",
+        args: [channelIdBytes32],
+      }) as `0x${string}`;
+
+      if (!targetContract || targetContract === "0x0000000000000000000000000000000000000000") {
+        throw new Error("Target contract not found for channel");
+      }
+
+      // Get target contract data to determine number of user storage slots
+      const targetContractData = await publicClient.readContract({
+        address: bridgeCoreAddress,
+        abi: bridgeCoreAbi,
+        functionName: "getTargetContractData",
+        args: [targetContract],
+      }) as { userStorageSlots: unknown[] };
+
+      const numSlots = targetContractData.userStorageSlots?.length || 1;
+      console.log(`📊 Target contract has ${numSlots} user storage slots`);
+
+      // ========================================
+      // Step 1: Generate MPT Keys (First Signature)
       // ========================================
       setCurrentStep("signing_mpt");
 
@@ -156,11 +203,11 @@ export function useIntegratedDeposit({
       const signature = await signMessageAsync({ message });
       console.log("✅ [Step 1] Signature received");
 
-      // Generate MPT key from signature
-      const accountL2 = deriveL2KeysAndAddressFromSignature(signature, 0);
-      const generatedMptKey = accountL2.mptKey;
-      setMptKey(generatedMptKey);
-      console.log("✅ [Step 1] MPT key generated:", generatedMptKey);
+      // Generate multiple MPT keys from single signature (one per slot)
+      const accountL2 = deriveL2AccountWithMultipleMptKeys(signature, numSlots);
+      const generatedMptKeys = accountL2.mptKeys;
+      setMptKeys(generatedMptKeys);
+      console.log(`✅ [Step 1] ${numSlots} MPT keys generated:`, generatedMptKeys);
 
       setCurrentStep("mpt_generated");
 
@@ -171,15 +218,11 @@ export function useIntegratedDeposit({
       console.log("📝 [Step 2] Executing deposit transaction...");
 
       const amount = parseUnits(depositAmount, tokenDecimals);
-      const channelIdBytes32 = toBytes32(channelId);
-      if (!channelIdBytes32) {
-        throw new Error("Invalid channel ID");
-      }
 
       // This triggers MetaMask popup - step changes to "confirming" when txHash is received
       writeDeposit({
         functionName: "depositToken",
-        args: [channelIdBytes32, amount, generatedMptKey],
+        args: [channelIdBytes32, amount, generatedMptKeys],
       });
       // Don't set "confirming" here - wait for depositTxHash in useEffect
     } catch (err) {
@@ -208,6 +251,8 @@ export function useIntegratedDeposit({
     tokenDecimals,
     signMessageAsync,
     writeDeposit,
+    publicClient,
+    networkId,
   ]);
 
   const isProcessing =
@@ -220,7 +265,8 @@ export function useIntegratedDeposit({
   return {
     startDeposit,
     currentStep,
-    mptKey,
+    mptKeys,
+    mptKey: mptKeys?.[0] || null, // First key for backward compatibility
     isProcessing,
     error,
     txHash: depositTxHash,

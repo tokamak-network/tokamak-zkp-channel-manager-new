@@ -106,11 +106,11 @@ function DepositFormContent() {
   // Token balance hook
   const { balance } = useTokenBalance({ tokenAddress });
 
-  // Deposit hook
+  // Deposit hook - use mptKeys array for multi-token support
   const { handleDeposit, isDepositing, depositTxHash } = useDeposit({
     channelId,
     depositAmount,
-    mptKey,
+    mptKeys: mptKey ? [mptKey] : [], // Convert single key to array for backward compatibility
     needsApproval,
     approvalSuccess,
   });

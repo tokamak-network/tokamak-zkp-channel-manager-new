@@ -8,7 +8,10 @@ import { create } from 'zustand';
 
 export interface DepositInfo {
   amount: bigint;
+  /** First MPT key (for backward compatibility) */
   mptKey: string;
+  /** Array of MPT keys for multi-token support */
+  mptKeys?: string[];
   completed: boolean;
   txHash?: string;
 }
