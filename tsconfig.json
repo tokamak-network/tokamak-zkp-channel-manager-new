@@ -47,6 +47,7 @@
     "Tokamak-Zk-EVM/packages/frontend/synthesizer/src/circuitGenerator",
     "Tokamak-Zk-EVM/packages/frontend/synthesizer/src/interface/cli",
     "Tokamak-Zk-EVM/packages/frontend/synthesizer/src/interface/node",
+    "Tokamak-Zk-EVM/packages/frontend/synthesizer/src/interface/rpc",
     "Tokamak-Zk-EVM/packages/frontend/synthesizer/src/unused"
   ]
 }
