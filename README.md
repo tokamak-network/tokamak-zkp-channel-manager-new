@@ -46,7 +46,14 @@ cd tokamak-zkp-channel-manager-new
 npm install
 ```
 
-During installation, you will be prompted to enter your RPC URL:
+During installation, you will be prompted to enter your RPC URL.
+
+> **Skip Setup**: If Tokamak-Zk-EVM submodule is already properly configured (correct branch with built binaries), you can skip the setup:
+> ```bash
+> SKIP_SUBMODULE_SETUP=1 npm install
+> ```
+
+Setup prompt:
 
 ```
 ============================================
@@ -87,6 +94,21 @@ cd Tokamak-Zk-EVM
 ./tokamak-cli --install https://eth-sepolia.g.alchemy.com/v2/YOUR_API_KEY --bun
 cd ..
 ```
+
+### Submodule Setup Options
+
+| Command | Description |
+|---------|-------------|
+| `npm install` | Interactive setup (prompts if existing installation detected) |
+| `SKIP_SUBMODULE_SETUP=1 npm install` | Skip all submodule setup |
+| `SKIP_TOKAMAK_CLI=1 npm install` | Skip only tokamak-cli installation |
+| `npm run setup` | Run setup manually |
+| `npm run setup:force` | Force re-run setup (ignore existing installation) |
+
+**Environment Variables:**
+- `SKIP_SUBMODULE_SETUP=1` - Skip entire submodule setup process
+- `SKIP_TOKAMAK_CLI=1` - Skip only tokamak-cli installation step
+- `CI=true` - Non-interactive mode (auto-skip if existing installation detected)
 
 ## Project Structure
 

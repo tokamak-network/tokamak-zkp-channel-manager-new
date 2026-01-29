@@ -4,6 +4,11 @@
 # 1. Prompts for RPC URL and creates .env file
 # 2. Initializes and updates git submodules
 # 3. Runs tokamak-cli --install
+#
+# Environment Variables:
+#   SKIP_SUBMODULE_SETUP=1  - Skip entire setup (use when submodule is already configured)
+#   SKIP_TOKAMAK_CLI=1      - Skip only tokamak-cli installation
+#   CI=true                 - Non-interactive mode (skips prompts)
 
 set -e
 
@@ -12,6 +17,70 @@ SUBMODULE_PATH="Tokamak-Zk-EVM"
 SUBMODULE_URL="https://github.com/tokamak-network/Tokamak-zk-EVM.git"
 SUBMODULE_BRANCH="dev-manager"
 ROOT_ENV=".env"
+
+# ============================================
+# Skip Check
+# ============================================
+
+check_skip() {
+  # Check if user wants to skip entirely
+  if [ "${SKIP_SUBMODULE_SETUP:-}" = "1" ] || [ "${SKIP_SUBMODULE_SETUP:-}" = "true" ]; then
+    echo ""
+    echo "============================================"
+    echo "Skipping submodule setup (SKIP_SUBMODULE_SETUP=1)"
+    echo "============================================"
+    exit 0
+  fi
+
+  # Check if submodule is already properly set up
+  if [ -d "$SUBMODULE_PATH" ] && [ -f "$SUBMODULE_PATH/tokamak-cli" ]; then
+    # Check if tokamak-cli binary exists (indicating successful build)
+    if [ -x "$SUBMODULE_PATH/tokamak-cli" ]; then
+      echo ""
+      echo "============================================"
+      echo "Tokamak-Zk-EVM Setup Check"
+      echo "============================================"
+      echo ""
+      echo "Detected existing Tokamak-Zk-EVM installation:"
+      echo "  Path: $SUBMODULE_PATH"
+      echo "  CLI:  $SUBMODULE_PATH/tokamak-cli (executable)"
+      echo ""
+      
+      # In CI or non-interactive mode, auto-skip
+      if [ "${CI:-}" = "true" ] || [ ! -t 0 ]; then
+        echo "Non-interactive mode: Skipping setup."
+        echo "Set SKIP_SUBMODULE_SETUP=0 to force re-setup."
+        exit 0
+      fi
+      
+      # Interactive mode: ask user
+      echo "Options:"
+      echo "  [S]kip  - Keep current installation (recommended if working)"
+      echo "  [R]erun - Re-run full setup (will update submodule)"
+      echo ""
+      read -p "Choose [S/r]: " choice
+      
+      case "${choice:-S}" in
+        [Ss]* | "")
+          echo ""
+          echo "Skipping setup. Using existing installation."
+          echo ""
+          echo "Tip: Set SKIP_SUBMODULE_SETUP=1 to always skip:"
+          echo "  SKIP_SUBMODULE_SETUP=1 npm install"
+          exit 0
+          ;;
+        [Rr]*)
+          echo ""
+          echo "Re-running setup..."
+          ;;
+        *)
+          echo "Invalid choice. Skipping setup."
+          exit 0
+          ;;
+      esac
+    fi
+  fi
+}
 
 # ============================================
 # Step 1: RPC URL Setup & .env Creation
@@ -23,6 +92,30 @@ setup_env() {
   echo "Tokamak ZKP Channel Manager Setup"
   echo "============================================"
   echo ""
+  
+  # Check if .env already exists
+  if [ -f "$ROOT_ENV" ]; then
+    echo "Existing .env file found."
+    if [ -t 0 ]; then
+      read -p "Overwrite? [y/N]: " overwrite
+      if [[ ! "$overwrite" =~ ^[Yy] ]]; then
+        echo "Keeping existing .env file."
+        # Try to extract RPC_URL from existing .env
+        if grep -q "RPC_URL=" "$ROOT_ENV"; then
+          export SETUP_RPC_URL=$(grep "RPC_URL=" "$ROOT_ENV" | cut -d"'" -f2 | cut -d'"' -f2)
+          echo "Using RPC_URL from existing .env"
+        fi
+        return 0
+      fi
+    else
+      echo "Non-interactive mode: Keeping existing .env file."
+      if grep -q "RPC_URL=" "$ROOT_ENV"; then
+        export SETUP_RPC_URL=$(grep "RPC_URL=" "$ROOT_ENV" | cut -d"'" -f2 | cut -d'"' -f2)
+      fi
+      return 0
+    fi
+  fi
+  
   echo "RPC URL is required for the manager app and synthesizer."
   echo "Example: https://eth-sepolia.g.alchemy.com/v2/YOUR_API_KEY"
   echo ""
@@ -131,6 +224,13 @@ setup_submodules() {
 # ============================================
 
 run_tokamak_cli() {
+  # Check if user wants to skip tokamak-cli
+  if [ "${SKIP_TOKAMAK_CLI:-}" = "1" ] || [ "${SKIP_TOKAMAK_CLI:-}" = "true" ]; then
+    echo ""
+    echo "Skipping tokamak-cli installation (SKIP_TOKAMAK_CLI=1)"
+    return 0
+  fi
+
   local cli_path="$SUBMODULE_PATH/tokamak-cli"
   
   if [ ! -f "$cli_path" ]; then
@@ -180,6 +280,9 @@ run_tokamak_cli() {
 # Main
 # ============================================
 
+# Check if setup should be skipped
+check_skip
+
 # Step 1: Setup .env file first
 setup_env
 env_success=$?
@@ -194,3 +297,6 @@ fi
 
 echo ""
 echo "All done!"
+echo ""
+echo "Tip: To skip this setup in future installs:"
+echo "  SKIP_SUBMODULE_SETUP=1 npm install"

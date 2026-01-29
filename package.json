@@ -7,6 +7,7 @@
     "prebuild": "npm run contracts:fetch",
     "postinstall": "bash scripts/setup-submodules.sh",
     "setup": "bash scripts/setup-submodules.sh",
+    "setup:force": "SKIP_SUBMODULE_SETUP=0 bash scripts/setup-submodules.sh",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
