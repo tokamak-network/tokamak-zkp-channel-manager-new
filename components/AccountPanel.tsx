@@ -157,10 +157,16 @@ export function AccountPanel({ onClose }: AccountPanelProps) {
   };
 
   const handleConnect = () => {
+    console.log('[AccountPanel] handleConnect called, connectors:', connectors.map(c => c.id));
     const injected = connectors.find((c) => c.id === "injected");
     if (injected) {
-      connect({ connector: injected });
+      console.log('[AccountPanel] Connecting with injected connector...');
+      connect({ connector: injected }, {
+        onSuccess: (data) => console.log('[AccountPanel] Connect success:', data),
+        onError: (error) => console.error('[AccountPanel] Connect error:', error),
+      });
     } else if (connectors[0]) {
+      console.log('[AccountPanel] Connecting with first connector:', connectors[0].id);
       connect({ connector: connectors[0] });
     }
   };

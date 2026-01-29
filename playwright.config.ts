@@ -11,6 +11,10 @@ import { defineConfig, devices } from '@playwright/test';
  */
 export default defineConfig({
   testDir: './e2e',
+  
+  // Global setup/teardown for Anvil
+  globalSetup: './e2e/global-setup.ts',
+  globalTeardown: './e2e/global-teardown.ts',
 
   // Run tests sequentially in CI for lifecycle tests
   fullyParallel: false,
