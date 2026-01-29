@@ -10,7 +10,7 @@
  */
 
 import { test, expect } from "@playwright/test";
-import { injectMockWallet, getTestAccountAddress } from "../fixtures/mock-wallet";
+import { injectMockWallet, getTestAccountAddress, connectWalletViaUI } from "../fixtures/mock-wallet";
 import { TEST_ACCOUNTS } from "../fixtures/test-accounts";
 import {
   saveChannelState,
@@ -39,6 +39,9 @@ test.describe("Step 1: Create Channel", () => {
     // Wait for page to load
     await page.waitForLoadState("networkidle");
 
+    // Step 0: Connect wallet first
+    await connectWalletViaUI(page);
+
     // Step 1: Select app type (ERC20)
     // Click the app dropdown
     await page.click('button:has-text("Select App")');
@@ -50,8 +53,11 @@ test.describe("Step 1: Create Channel", () => {
     // Step 2: Generate Channel ID
     await page.click('[data-testid="generate-channel-id-button"]');
 
-    // Wait for channel ID to be generated
-    await expect(page.locator('text=0x')).toBeVisible({ timeout: 10_000 });
+    // Wait for channel ID to be generated (channel ID is 66 chars: 0x + 64 hex chars)
+    // Look for the channel ID display area which contains a long 0x string
+    await expect(page.locator('[data-testid="generate-channel-id-button"]')).not.toBeVisible({ timeout: 10_000 });
+    // The channel ID should now be displayed in a span with truncated text
+    await expect(page.locator('text=/0x[a-fA-F0-9]{40,}/')).toBeVisible({ timeout: 10_000 });
 
     // Step 3: Add participant address
     const participantInput = page.locator('[data-testid="participant-address-input-0"]');
@@ -60,8 +66,13 @@ test.describe("Step 1: Create Channel", () => {
     // Wait for validation
     await page.waitForTimeout(1000);
 
-    // Verify the checkmark appears (valid address)
-    await expect(page.locator('svg.text-\\[\\#3EB100\\]')).toBeVisible();
+    // Verify the participant address was accepted (check mark appears next to the input)
+    // The checkmark is inside the Input component as a rightIcon
+    await expect(
+      page.locator('[data-testid="participant-address-input-0"]')
+        .locator('..') // Parent container
+        .locator('.lucide-check')
+    ).toBeVisible();
 
     // Step 4: Click Create Channel button
     const createButton = page.locator('[data-testid="create-channel-button"]');
@@ -69,14 +80,15 @@ test.describe("Step 1: Create Channel", () => {
     await createButton.click();
 
     // Step 5: Wait for confirmation modal
-    await expect(page.locator('[role="dialog"]')).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator('text=Confirm Transaction')).toBeVisible({ timeout: 10_000 });
 
     // Click confirm in modal
-    await page.click('button:has-text("Confirm")');
+    await page.locator('button:has-text("Confirm")').last().click();
 
     // Wait for transaction to be signed and confirmed
     // Mock wallet auto-signs, so we wait for success state
-    await expect(page.locator('text=Channel Created')).toBeVisible({
+    // The modal will show "Channel Created" when successful
+    await expect(page.locator('h3:has-text("Channel Created")')).toBeVisible({
       timeout: 60_000,
     });
 

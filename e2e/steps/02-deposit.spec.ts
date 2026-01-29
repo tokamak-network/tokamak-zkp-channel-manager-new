@@ -9,7 +9,7 @@
  */
 
 import { test, expect } from "@playwright/test";
-import { injectMockWallet } from "../fixtures/mock-wallet";
+import { injectMockWallet, connectWalletViaUI } from "../fixtures/mock-wallet";
 import { TEST_ACCOUNTS } from "../fixtures/test-accounts";
 import { loadChannelState, updateChannelState } from "../fixtures/channel-state";
 
@@ -25,6 +25,9 @@ test.describe("Step 2: Deposit Tokens", () => {
     // Navigate to deposit page
     await page.goto(`/state-explorer?channelId=${state!.channelId}`);
     await page.waitForLoadState("networkidle");
+
+    // Connect wallet first
+    await connectWalletViaUI(page);
 
     // Should be redirected to deposit page (state 1)
     await expect(page).toHaveURL(/deposit/);
@@ -84,6 +87,9 @@ test.describe("Step 2: Deposit Tokens", () => {
     // Navigate to deposit page
     await page.goto(`/state-explorer?channelId=${state!.channelId}`);
     await page.waitForLoadState("networkidle");
+
+    // Connect wallet first
+    await connectWalletViaUI(page);
 
     // Should be on deposit page
     await expect(page).toHaveURL(/deposit/);

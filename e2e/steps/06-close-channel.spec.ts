@@ -9,7 +9,7 @@
  */
 
 import { test, expect } from "@playwright/test";
-import { injectMockWallet } from "../fixtures/mock-wallet";
+import { injectMockWallet, connectWalletViaUI } from "../fixtures/mock-wallet";
 import { loadChannelState, updateChannelState } from "../fixtures/channel-state";
 import { PROOF_GENERATION_TIMEOUT } from "../helpers/wait-for-proof";
 
@@ -28,6 +28,9 @@ test.describe("Step 6: Close Channel", () => {
     // Navigate to channel (should be on state3 page)
     await page.goto(`/state-explorer?channelId=${state!.channelId}`);
     await page.waitForLoadState("networkidle");
+
+    // Connect wallet first
+    await connectWalletViaUI(page);
 
     // Should be on state3 page (Closing state)
     await expect(page).toHaveURL(/state3/);

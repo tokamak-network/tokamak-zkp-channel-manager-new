@@ -104,6 +104,10 @@ export default defineConfig({
         timeout: 120 * 1000,
         env: {
           RPC_URL: process.env.ANVIL_URL || process.env.RPC_URL || '',
+          // E2E test mode enables mock wallet auto-connect
+          NEXT_PUBLIC_E2E_TEST_MODE: 'true',
+          // Use Anvil RPC for E2E testing
+          NEXT_PUBLIC_E2E_RPC_URL: 'http://localhost:8545',
         },
       },
 });

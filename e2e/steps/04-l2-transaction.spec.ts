@@ -9,7 +9,7 @@
  */
 
 import { test, expect } from "@playwright/test";
-import { injectMockWallet, getTestAccountAddress } from "../fixtures/mock-wallet";
+import { injectMockWallet, getTestAccountAddress, connectWalletViaUI } from "../fixtures/mock-wallet";
 import { loadChannelState, updateChannelState } from "../fixtures/channel-state";
 import { PROOF_GENERATION_TIMEOUT } from "../helpers/wait-for-proof";
 
@@ -28,6 +28,9 @@ test.describe("Step 4: L2 Transaction", () => {
     // Navigate to transaction page
     await page.goto(`/state-explorer?channelId=${state!.channelId}`);
     await page.waitForLoadState("networkidle");
+
+    // Connect wallet first
+    await connectWalletViaUI(page);
 
     // Should be on transaction page (state 2 - Open)
     await expect(page).toHaveURL(/transaction/);

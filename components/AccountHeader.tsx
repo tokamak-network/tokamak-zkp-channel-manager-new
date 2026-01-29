@@ -38,6 +38,7 @@ export function AccountHeader() {
         {/* Account Button */}
         <button
           onClick={() => setIsPanelOpen(!isPanelOpen)}
+          data-testid="account-header-button"
           className="flex items-center font-mono bg-white hover:bg-[#F8F8F8] transition-colors cursor-pointer"
           style={{
             border: "1px solid #BBBBBB",

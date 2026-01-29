@@ -152,6 +152,9 @@ function createMockProviderScript(
         return data.result;
       }
       
+      // Event listeners storage
+      const eventListeners = new Map();
+      
       // Create mock provider
       const mockProvider = {
         isMetaMask: true,
@@ -162,11 +165,51 @@ function createMockProviderScript(
         chainId: '0xaa36a7', // Sepolia chain ID
         networkVersion: '11155111',
         
+        // Emit events
+        emit: function(event, ...args) {
+          const listeners = eventListeners.get(event) || [];
+          listeners.forEach(listener => {
+            try {
+              listener(...args);
+            } catch (err) {
+              console.error('[MockWallet] Event listener error:', err);
+            }
+          });
+        },
+        
         request: async function({ method, params }) {
-          console.log('[MockWallet] request:', method, params);
+          console.log('[MockWallet] request:', method, JSON.stringify(params));
           
           switch (method) {
+            case 'wallet_requestPermissions':
+              // Return permissions structure that wagmi expects
+              console.log('[MockWallet] Granting wallet_requestPermissions');
+              return [{
+                parentCapability: 'eth_accounts',
+                caveats: [{
+                  type: 'restrictReturnedAccounts',
+                  value: [ADDRESS]
+                }]
+              }];
+              
+            case 'wallet_getPermissions':
+              // Return existing permissions
+              return [{
+                parentCapability: 'eth_accounts',
+                caveats: [{
+                  type: 'restrictReturnedAccounts',
+                  value: [ADDRESS]
+                }]
+              }];
+              
             case 'eth_requestAccounts':
+              // Emit accountsChanged event when connecting
+              setTimeout(() => {
+                mockProvider.emit('accountsChanged', [ADDRESS]);
+                mockProvider.emit('connect', { chainId: '0xaa36a7' });
+              }, 100);
+              return [ADDRESS];
+              
             case 'eth_accounts':
               return [ADDRESS];
               
@@ -231,21 +274,45 @@ function createMockProviderScript(
         
         on: function(event, callback) {
           console.log('[MockWallet] on:', event);
-          if (event === 'accountsChanged') {
-            callback([ADDRESS]);
+          if (!eventListeners.has(event)) {
+            eventListeners.set(event, []);
           }
-          if (event === 'chainChanged') {
-            callback('0xaa36a7');
+          eventListeners.get(event).push(callback);
+          return this;
+        },
+        
+        addListener: function(event, callback) {
+          return this.on(event, callback);
+        },
+        
+        removeListener: function(event, callback) {
+          const listeners = eventListeners.get(event) || [];
+          const index = listeners.indexOf(callback);
+          if (index > -1) {
+            listeners.splice(index, 1);
           }
           return this;
         },
         
-        removeListener: function() {
+        removeAllListeners: function(event) {
+          if (event) {
+            eventListeners.delete(event);
+          } else {
+            eventListeners.clear();
+          }
           return this;
         },
         
-        removeAllListeners: function() {
-          return this;
+        once: function(event, callback) {
+          const wrappedCallback = (...args) => {
+            this.removeListener(event, wrappedCallback);
+            callback(...args);
+          };
+          return this.on(event, wrappedCallback);
+        },
+        
+        listenerCount: function(event) {
+          return (eventListeners.get(event) || []).length;
         },
       };
       
@@ -253,6 +320,61 @@ function createMockProviderScript(
       window.ethereum = mockProvider;
       
       console.log('[MockWallet] Injected mock wallet for address:', ADDRESS);
+    })();
+  `;
+}
+
+/**
+ * Creates the init script for both provider injection and localStorage setup
+ */
+function createCombinedInitScript(
+  privateKey: string,
+  address: string,
+  rpcUrl: string
+): string {
+  const providerScript = createMockProviderScript(privateKey, address, rpcUrl);
+  
+  // Add localStorage setup to the provider script
+  return `
+    ${providerScript}
+    
+    // Set E2E test mode flag for the app to detect
+    window.__E2E_TEST_MODE__ = true;
+    
+    // Pre-populate localStorage with wagmi connection state
+    // This needs to run BEFORE wagmi initializes
+    (function() {
+      const address = '${address}';
+      const state = JSON.stringify({
+        state: {
+          connections: {
+            __type: 'Map',
+            value: [
+              ['mock', {
+                accounts: [address],
+                chainId: 11155111,
+                connector: {
+                  id: 'mock',
+                  name: 'Mock',
+                  type: 'mock',
+                },
+              }],
+            ],
+          },
+          chainId: 11155111,
+          current: 'mock',
+        },
+        version: 2,
+      });
+      
+      try {
+        localStorage.setItem('wagmi.store', state);
+        localStorage.setItem('wagmi.recentConnectorId', '"mock"');
+        console.log('[MockWallet] Pre-populated localStorage for address:', address);
+        console.log('[MockWallet] E2E test mode enabled');
+      } catch (e) {
+        console.error('[MockWallet] Failed to set localStorage:', e);
+      }
     })();
   `;
 }
@@ -271,9 +393,10 @@ export async function injectMockWallet(
 ): Promise<void> {
   const testAccount = TEST_ACCOUNTS[account];
 
-  // Add init script that runs before any page script
+  // Add combined init script that runs before any page script
+  // This includes both the provider injection and localStorage setup
   await page.addInitScript(
-    createMockProviderScript(
+    createCombinedInitScript(
       testAccount.privateKey,
       testAccount.address,
       rpcUrl
@@ -288,4 +411,55 @@ export function getTestAccountAddress(
   account: "leader" | "participant"
 ): `0x${string}` {
   return TEST_ACCOUNTS[account].address;
+}
+
+/**
+ * Waits for the wallet to be connected
+ * 
+ * In E2E mode (NEXT_PUBLIC_E2E_TEST_MODE=true), the app auto-connects using wagmi's mock connector.
+ * This function waits for that connection to complete.
+ * 
+ * @param page - Playwright page instance
+ * @param timeout - Maximum time to wait for connection (default: 30s)
+ */
+export async function connectWalletViaUI(page: Page, timeout: number = 30000): Promise<void> {
+  // Add event listener for console logs to debug
+  page.on('console', (msg) => {
+    const text = msg.text();
+    if (text.includes('E2E') || text.includes('MockWallet') || text.includes('connect')) {
+      console.log('[Browser Console]', text);
+    }
+  });
+  
+  // Wait for the wallet to be connected
+  // In E2E mode, the app auto-connects via the E2EAutoConnect component
+  console.log('[connectWalletViaUI] Waiting for E2E auto-connect...');
+  
+  try {
+    await page.waitForFunction(
+      () => {
+        const button = document.querySelector('[data-testid="account-header-button"]');
+        const text = button?.textContent || '';
+        // Check if the button shows an address (format: network | 0x...) or network name
+        return text.includes('0x') || text.includes('Sepolia');
+      },
+      { timeout }
+    );
+    console.log('[connectWalletViaUI] Wallet connected successfully');
+  } catch (error) {
+    console.log('[connectWalletViaUI] Auto-connect timed out, attempting manual connection...');
+    
+    // Fallback: Try manual connection
+    await page.click('[data-testid="account-header-button"]');
+    
+    const connectButton = page.locator('[data-testid="connect-wallet-button"]');
+    if (await connectButton.isVisible({ timeout: 5000 })) {
+      await connectButton.click();
+      await page.waitForTimeout(2000);
+    }
+    
+    // Close panel
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(500);
+  }
 }

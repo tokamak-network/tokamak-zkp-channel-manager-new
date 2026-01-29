@@ -324,6 +324,7 @@ export function AccountPanel({ onClose }: AccountPanelProps) {
         <button
           onClick={handleConnect}
           disabled={isPending}
+          data-testid="connect-wallet-button"
           className="flex items-center justify-center font-medium text-white transition-colors disabled:opacity-50"
           style={{
             height: 40,

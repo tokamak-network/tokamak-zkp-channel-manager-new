@@ -8,7 +8,7 @@
  */
 
 import { test, expect } from "@playwright/test";
-import { injectMockWallet } from "../fixtures/mock-wallet";
+import { injectMockWallet, connectWalletViaUI } from "../fixtures/mock-wallet";
 import { loadChannelState, updateChannelState } from "../fixtures/channel-state";
 
 test.describe("Step 5: Submit Proof", () => {
@@ -23,6 +23,9 @@ test.describe("Step 5: Submit Proof", () => {
     // Navigate to transaction page
     await page.goto(`/state-explorer?channelId=${state!.channelId}`);
     await page.waitForLoadState("networkidle");
+
+    // Connect wallet first
+    await connectWalletViaUI(page);
 
     // Should be on transaction page
     await expect(page).toHaveURL(/transaction/);
