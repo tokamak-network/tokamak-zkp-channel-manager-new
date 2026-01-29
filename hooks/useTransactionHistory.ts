@@ -66,11 +66,12 @@ export function useTransactionHistory({
   const [error, setError] = useState<string | null>(null);
 
   // Get user's MPT key from on-chain
+  // Updated for new contract: requires slotIndex parameter (using 0 for balance slot)
   const { data: mptKeyData, isLoading: isLoadingMptKey } = useBridgeCoreRead({
     functionName: "getL2MptKey",
     args:
       channelId && address
-        ? [channelId as `0x${string}`, address as `0x${string}`]
+        ? [channelId as `0x${string}`, address as `0x${string}`, 0]
         : undefined,
     query: {
       enabled: !!channelId && !!address && isConnected,
@@ -78,12 +79,13 @@ export function useTransactionHistory({
   });
 
   // Get initial deposit from on-chain
+  // Updated for new contract: uses getValidatedUserSlotValue with slotIndex 0
   const { data: initialDepositData, isLoading: isLoadingDeposit } =
     useBridgeCoreRead({
-      functionName: "getParticipantDeposit",
+      functionName: "getValidatedUserSlotValue",
       args:
         channelId && address
-          ? [channelId as `0x${string}`, address as `0x${string}`]
+          ? [channelId as `0x${string}`, address as `0x${string}`, 0]
           : undefined,
       query: {
         enabled: !!channelId && !!address && isConnected,

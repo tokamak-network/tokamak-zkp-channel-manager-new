@@ -243,19 +243,44 @@ export function usePreviousStateSnapshot({
         registeredKeys.push(leaf.key);
       });
 
-      // Fetch participants' MPT keys and deposits using common contract hook
+      // Get number of user storage slots from target contract
+      let numSlots = 1; // Default to 1 (balance only)
+      try {
+        const targetContractData = await readBridgeCoreContract<{
+          userStorageSlots: unknown[];
+        }>(config, bridgeCoreAddress, bridgeCoreAbi, {
+          functionName: "getTargetContractData",
+          args: [targetContract],
+        });
+        numSlots = targetContractData?.userStorageSlots?.length || 1;
+        console.log(`[usePreviousStateSnapshot] Target contract has ${numSlots} user storage slots`);
+      } catch (slotError) {
+        console.warn("[usePreviousStateSnapshot] Failed to get target contract data, defaulting to 1 slot:", slotError);
+      }
+
+      // Fetch participants' MPT keys and slot values using common contract hook
+      // For multi-token support, we now iterate through all slots for each participant
       const storageEntries: Array<{ key: string; value: string }> = [];
 
       if (participants.length > 0) {
+        // Build array of all (participant, slotIndex) combinations
+        const participantSlotCombinations: Array<{ participant: `0x${string}`; slotIndex: number }> = [];
+        for (const participant of participants) {
+          for (let slotIndex = 0; slotIndex < numSlots; slotIndex++) {
+            participantSlotCombinations.push({ participant, slotIndex });
+          }
+        }
+
+        // Fetch all MPT keys and slot values in parallel
         const participantDataResults = await Promise.all(
-          participants.flatMap((participant) => [
+          participantSlotCombinations.flatMap(({ participant, slotIndex }) => [
             readBridgeCoreContract<bigint>(
               config,
               bridgeCoreAddress,
               bridgeCoreAbi,
               {
                 functionName: "getL2MptKey",
-                args: [channelIdBytes32, participant],
+                args: [channelIdBytes32, participant, slotIndex],
               }
             ),
             readBridgeCoreContract<bigint>(
@@ -263,26 +288,26 @@ export function usePreviousStateSnapshot({
               bridgeCoreAddress,
               bridgeCoreAbi,
               {
-                functionName: "getParticipantDeposit",
-                args: [channelIdBytes32, participant],
+                functionName: "getValidatedUserSlotValue",
+                args: [channelIdBytes32, participant, slotIndex],
               }
             ),
           ])
         );
 
-        participants.forEach((participant, index) => {
+        participantSlotCombinations.forEach(({ participant, slotIndex }, index) => {
           const mptKey = participantDataResults[index * 2] as bigint;
-          const deposit = participantDataResults[index * 2 + 1] as bigint;
+          const slotValue = participantDataResults[index * 2 + 1] as bigint;
 
-          // Include in storageEntries if mptKey is non-zero (even if deposit is zero)
+          // Include in storageEntries if mptKey is non-zero (even if slotValue is zero)
           // Previously used `if (mptKey && deposit)` condition, but BigInt(0) is falsy,
           // causing participants with zero amount deposits to be excluded
           if (mptKey !== undefined && mptKey !== null && mptKey !== BigInt(0)) {
             const mptKeyHex = `0x${mptKey.toString(16).padStart(64, "0")}`;
-            const depositHex = `0x${deposit.toString(16).padStart(64, "0")}`;
+            const slotValueHex = `0x${slotValue.toString(16).padStart(64, "0")}`;
 
             registeredKeys.push(mptKeyHex);
-            storageEntries.push({ key: mptKeyHex, value: depositHex });
+            storageEntries.push({ key: mptKeyHex, value: slotValueHex });
           }
         });
       }

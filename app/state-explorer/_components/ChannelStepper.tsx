@@ -69,11 +69,12 @@ export function ChannelStepper({
   hasWithdrawableAmount = false,
 }: ChannelStepperProps) {
   // Fetch user's deposit amount (only needed for Deposit phase)
+  // Updated for new contract: uses getValidatedUserSlotValue with slotIndex 0
   const { data: depositAmount } = useBridgeCoreRead({
-    functionName: "getParticipantDeposit",
+    functionName: "getValidatedUserSlotValue",
     args:
       channelId && userAddress
-        ? [channelId as `0x${string}`, userAddress]
+        ? [channelId as `0x${string}`, userAddress, 0]
         : undefined,
     query: {
       enabled: !!channelId && !!userAddress && currentState === 1,
@@ -83,11 +84,12 @@ export function ChannelStepper({
 
   // Fetch user's registered MPT key to check if they have deposited
   // A user who deposited (even 0 TON) will have a non-zero MPT key
+  // Updated for new contract: requires slotIndex parameter (using 0 for balance slot)
   const { data: registeredMptKey } = useBridgeCoreRead({
     functionName: "getL2MptKey",
     args:
       channelId && userAddress
-        ? [channelId as `0x${string}`, userAddress]
+        ? [channelId as `0x${string}`, userAddress, 0]
         : undefined,
     query: {
       enabled: !!channelId && !!userAddress && currentState === 1,

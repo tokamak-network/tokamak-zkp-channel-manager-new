@@ -272,95 +272,100 @@ export function ParticipantDeposits({
 }
 
 // Custom hook to fetch deposits and MPT keys for multiple participants
+// Updated for new contract: uses getValidatedUserSlotValue (slotIndex 0) instead of getParticipantDeposit
+// and adds slotIndex parameter to getL2MptKey
 function useParticipantDeposits(
   channelId: string | null,
   participants: `0x${string}`[],
   tokenDecimals: number
 ): ParticipantDepositInfo[] {
-  // We need to call getParticipantDeposit and getL2MptKey for each participant
+  // We need to call getValidatedUserSlotValue and getL2MptKey for each participant
   // Using individual hooks for up to 8 participants
+  // slotIndex 0 is used for balance (primary token slot)
   
-  // Deposits - refetch every 5 seconds to get latest on-chain data
+  // Slot values (deposits) - refetch every 5 seconds to get latest on-chain data
+  // Using getValidatedUserSlotValue with slotIndex 0 instead of getParticipantDeposit
   const deposit0 = useBridgeCoreRead({
-    functionName: "getParticipantDeposit",
-    args: channelId && participants[0] ? [channelId as `0x${string}`, participants[0]] : undefined,
+    functionName: "getValidatedUserSlotValue",
+    args: channelId && participants[0] ? [channelId as `0x${string}`, participants[0], 0] : undefined,
     query: { enabled: !!channelId && !!participants[0], refetchInterval: 5000 },
   });
   const deposit1 = useBridgeCoreRead({
-    functionName: "getParticipantDeposit",
-    args: channelId && participants[1] ? [channelId as `0x${string}`, participants[1]] : undefined,
+    functionName: "getValidatedUserSlotValue",
+    args: channelId && participants[1] ? [channelId as `0x${string}`, participants[1], 0] : undefined,
     query: { enabled: !!channelId && !!participants[1], refetchInterval: 5000 },
   });
   const deposit2 = useBridgeCoreRead({
-    functionName: "getParticipantDeposit",
-    args: channelId && participants[2] ? [channelId as `0x${string}`, participants[2]] : undefined,
+    functionName: "getValidatedUserSlotValue",
+    args: channelId && participants[2] ? [channelId as `0x${string}`, participants[2], 0] : undefined,
     query: { enabled: !!channelId && !!participants[2], refetchInterval: 5000 },
   });
   const deposit3 = useBridgeCoreRead({
-    functionName: "getParticipantDeposit",
-    args: channelId && participants[3] ? [channelId as `0x${string}`, participants[3]] : undefined,
+    functionName: "getValidatedUserSlotValue",
+    args: channelId && participants[3] ? [channelId as `0x${string}`, participants[3], 0] : undefined,
     query: { enabled: !!channelId && !!participants[3], refetchInterval: 5000 },
   });
   const deposit4 = useBridgeCoreRead({
-    functionName: "getParticipantDeposit",
-    args: channelId && participants[4] ? [channelId as `0x${string}`, participants[4]] : undefined,
+    functionName: "getValidatedUserSlotValue",
+    args: channelId && participants[4] ? [channelId as `0x${string}`, participants[4], 0] : undefined,
     query: { enabled: !!channelId && !!participants[4], refetchInterval: 5000 },
   });
   const deposit5 = useBridgeCoreRead({
-    functionName: "getParticipantDeposit",
-    args: channelId && participants[5] ? [channelId as `0x${string}`, participants[5]] : undefined,
+    functionName: "getValidatedUserSlotValue",
+    args: channelId && participants[5] ? [channelId as `0x${string}`, participants[5], 0] : undefined,
     query: { enabled: !!channelId && !!participants[5], refetchInterval: 5000 },
   });
   const deposit6 = useBridgeCoreRead({
-    functionName: "getParticipantDeposit",
-    args: channelId && participants[6] ? [channelId as `0x${string}`, participants[6]] : undefined,
+    functionName: "getValidatedUserSlotValue",
+    args: channelId && participants[6] ? [channelId as `0x${string}`, participants[6], 0] : undefined,
     query: { enabled: !!channelId && !!participants[6], refetchInterval: 5000 },
   });
   const deposit7 = useBridgeCoreRead({
-    functionName: "getParticipantDeposit",
-    args: channelId && participants[7] ? [channelId as `0x${string}`, participants[7]] : undefined,
+    functionName: "getValidatedUserSlotValue",
+    args: channelId && participants[7] ? [channelId as `0x${string}`, participants[7], 0] : undefined,
     query: { enabled: !!channelId && !!participants[7], refetchInterval: 5000 },
   });
 
   // MPT Keys (to check registration status) - refetch every 5 seconds
+  // Now requires slotIndex parameter (using 0 for balance slot)
   const mptKey0 = useBridgeCoreRead({
     functionName: "getL2MptKey",
-    args: channelId && participants[0] ? [channelId as `0x${string}`, participants[0]] : undefined,
+    args: channelId && participants[0] ? [channelId as `0x${string}`, participants[0], 0] : undefined,
     query: { enabled: !!channelId && !!participants[0], refetchInterval: 5000 },
   });
   const mptKey1 = useBridgeCoreRead({
     functionName: "getL2MptKey",
-    args: channelId && participants[1] ? [channelId as `0x${string}`, participants[1]] : undefined,
+    args: channelId && participants[1] ? [channelId as `0x${string}`, participants[1], 0] : undefined,
     query: { enabled: !!channelId && !!participants[1], refetchInterval: 5000 },
   });
   const mptKey2 = useBridgeCoreRead({
     functionName: "getL2MptKey",
-    args: channelId && participants[2] ? [channelId as `0x${string}`, participants[2]] : undefined,
+    args: channelId && participants[2] ? [channelId as `0x${string}`, participants[2], 0] : undefined,
     query: { enabled: !!channelId && !!participants[2], refetchInterval: 5000 },
   });
   const mptKey3 = useBridgeCoreRead({
     functionName: "getL2MptKey",
-    args: channelId && participants[3] ? [channelId as `0x${string}`, participants[3]] : undefined,
+    args: channelId && participants[3] ? [channelId as `0x${string}`, participants[3], 0] : undefined,
     query: { enabled: !!channelId && !!participants[3], refetchInterval: 5000 },
   });
   const mptKey4 = useBridgeCoreRead({
     functionName: "getL2MptKey",
-    args: channelId && participants[4] ? [channelId as `0x${string}`, participants[4]] : undefined,
+    args: channelId && participants[4] ? [channelId as `0x${string}`, participants[4], 0] : undefined,
     query: { enabled: !!channelId && !!participants[4], refetchInterval: 5000 },
   });
   const mptKey5 = useBridgeCoreRead({
     functionName: "getL2MptKey",
-    args: channelId && participants[5] ? [channelId as `0x${string}`, participants[5]] : undefined,
+    args: channelId && participants[5] ? [channelId as `0x${string}`, participants[5], 0] : undefined,
     query: { enabled: !!channelId && !!participants[5], refetchInterval: 5000 },
   });
   const mptKey6 = useBridgeCoreRead({
     functionName: "getL2MptKey",
-    args: channelId && participants[6] ? [channelId as `0x${string}`, participants[6]] : undefined,
+    args: channelId && participants[6] ? [channelId as `0x${string}`, participants[6], 0] : undefined,
     query: { enabled: !!channelId && !!participants[6], refetchInterval: 5000 },
   });
   const mptKey7 = useBridgeCoreRead({
     functionName: "getL2MptKey",
-    args: channelId && participants[7] ? [channelId as `0x${string}`, participants[7]] : undefined,
+    args: channelId && participants[7] ? [channelId as `0x${string}`, participants[7], 0] : undefined,
     query: { enabled: !!channelId && !!participants[7], refetchInterval: 5000 },
   });
 

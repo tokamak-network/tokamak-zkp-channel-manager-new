@@ -58,11 +58,12 @@ export function useChannelUserBalance({
   const [error, setError] = useState<string | null>(null);
 
   // Fetch initial deposit from on-chain (fallback)
+  // Updated for new contract: uses getValidatedUserSlotValue with slotIndex 0
   const { data: initialDeposit, isLoading: isLoadingDeposit } = useBridgeCoreRead({
-    functionName: "getParticipantDeposit",
+    functionName: "getValidatedUserSlotValue",
     args:
       channelId && address && isValidBytes32(channelId)
-        ? [channelId as `0x${string}`, address]
+        ? [channelId as `0x${string}`, address, 0]
         : undefined,
     query: {
       enabled: !!channelId && !!address && isValidBytes32(channelId),

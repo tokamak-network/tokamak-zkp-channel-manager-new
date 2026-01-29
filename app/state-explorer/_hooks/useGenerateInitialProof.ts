@@ -265,8 +265,24 @@ export function useGenerateInitialProof({
         }
       }
 
+      // Get number of user storage slots from target contract
+      let numSlots = 1; // Default to 1 (balance only)
+      try {
+        const targetContractData = await publicClient.readContract({
+          address: bridgeCoreAddress,
+          abi: bridgeCoreAbi,
+          functionName: "getTargetContractData",
+          args: [targetContract],
+        }) as { userStorageSlots: unknown[] };
+        numSlots = targetContractData.userStorageSlots?.length || 1;
+        console.log(`📊 Target contract has ${numSlots} user storage slots`);
+      } catch (error) {
+        console.warn("Failed to get target contract data, defaulting to 1 slot:", error);
+      }
+
       // STEP 2: Add participant data AFTER pre-allocated leaves
-      setStatus(`Processing ${participantCount} participants...`);
+      // For multi-token support, we need to add entries for each (participant, slotIndex) pair
+      setStatus(`Processing ${participantCount} participants with ${numSlots} slots each...`);
 
       for (
         let i = 0;
@@ -277,54 +293,59 @@ export function useGenerateInitialProof({
 
         setStatus(`Processing participant ${i + 1} of ${participantCount}...`);
 
-        let l2MptKey = "0";
-        let deposit = "0";
+        // Process each slot for this participant
+        for (let slotIndex = 0; slotIndex < numSlots && storageKeysL2MPT.length < treeSize; slotIndex++) {
+          let l2MptKey = "0";
+          let slotValue = "0";
 
-        try {
-          // Use publicClient.readContract directly to bypass React Query cache
-          // This ensures fresh data is fetched from the blockchain after deposits
-          const [l2MptKeyResultRaw, depositResultRaw] = await Promise.all([
-            publicClient.readContract({
-              address: bridgeCoreAddress,
-              abi: bridgeCoreAbi,
-              functionName: "getL2MptKey",
-              args: [channelId, participant],
-            }),
-            publicClient.readContract({
-              address: bridgeCoreAddress,
-              abi: bridgeCoreAbi,
-              functionName: "getParticipantDeposit",
-              args: [channelId, participant],
-            }),
-          ]);
+          try {
+            // Use publicClient.readContract directly to bypass React Query cache
+            // This ensures fresh data is fetched from the blockchain after deposits
+            // getL2MptKey now requires slotIndex parameter
+            // getValidatedUserSlotValue replaces getParticipantDeposit for multi-slot support
+            const [l2MptKeyResultRaw, slotValueResultRaw] = await Promise.all([
+              publicClient.readContract({
+                address: bridgeCoreAddress,
+                abi: bridgeCoreAbi,
+                functionName: "getL2MptKey",
+                args: [channelId, participant, slotIndex],
+              }),
+              publicClient.readContract({
+                address: bridgeCoreAddress,
+                abi: bridgeCoreAbi,
+                functionName: "getValidatedUserSlotValue",
+                args: [channelId, participant, slotIndex],
+              }),
+            ]);
 
-          if (l2MptKeyResultRaw !== undefined) {
-            l2MptKey = (l2MptKeyResultRaw as bigint).toString();
-          } else {
-            console.error(`L2 MPT key fetch failed for ${participant}`);
+            if (l2MptKeyResultRaw !== undefined) {
+              l2MptKey = (l2MptKeyResultRaw as bigint).toString();
+            } else {
+              console.error(`L2 MPT key fetch failed for ${participant} slot ${slotIndex}`);
+            }
+
+            if (slotValueResultRaw !== undefined) {
+              slotValue = (slotValueResultRaw as bigint).toString();
+            } else {
+              console.error(`Slot value fetch failed for ${participant} slot ${slotIndex}`);
+            }
+
+            // Apply modulo R_MOD as the contract does
+            const modedL2MptKey =
+              l2MptKey !== "0" ? (BigInt(l2MptKey) % R_MOD).toString() : "0";
+            const modedSlotValue =
+              slotValue !== "0" ? (BigInt(slotValue) % R_MOD).toString() : "0";
+
+            storageKeysL2MPT.push(modedL2MptKey);
+            storageValues.push(modedSlotValue);
+
+            console.log(
+              `Participant ${i} slot ${slotIndex}: key=${l2MptKey} -> ${modedL2MptKey}, value=${slotValue} -> ${modedSlotValue}`
+            );
+          } catch (error) {
+            console.error(`Failed to get data for ${participant} slot ${slotIndex}:`, error);
+            throw error;
           }
-
-          if (depositResultRaw !== undefined) {
-            deposit = (depositResultRaw as bigint).toString();
-          } else {
-            console.error(`Deposit fetch failed for ${participant}`);
-          }
-
-          // Apply modulo R_MOD as the contract does
-          const modedL2MptKey =
-            l2MptKey !== "0" ? (BigInt(l2MptKey) % R_MOD).toString() : "0";
-          const modedBalance =
-            deposit !== "0" ? (BigInt(deposit) % R_MOD).toString() : "0";
-
-          storageKeysL2MPT.push(modedL2MptKey);
-          storageValues.push(modedBalance);
-
-          console.log(
-            `Participant ${i}: key=${l2MptKey} -> ${modedL2MptKey}, balance=${deposit} -> ${modedBalance}`
-          );
-        } catch (error) {
-          console.error(`Failed to get data for ${participant}:`, error);
-          throw error;
         }
       }
 
