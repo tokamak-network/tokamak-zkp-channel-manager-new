@@ -148,6 +148,7 @@ function WithdrawPage() {
           <button
             onClick={handleOpenModal}
             disabled={isWithdrawing || withdrawSuccess}
+            data-testid="withdraw-button"
             className="flex items-center justify-center font-mono font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             style={{
               height: 40,

@@ -12,6 +12,8 @@ export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   helperText?: string;
   /** Input size */
   inputSize?: InputSize;
+  /** Test ID for E2E testing */
+  testId?: string;
 }
 
 /**
@@ -22,7 +24,7 @@ export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
  * <Input label="Password" type="password" error="Required" />
  */
 export const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ label, error, helperText, inputSize = 'md', className, id, ...props }, ref) => {
+  ({ label, error, helperText, inputSize = 'md', className, id, testId, ...props }, ref) => {
     const inputId = id || label?.toLowerCase().replace(/\s/g, '-');
 
     const sizeClass = {
@@ -41,6 +43,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
         <input
           ref={ref}
           id={inputId}
+          data-testid={testId}
           className={cn('input', sizeClass, error && 'input-error', className)}
           aria-invalid={!!error}
           aria-describedby={error ? `${inputId}-error` : undefined}

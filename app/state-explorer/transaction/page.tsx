@@ -446,6 +446,7 @@ function TransactionPage() {
                 setRecipient(addHexPrefix(value) as `0x${string}`);
               }
             }}
+            data-testid="recipient-address-input"
             className="w-full px-4 py-3.5 border border-[#BBBBBB] rounded text-lg font-mono"
             style={{
               fontSize: 18,
@@ -463,6 +464,7 @@ function TransactionPage() {
           tokenSymbol="TON"
           onMaxClick={() => setTokenAmount(userBalanceFormatted)}
           error={exceedsBalance}
+          testId="transfer-amount-input"
         />
 
         {/* Create Transaction Button - Opens proof generation modal */}
@@ -471,6 +473,7 @@ function TransactionPage() {
           size="full"
           onClick={handleOpenProofModal}
           disabled={!isConnected || !isFormValid}
+          testId="create-transaction-button"
         >
           {getButtonText()}
         </Button>
@@ -493,6 +496,7 @@ function TransactionPage() {
                 type="button"
                 onClick={() => proofActions?.openSubmitProofModal()}
                 disabled={isDisabled}
+                data-testid="submit-proof-button"
                 className="flex items-center justify-center font-mono font-medium transition-colors disabled:cursor-not-allowed"
                 style={{
                   height: 40,

@@ -244,6 +244,7 @@ export default function StateExplorerLayout({
                   type="button"
                   onClick={handleOpenInitializeModal}
                   disabled={isLoadingChannelData}
+                  data-testid="initialize-state-button"
                   className="flex items-center justify-center font-mono font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   style={{
                     height: 40,

@@ -222,6 +222,7 @@ function DepositPage() {
           tokenSymbol={tokenSymbol}
           onMaxClick={handleMaxClick}
           error={isInsufficientBalance}
+          testId="deposit-amount-input"
         />
 
         {/* Progress Steps (shown when processing) */}
@@ -267,6 +268,7 @@ function DepositPage() {
               size="full"
               onClick={handleApprove}
               disabled={!depositAmount || isApproving}
+              testId="approve-button"
             >
               <span className="flex items-center justify-center gap-2">
                 {isApproving
@@ -302,6 +304,7 @@ function DepositPage() {
             size="full"
             onClick={handleOpenConfirmModal}
             disabled={!isFormValid}
+            testId="deposit-button"
           >
             {!depositAmount
               ? "Enter Amount"

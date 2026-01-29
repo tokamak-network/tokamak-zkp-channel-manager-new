@@ -11,10 +11,12 @@ import { cn } from "@/lib/utils";
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: "primary" | "secondary" | "outline" | "purple" | "danger" | "success";
   size?: "sm" | "md" | "lg" | "full";
+  /** Test ID for E2E testing */
+  testId?: string;
 }
 
 const Button = forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant = "primary", size = "md", disabled, children, ...props }, ref) => {
+  ({ className, variant = "primary", size = "md", disabled, testId, children, ...props }, ref) => {
     const baseStyles =
       "font-mono font-medium rounded border transition-colors flex items-center justify-center";
 
@@ -51,6 +53,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         ref={ref}
         className={cn(baseStyles, variantStyles[variant], sizeStyles[size], className)}
         disabled={disabled}
+        data-testid={testId}
         {...props}
       >
         {children}

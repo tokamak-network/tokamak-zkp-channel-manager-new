@@ -324,6 +324,7 @@ export function CreateChannelForm() {
                 size="sm"
                 onClick={handleGenerateChannelId}
                 disabled={!leaderAddress}
+                testId="generate-channel-id-button"
               >
                 Generate
               </Button>
@@ -380,6 +381,7 @@ export function CreateChannelForm() {
             value={salt}
             onChange={(e) => setSalt(e.target.value)}
             placeholder="Enter custom salt"
+            testId="salt-input"
           />
         </div>
 
@@ -418,6 +420,7 @@ export function CreateChannelForm() {
                     placeholder="Enter Ethereum address"
                     error={showError}
                     success={showSuccess}
+                    testId={`participant-address-input-${index}`}
                     rightIcon={
                       showSuccess ? (
                         <Check className="w-6 h-6 text-[#3EB100]" />
@@ -499,7 +502,7 @@ export function CreateChannelForm() {
         )}
 
         {/* Create Channel Button */}
-        <Button size="full" onClick={handleOpenConfirmModal} disabled={!isFormValid}>
+        <Button size="full" onClick={handleOpenConfirmModal} disabled={!isFormValid} testId="create-channel-button">
           Create Channel
         </Button>
       </div>

@@ -14,6 +14,8 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   size?: ButtonSize;
   /** Show loading spinner */
   isLoading?: boolean;
+  /** Test ID for E2E testing */
+  testId?: string;
 }
 
 /**
@@ -48,6 +50,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       className,
       children,
       disabled,
+      testId,
       ...props
     },
     ref
@@ -135,6 +138,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       <button
         ref={ref}
         disabled={disabled || isLoading}
+        data-testid={testId}
         className={cn(
           'btn',
           colorClass,

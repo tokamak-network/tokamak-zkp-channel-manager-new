@@ -1,0 +1,634 @@
+# ============================================
+# E2E Channel Lifecycle Test Pipeline
+# ============================================
+# Tests the complete channel lifecycle:
+#   1. Create Channel
+#   2. Deposit (Leader + Participant)
+#   3. Initialize State
+#   4. L2 Transaction
+#   5. Submit Proof
+#   6. Close Channel
+#   7. Withdraw
+#
+# Each step is a separate job for easy failure identification.
+# State is passed between jobs via artifacts.
+
+name: E2E Channel Lifecycle
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      skip_proof_steps:
+        description: 'Skip long proof generation steps'
+        required: false
+        default: 'false'
+        type: boolean
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  # ============================================
+  # Setup: Build images and start Anvil
+  # ============================================
+  setup:
+    name: Setup Test Environment
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    outputs:
+      image-tag: ${{ steps.meta.outputs.tags }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          lfs: true
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build test images
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          target: e2e-test
+          push: false
+          load: true
+          tags: ${{ env.IMAGE_NAME }}:e2e-test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Create initial state file
+        run: |
+          echo '{"channelId":null,"leaderAddress":"0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266","participantAddress":"0x70997970C51812dc3A010C7d01b50e0d17dc79C8","createdAt":'$(date +%s000)',"txHashes":{}}' > channel-test-state.json
+
+      - name: Upload initial state
+        uses: actions/upload-artifact@v4
+        with:
+          name: channel-state-setup
+          path: channel-test-state.json
+          retention-days: 1
+
+  # ============================================
+  # Step 1: Create Channel
+  # ============================================
+  step-1-create-channel:
+    name: "Step 1: Create Channel"
+    runs-on: ubuntu-latest
+    needs: setup
+    timeout-minutes: 10
+
+    services:
+      anvil:
+        image: ghcr.io/foundry-rs/foundry:latest
+        ports:
+          - 8545:8545
+        options: >-
+          --entrypoint anvil
+          --health-cmd "curl -sf -X POST http://localhost:8545 -H 'Content-Type: application/json' -d '{\"jsonrpc\":\"2.0\",\"method\":\"eth_blockNumber\",\"params\":[],\"id\":1}'"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download state
+        uses: actions/download-artifact@v4
+        with:
+          name: channel-state-setup
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Install Playwright
+        run: npx playwright install --with-deps chromium
+
+      - name: Start app
+        run: |
+          npm run build
+          npm run start &
+          npx wait-on http://localhost:3000 --timeout 120000
+        env:
+          RPC_URL: http://localhost:8545
+          NEXT_PUBLIC_ALCHEMY_API_KEY: ${{ secrets.NEXT_PUBLIC_ALCHEMY_API_KEY }}
+
+      - name: Run Step 1 Test
+        run: npx playwright test e2e/steps/01-create-channel.spec.ts --reporter=list
+        env:
+          BASE_URL: http://localhost:3000
+          ANVIL_URL: http://localhost:8545
+
+      - name: Upload state
+        uses: actions/upload-artifact@v4
+        with:
+          name: channel-state-step1
+          path: channel-test-state.json
+          retention-days: 1
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-step1
+          path: test-results/
+          retention-days: 7
+
+  # ============================================
+  # Step 2: Deposit
+  # ============================================
+  step-2-deposit:
+    name: "Step 2: Deposit"
+    runs-on: ubuntu-latest
+    needs: step-1-create-channel
+    timeout-minutes: 10
+
+    services:
+      anvil:
+        image: ghcr.io/foundry-rs/foundry:latest
+        ports:
+          - 8545:8545
+        options: >-
+          --entrypoint anvil
+          --health-cmd "curl -sf -X POST http://localhost:8545 -H 'Content-Type: application/json' -d '{\"jsonrpc\":\"2.0\",\"method\":\"eth_blockNumber\",\"params\":[],\"id\":1}'"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download state
+        uses: actions/download-artifact@v4
+        with:
+          name: channel-state-step1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Install Playwright
+        run: npx playwright install --with-deps chromium
+
+      - name: Start app
+        run: |
+          npm run build
+          npm run start &
+          npx wait-on http://localhost:3000 --timeout 120000
+        env:
+          RPC_URL: http://localhost:8545
+          NEXT_PUBLIC_ALCHEMY_API_KEY: ${{ secrets.NEXT_PUBLIC_ALCHEMY_API_KEY }}
+
+      - name: Run Step 2 Test
+        run: npx playwright test e2e/steps/02-deposit.spec.ts --reporter=list
+        env:
+          BASE_URL: http://localhost:3000
+          ANVIL_URL: http://localhost:8545
+
+      - name: Upload state
+        uses: actions/upload-artifact@v4
+        with:
+          name: channel-state-step2
+          path: channel-test-state.json
+          retention-days: 1
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-step2
+          path: test-results/
+          retention-days: 7
+
+  # ============================================
+  # Step 3: Initialize State (Long - 15min timeout)
+  # ============================================
+  step-3-initialize:
+    name: "Step 3: Initialize State"
+    runs-on: ubuntu-latest
+    needs: step-2-deposit
+    timeout-minutes: 20
+
+    services:
+      anvil:
+        image: ghcr.io/foundry-rs/foundry:latest
+        ports:
+          - 8545:8545
+        options: >-
+          --entrypoint anvil
+          --health-cmd "curl -sf -X POST http://localhost:8545 -H 'Content-Type: application/json' -d '{\"jsonrpc\":\"2.0\",\"method\":\"eth_blockNumber\",\"params\":[],\"id\":1}'"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Download state
+        uses: actions/download-artifact@v4
+        with:
+          name: channel-state-step2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Install Playwright
+        run: npx playwright install --with-deps chromium
+
+      - name: Start app
+        run: |
+          npm run build
+          npm run start &
+          npx wait-on http://localhost:3000 --timeout 120000
+        env:
+          RPC_URL: http://localhost:8545
+          NEXT_PUBLIC_ALCHEMY_API_KEY: ${{ secrets.NEXT_PUBLIC_ALCHEMY_API_KEY }}
+
+      - name: Run Step 3 Test
+        run: npx playwright test e2e/steps/03-initialize.spec.ts --reporter=list --timeout=900000
+        env:
+          BASE_URL: http://localhost:3000
+          ANVIL_URL: http://localhost:8545
+
+      - name: Upload state
+        uses: actions/upload-artifact@v4
+        with:
+          name: channel-state-step3
+          path: channel-test-state.json
+          retention-days: 1
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-step3
+          path: test-results/
+          retention-days: 7
+
+  # ============================================
+  # Step 4: L2 Transaction (Long - 15min timeout)
+  # ============================================
+  step-4-l2-transaction:
+    name: "Step 4: L2 Transaction"
+    runs-on: ubuntu-latest
+    needs: step-3-initialize
+    timeout-minutes: 20
+
+    services:
+      anvil:
+        image: ghcr.io/foundry-rs/foundry:latest
+        ports:
+          - 8545:8545
+        options: >-
+          --entrypoint anvil
+          --health-cmd "curl -sf -X POST http://localhost:8545 -H 'Content-Type: application/json' -d '{\"jsonrpc\":\"2.0\",\"method\":\"eth_blockNumber\",\"params\":[],\"id\":1}'"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Download state
+        uses: actions/download-artifact@v4
+        with:
+          name: channel-state-step3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Install Playwright
+        run: npx playwright install --with-deps chromium
+
+      - name: Start app
+        run: |
+          npm run build
+          npm run start &
+          npx wait-on http://localhost:3000 --timeout 120000
+        env:
+          RPC_URL: http://localhost:8545
+          NEXT_PUBLIC_ALCHEMY_API_KEY: ${{ secrets.NEXT_PUBLIC_ALCHEMY_API_KEY }}
+
+      - name: Run Step 4 Test
+        run: npx playwright test e2e/steps/04-l2-transaction.spec.ts --reporter=list --timeout=900000
+        env:
+          BASE_URL: http://localhost:3000
+          ANVIL_URL: http://localhost:8545
+
+      - name: Upload state
+        uses: actions/upload-artifact@v4
+        with:
+          name: channel-state-step4
+          path: channel-test-state.json
+          retention-days: 1
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-step4
+          path: test-results/
+          retention-days: 7
+
+  # ============================================
+  # Step 5: Submit Proof
+  # ============================================
+  step-5-submit-proof:
+    name: "Step 5: Submit Proof"
+    runs-on: ubuntu-latest
+    needs: step-4-l2-transaction
+    timeout-minutes: 10
+
+    services:
+      anvil:
+        image: ghcr.io/foundry-rs/foundry:latest
+        ports:
+          - 8545:8545
+        options: >-
+          --entrypoint anvil
+          --health-cmd "curl -sf -X POST http://localhost:8545 -H 'Content-Type: application/json' -d '{\"jsonrpc\":\"2.0\",\"method\":\"eth_blockNumber\",\"params\":[],\"id\":1}'"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download state
+        uses: actions/download-artifact@v4
+        with:
+          name: channel-state-step4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Install Playwright
+        run: npx playwright install --with-deps chromium
+
+      - name: Start app
+        run: |
+          npm run build
+          npm run start &
+          npx wait-on http://localhost:3000 --timeout 120000
+        env:
+          RPC_URL: http://localhost:8545
+          NEXT_PUBLIC_ALCHEMY_API_KEY: ${{ secrets.NEXT_PUBLIC_ALCHEMY_API_KEY }}
+
+      - name: Run Step 5 Test
+        run: npx playwright test e2e/steps/05-submit-proof.spec.ts --reporter=list
+        env:
+          BASE_URL: http://localhost:3000
+          ANVIL_URL: http://localhost:8545
+
+      - name: Upload state
+        uses: actions/upload-artifact@v4
+        with:
+          name: channel-state-step5
+          path: channel-test-state.json
+          retention-days: 1
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-step5
+          path: test-results/
+          retention-days: 7
+
+  # ============================================
+  # Step 6: Close Channel (Long - 15min timeout)
+  # ============================================
+  step-6-close-channel:
+    name: "Step 6: Close Channel"
+    runs-on: ubuntu-latest
+    needs: step-5-submit-proof
+    timeout-minutes: 20
+
+    services:
+      anvil:
+        image: ghcr.io/foundry-rs/foundry:latest
+        ports:
+          - 8545:8545
+        options: >-
+          --entrypoint anvil
+          --health-cmd "curl -sf -X POST http://localhost:8545 -H 'Content-Type: application/json' -d '{\"jsonrpc\":\"2.0\",\"method\":\"eth_blockNumber\",\"params\":[],\"id\":1}'"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Download state
+        uses: actions/download-artifact@v4
+        with:
+          name: channel-state-step5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Install Playwright
+        run: npx playwright install --with-deps chromium
+
+      - name: Start app
+        run: |
+          npm run build
+          npm run start &
+          npx wait-on http://localhost:3000 --timeout 120000
+        env:
+          RPC_URL: http://localhost:8545
+          NEXT_PUBLIC_ALCHEMY_API_KEY: ${{ secrets.NEXT_PUBLIC_ALCHEMY_API_KEY }}
+
+      - name: Run Step 6 Test
+        run: npx playwright test e2e/steps/06-close-channel.spec.ts --reporter=list --timeout=900000
+        env:
+          BASE_URL: http://localhost:3000
+          ANVIL_URL: http://localhost:8545
+
+      - name: Upload state
+        uses: actions/upload-artifact@v4
+        with:
+          name: channel-state-step6
+          path: channel-test-state.json
+          retention-days: 1
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-step6
+          path: test-results/
+          retention-days: 7
+
+  # ============================================
+  # Step 7: Withdraw
+  # ============================================
+  step-7-withdraw:
+    name: "Step 7: Withdraw"
+    runs-on: ubuntu-latest
+    needs: step-6-close-channel
+    timeout-minutes: 10
+
+    services:
+      anvil:
+        image: ghcr.io/foundry-rs/foundry:latest
+        ports:
+          - 8545:8545
+        options: >-
+          --entrypoint anvil
+          --health-cmd "curl -sf -X POST http://localhost:8545 -H 'Content-Type: application/json' -d '{\"jsonrpc\":\"2.0\",\"method\":\"eth_blockNumber\",\"params\":[],\"id\":1}'"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download state
+        uses: actions/download-artifact@v4
+        with:
+          name: channel-state-step6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Install Playwright
+        run: npx playwright install --with-deps chromium
+
+      - name: Start app
+        run: |
+          npm run build
+          npm run start &
+          npx wait-on http://localhost:3000 --timeout 120000
+        env:
+          RPC_URL: http://localhost:8545
+          NEXT_PUBLIC_ALCHEMY_API_KEY: ${{ secrets.NEXT_PUBLIC_ALCHEMY_API_KEY }}
+
+      - name: Run Step 7 Test
+        run: npx playwright test e2e/steps/07-withdraw.spec.ts --reporter=list
+        env:
+          BASE_URL: http://localhost:3000
+          ANVIL_URL: http://localhost:8545
+
+      - name: Upload final state
+        uses: actions/upload-artifact@v4
+        with:
+          name: channel-state-final
+          path: channel-test-state.json
+          retention-days: 7
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-step7
+          path: test-results/
+          retention-days: 7
+
+  # ============================================
+  # Summary
+  # ============================================
+  summary:
+    name: Test Summary
+    runs-on: ubuntu-latest
+    needs: [step-7-withdraw]
+    if: always()
+
+    steps:
+      - name: Download all test results
+        uses: actions/download-artifact@v4
+        with:
+          pattern: test-results-*
+          merge-multiple: true
+          path: all-test-results
+
+      - name: Download final state
+        uses: actions/download-artifact@v4
+        with:
+          name: channel-state-final
+        continue-on-error: true
+
+      - name: Print summary
+        run: |
+          echo "## E2E Channel Lifecycle Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ -f channel-test-state.json ]; then
+            echo "### Final State" >> $GITHUB_STEP_SUMMARY
+            echo '```json' >> $GITHUB_STEP_SUMMARY
+            cat channel-test-state.json >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Job Status" >> $GITHUB_STEP_SUMMARY
+          echo "| Step | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| 1. Create Channel | ${{ needs.step-1-create-channel.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 2. Deposit | ${{ needs.step-2-deposit.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 3. Initialize | ${{ needs.step-3-initialize.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 4. L2 Transaction | ${{ needs.step-4-l2-transaction.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 5. Submit Proof | ${{ needs.step-5-submit-proof.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 6. Close Channel | ${{ needs.step-6-close-channel.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 7. Withdraw | ${{ needs.step-7-withdraw.result }} |" >> $GITHUB_STEP_SUMMARY

@@ -17,7 +17,9 @@
     "test:watch": "jest --watch",
     "test:tokamak-l2js": "node scripts/test-tokamak-l2js.mjs",
     "test:hooks": "npx tsx test/hooks/usePreviousStateSnapshot.test.ts",
-    "test:hooks:react": "jest test/hooks/usePreviousStateSnapshot.test.tsx"
+    "test:hooks:react": "jest test/hooks/usePreviousStateSnapshot.test.tsx",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui"
   },
   "dependencies": {
     "@ethereumjs/util": "^10.0.0",
@@ -35,6 +37,7 @@
     "zustand": "^4.5.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.40.0",
     "@testing-library/jest-dom": "^6.1.5",
     "@testing-library/react": "^14.1.2",
     "@types/jest": "^29.5.11",

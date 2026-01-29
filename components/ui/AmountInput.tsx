@@ -33,6 +33,8 @@ export interface AmountInputProps
   onTokenSelect?: () => void;
   error?: boolean;
   label?: string;
+  /** Test ID for E2E testing */
+  testId?: string;
 }
 
 const AmountInput = forwardRef<HTMLInputElement, AmountInputProps>(
@@ -47,6 +49,7 @@ const AmountInput = forwardRef<HTMLInputElement, AmountInputProps>(
       error,
       label = "Amount",
       disabled,
+      testId,
       ...props
     },
     ref
@@ -132,6 +135,7 @@ const AmountInput = forwardRef<HTMLInputElement, AmountInputProps>(
             onKeyDown={handleKeyDown}
             placeholder="0"
             disabled={disabled}
+            data-testid={testId}
             className="font-medium bg-transparent outline-none flex-1 min-w-0 disabled:cursor-not-allowed"
             style={{
               fontSize: 48,
@@ -198,6 +202,7 @@ const AmountInput = forwardRef<HTMLInputElement, AmountInputProps>(
                   type="button"
                   onClick={onMaxClick}
                   disabled={disabled}
+                  data-testid={testId ? `${testId}-max-button` : undefined}
                   className="font-medium text-[#2A72E5] bg-white transition-colors hover:bg-[#F2F2F2] disabled:opacity-50 disabled:cursor-not-allowed"
                   style={{
                     border: "1px solid #2A72E5",

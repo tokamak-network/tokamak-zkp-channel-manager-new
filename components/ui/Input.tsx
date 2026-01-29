@@ -12,10 +12,12 @@ export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   error?: boolean;
   success?: boolean;
   rightIcon?: ReactNode;
+  /** Test ID for E2E testing */
+  testId?: string;
 }
 
 const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ className, error, success, disabled, readOnly, rightIcon, ...props }, ref) => {
+  ({ className, error, success, disabled, readOnly, rightIcon, testId, ...props }, ref) => {
     // Base input styles
     // - Font: 18px for entered value, 20px placeholder
     // - Padding: 14px 16px
@@ -39,6 +41,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
             className={cn(baseStyles, stateStyles, "pr-12", className)}
             disabled={disabled}
             readOnly={readOnly}
+            data-testid={testId}
             {...props}
           />
           <div className="absolute right-4 top-1/2 -translate-y-1/2">
@@ -54,6 +57,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
         className={cn(baseStyles, stateStyles, className)}
         disabled={disabled}
         readOnly={readOnly}
+        data-testid={testId}
         {...props}
       />
     );

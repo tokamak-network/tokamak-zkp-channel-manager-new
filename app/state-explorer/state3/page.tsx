@@ -1079,6 +1079,7 @@ function State3Page() {
               !finalStateRoot ||
               !channelTreeSize
             }
+            data-testid="close-channel-button"
             className="flex items-center justify-center font-mono font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             style={{
               height: 40,
