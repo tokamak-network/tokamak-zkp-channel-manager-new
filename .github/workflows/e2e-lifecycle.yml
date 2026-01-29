@@ -10,6 +10,7 @@
 #   6. Close Channel
 #   7. Withdraw
 #
+# Uses Anvil fork of Sepolia for testing with real contracts.
 # Each step is a separate job for easy failure identification.
 # State is passed between jobs via artifacts.
 
@@ -17,9 +18,9 @@ name: E2E Channel Lifecycle
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main, develop, dev]
   pull_request:
-    branches: [main]
+    branches: [main, dev]
   workflow_dispatch:
     inputs:
       skip_proof_steps:
@@ -31,17 +32,17 @@ on:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
+  # Anvil fork RPC URL (uses Alchemy Sepolia)
+  FORK_RPC_URL: https://eth-sepolia.g.alchemy.com/v2/${{ secrets.NEXT_PUBLIC_ALCHEMY_API_KEY }}
 
 jobs:
   # ============================================
-  # Setup: Build images and start Anvil
+  # Setup: Build images and prepare environment
   # ============================================
   setup:
     name: Setup Test Environment
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    outputs:
-      image-tag: ${{ steps.meta.outputs.tags }}
 
     steps:
       - name: Checkout
@@ -49,21 +50,6 @@ jobs:
         with:
           submodules: recursive
           lfs: true
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build test images
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: ./Dockerfile
-          target: e2e-test
-          push: false
-          load: true
-          tags: ${{ env.IMAGE_NAME }}:e2e-test
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
 
       - name: Create initial state file
         run: |
@@ -83,19 +69,7 @@ jobs:
     name: "Step 1: Create Channel"
     runs-on: ubuntu-latest
     needs: setup
-    timeout-minutes: 10
-
-    services:
-      anvil:
-        image: ghcr.io/foundry-rs/foundry:latest
-        ports:
-          - 8545:8545
-        options: >-
-          --entrypoint anvil
-          --health-cmd "curl -sf -X POST http://localhost:8545 -H 'Content-Type: application/json' -d '{\"jsonrpc\":\"2.0\",\"method\":\"eth_blockNumber\",\"params\":[],\"id\":1}'"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
+    timeout-minutes: 15
 
     steps:
       - name: Checkout
@@ -112,20 +86,56 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: nightly
+
+      - name: Start Anvil (Sepolia Fork)
+        run: |
+          # Start Anvil forking Sepolia in background
+          # Use block number to ensure consistent state
+          anvil --fork-url ${{ env.FORK_RPC_URL }} \
+                --fork-block-number 7500000 \
+                --host 0.0.0.0 \
+                --port 8545 \
+                --accounts 10 \
+                --balance 10000 \
+                --chain-id 11155111 &
+          
+          # Wait for Anvil to be ready
+          echo "Waiting for Anvil to start..."
+          for i in {1..30}; do
+            if curl -sf -X POST http://localhost:8545 \
+              -H "Content-Type: application/json" \
+              -d '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}' > /dev/null 2>&1; then
+              echo "Anvil is ready!"
+              break
+            fi
+            echo "Attempt $i/30..."
+            sleep 2
+          done
+
       - name: Install dependencies
-        run: npm ci --legacy-peer-deps
+        run: SKIP_SUBMODULE_SETUP=1 npm ci --legacy-peer-deps
 
       - name: Install Playwright
         run: npx playwright install --with-deps chromium
 
+      - name: Build app
+        run: npm run build
+        env:
+          RPC_URL: http://localhost:8545
+          NEXT_PUBLIC_E2E_TEST_MODE: 'true'
+          NEXT_PUBLIC_E2E_RPC_URL: http://localhost:8545
+          NEXT_PUBLIC_ALCHEMY_API_KEY: ${{ secrets.NEXT_PUBLIC_ALCHEMY_API_KEY }}
+
       - name: Start app
         run: |
-          npm run build
           npm run start &
           npx wait-on http://localhost:3000 --timeout 120000
         env:
           RPC_URL: http://localhost:8545
-          NEXT_PUBLIC_ALCHEMY_API_KEY: ${{ secrets.NEXT_PUBLIC_ALCHEMY_API_KEY }}
 
       - name: Run Step 1 Test
         run: npx playwright test e2e/steps/01-create-channel.spec.ts --reporter=list
@@ -155,19 +165,7 @@ jobs:
     name: "Step 2: Deposit"
     runs-on: ubuntu-latest
     needs: step-1-create-channel
-    timeout-minutes: 10
-
-    services:
-      anvil:
-        image: ghcr.io/foundry-rs/foundry:latest
-        ports:
-          - 8545:8545
-        options: >-
-          --entrypoint anvil
-          --health-cmd "curl -sf -X POST http://localhost:8545 -H 'Content-Type: application/json' -d '{\"jsonrpc\":\"2.0\",\"method\":\"eth_blockNumber\",\"params\":[],\"id\":1}'"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
+    timeout-minutes: 15
 
     steps:
       - name: Checkout
@@ -184,20 +182,51 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: nightly
+
+      - name: Start Anvil (Sepolia Fork)
+        run: |
+          anvil --fork-url ${{ env.FORK_RPC_URL }} \
+                --fork-block-number 7500000 \
+                --host 0.0.0.0 \
+                --port 8545 \
+                --accounts 10 \
+                --balance 10000 \
+                --chain-id 11155111 &
+          
+          for i in {1..30}; do
+            if curl -sf -X POST http://localhost:8545 \
+              -H "Content-Type: application/json" \
+              -d '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}' > /dev/null 2>&1; then
+              echo "Anvil is ready!"
+              break
+            fi
+            sleep 2
+          done
+
       - name: Install dependencies
-        run: npm ci --legacy-peer-deps
+        run: SKIP_SUBMODULE_SETUP=1 npm ci --legacy-peer-deps
 
       - name: Install Playwright
         run: npx playwright install --with-deps chromium
 
+      - name: Build app
+        run: npm run build
+        env:
+          RPC_URL: http://localhost:8545
+          NEXT_PUBLIC_E2E_TEST_MODE: 'true'
+          NEXT_PUBLIC_E2E_RPC_URL: http://localhost:8545
+          NEXT_PUBLIC_ALCHEMY_API_KEY: ${{ secrets.NEXT_PUBLIC_ALCHEMY_API_KEY }}
+
       - name: Start app
         run: |
-          npm run build
           npm run start &
           npx wait-on http://localhost:3000 --timeout 120000
         env:
           RPC_URL: http://localhost:8545
-          NEXT_PUBLIC_ALCHEMY_API_KEY: ${{ secrets.NEXT_PUBLIC_ALCHEMY_API_KEY }}
 
       - name: Run Step 2 Test
         run: npx playwright test e2e/steps/02-deposit.spec.ts --reporter=list
@@ -227,19 +256,7 @@ jobs:
     name: "Step 3: Initialize State"
     runs-on: ubuntu-latest
     needs: step-2-deposit
-    timeout-minutes: 20
-
-    services:
-      anvil:
-        image: ghcr.io/foundry-rs/foundry:latest
-        ports:
-          - 8545:8545
-        options: >-
-          --entrypoint anvil
-          --health-cmd "curl -sf -X POST http://localhost:8545 -H 'Content-Type: application/json' -d '{\"jsonrpc\":\"2.0\",\"method\":\"eth_blockNumber\",\"params\":[],\"id\":1}'"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
+    timeout-minutes: 25
 
     steps:
       - name: Checkout
@@ -258,20 +275,51 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: nightly
+
+      - name: Start Anvil (Sepolia Fork)
+        run: |
+          anvil --fork-url ${{ env.FORK_RPC_URL }} \
+                --fork-block-number 7500000 \
+                --host 0.0.0.0 \
+                --port 8545 \
+                --accounts 10 \
+                --balance 10000 \
+                --chain-id 11155111 &
+          
+          for i in {1..30}; do
+            if curl -sf -X POST http://localhost:8545 \
+              -H "Content-Type: application/json" \
+              -d '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}' > /dev/null 2>&1; then
+              echo "Anvil is ready!"
+              break
+            fi
+            sleep 2
+          done
+
       - name: Install dependencies
-        run: npm ci --legacy-peer-deps
+        run: SKIP_SUBMODULE_SETUP=1 npm ci --legacy-peer-deps
 
       - name: Install Playwright
         run: npx playwright install --with-deps chromium
 
+      - name: Build app
+        run: npm run build
+        env:
+          RPC_URL: http://localhost:8545
+          NEXT_PUBLIC_E2E_TEST_MODE: 'true'
+          NEXT_PUBLIC_E2E_RPC_URL: http://localhost:8545
+          NEXT_PUBLIC_ALCHEMY_API_KEY: ${{ secrets.NEXT_PUBLIC_ALCHEMY_API_KEY }}
+
       - name: Start app
         run: |
-          npm run build
           npm run start &
           npx wait-on http://localhost:3000 --timeout 120000
         env:
           RPC_URL: http://localhost:8545
-          NEXT_PUBLIC_ALCHEMY_API_KEY: ${{ secrets.NEXT_PUBLIC_ALCHEMY_API_KEY }}
 
       - name: Run Step 3 Test
         run: npx playwright test e2e/steps/03-initialize.spec.ts --reporter=list --timeout=900000
@@ -301,19 +349,7 @@ jobs:
     name: "Step 4: L2 Transaction"
     runs-on: ubuntu-latest
     needs: step-3-initialize
-    timeout-minutes: 20
-
-    services:
-      anvil:
-        image: ghcr.io/foundry-rs/foundry:latest
-        ports:
-          - 8545:8545
-        options: >-
-          --entrypoint anvil
-          --health-cmd "curl -sf -X POST http://localhost:8545 -H 'Content-Type: application/json' -d '{\"jsonrpc\":\"2.0\",\"method\":\"eth_blockNumber\",\"params\":[],\"id\":1}'"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
+    timeout-minutes: 25
 
     steps:
       - name: Checkout
@@ -332,20 +368,51 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: nightly
+
+      - name: Start Anvil (Sepolia Fork)
+        run: |
+          anvil --fork-url ${{ env.FORK_RPC_URL }} \
+                --fork-block-number 7500000 \
+                --host 0.0.0.0 \
+                --port 8545 \
+                --accounts 10 \
+                --balance 10000 \
+                --chain-id 11155111 &
+          
+          for i in {1..30}; do
+            if curl -sf -X POST http://localhost:8545 \
+              -H "Content-Type: application/json" \
+              -d '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}' > /dev/null 2>&1; then
+              echo "Anvil is ready!"
+              break
+            fi
+            sleep 2
+          done
+
       - name: Install dependencies
-        run: npm ci --legacy-peer-deps
+        run: SKIP_SUBMODULE_SETUP=1 npm ci --legacy-peer-deps
 
       - name: Install Playwright
         run: npx playwright install --with-deps chromium
 
+      - name: Build app
+        run: npm run build
+        env:
+          RPC_URL: http://localhost:8545
+          NEXT_PUBLIC_E2E_TEST_MODE: 'true'
+          NEXT_PUBLIC_E2E_RPC_URL: http://localhost:8545
+          NEXT_PUBLIC_ALCHEMY_API_KEY: ${{ secrets.NEXT_PUBLIC_ALCHEMY_API_KEY }}
+
       - name: Start app
         run: |
-          npm run build
           npm run start &
           npx wait-on http://localhost:3000 --timeout 120000
         env:
           RPC_URL: http://localhost:8545
-          NEXT_PUBLIC_ALCHEMY_API_KEY: ${{ secrets.NEXT_PUBLIC_ALCHEMY_API_KEY }}
 
       - name: Run Step 4 Test
         run: npx playwright test e2e/steps/04-l2-transaction.spec.ts --reporter=list --timeout=900000
@@ -375,19 +442,7 @@ jobs:
     name: "Step 5: Submit Proof"
     runs-on: ubuntu-latest
     needs: step-4-l2-transaction
-    timeout-minutes: 10
-
-    services:
-      anvil:
-        image: ghcr.io/foundry-rs/foundry:latest
-        ports:
-          - 8545:8545
-        options: >-
-          --entrypoint anvil
-          --health-cmd "curl -sf -X POST http://localhost:8545 -H 'Content-Type: application/json' -d '{\"jsonrpc\":\"2.0\",\"method\":\"eth_blockNumber\",\"params\":[],\"id\":1}'"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
+    timeout-minutes: 15
 
     steps:
       - name: Checkout
@@ -404,20 +459,51 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: nightly
+
+      - name: Start Anvil (Sepolia Fork)
+        run: |
+          anvil --fork-url ${{ env.FORK_RPC_URL }} \
+                --fork-block-number 7500000 \
+                --host 0.0.0.0 \
+                --port 8545 \
+                --accounts 10 \
+                --balance 10000 \
+                --chain-id 11155111 &
+          
+          for i in {1..30}; do
+            if curl -sf -X POST http://localhost:8545 \
+              -H "Content-Type: application/json" \
+              -d '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}' > /dev/null 2>&1; then
+              echo "Anvil is ready!"
+              break
+            fi
+            sleep 2
+          done
+
       - name: Install dependencies
-        run: npm ci --legacy-peer-deps
+        run: SKIP_SUBMODULE_SETUP=1 npm ci --legacy-peer-deps
 
       - name: Install Playwright
         run: npx playwright install --with-deps chromium
 
+      - name: Build app
+        run: npm run build
+        env:
+          RPC_URL: http://localhost:8545
+          NEXT_PUBLIC_E2E_TEST_MODE: 'true'
+          NEXT_PUBLIC_E2E_RPC_URL: http://localhost:8545
+          NEXT_PUBLIC_ALCHEMY_API_KEY: ${{ secrets.NEXT_PUBLIC_ALCHEMY_API_KEY }}
+
       - name: Start app
         run: |
-          npm run build
           npm run start &
           npx wait-on http://localhost:3000 --timeout 120000
         env:
           RPC_URL: http://localhost:8545
-          NEXT_PUBLIC_ALCHEMY_API_KEY: ${{ secrets.NEXT_PUBLIC_ALCHEMY_API_KEY }}
 
       - name: Run Step 5 Test
         run: npx playwright test e2e/steps/05-submit-proof.spec.ts --reporter=list
@@ -447,19 +533,7 @@ jobs:
     name: "Step 6: Close Channel"
     runs-on: ubuntu-latest
     needs: step-5-submit-proof
-    timeout-minutes: 20
-
-    services:
-      anvil:
-        image: ghcr.io/foundry-rs/foundry:latest
-        ports:
-          - 8545:8545
-        options: >-
-          --entrypoint anvil
-          --health-cmd "curl -sf -X POST http://localhost:8545 -H 'Content-Type: application/json' -d '{\"jsonrpc\":\"2.0\",\"method\":\"eth_blockNumber\",\"params\":[],\"id\":1}'"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
+    timeout-minutes: 25
 
     steps:
       - name: Checkout
@@ -478,20 +552,51 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: nightly
+
+      - name: Start Anvil (Sepolia Fork)
+        run: |
+          anvil --fork-url ${{ env.FORK_RPC_URL }} \
+                --fork-block-number 7500000 \
+                --host 0.0.0.0 \
+                --port 8545 \
+                --accounts 10 \
+                --balance 10000 \
+                --chain-id 11155111 &
+          
+          for i in {1..30}; do
+            if curl -sf -X POST http://localhost:8545 \
+              -H "Content-Type: application/json" \
+              -d '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}' > /dev/null 2>&1; then
+              echo "Anvil is ready!"
+              break
+            fi
+            sleep 2
+          done
+
       - name: Install dependencies
-        run: npm ci --legacy-peer-deps
+        run: SKIP_SUBMODULE_SETUP=1 npm ci --legacy-peer-deps
 
       - name: Install Playwright
         run: npx playwright install --with-deps chromium
 
+      - name: Build app
+        run: npm run build
+        env:
+          RPC_URL: http://localhost:8545
+          NEXT_PUBLIC_E2E_TEST_MODE: 'true'
+          NEXT_PUBLIC_E2E_RPC_URL: http://localhost:8545
+          NEXT_PUBLIC_ALCHEMY_API_KEY: ${{ secrets.NEXT_PUBLIC_ALCHEMY_API_KEY }}
+
       - name: Start app
         run: |
-          npm run build
           npm run start &
           npx wait-on http://localhost:3000 --timeout 120000
         env:
           RPC_URL: http://localhost:8545
-          NEXT_PUBLIC_ALCHEMY_API_KEY: ${{ secrets.NEXT_PUBLIC_ALCHEMY_API_KEY }}
 
       - name: Run Step 6 Test
         run: npx playwright test e2e/steps/06-close-channel.spec.ts --reporter=list --timeout=900000
@@ -521,19 +626,7 @@ jobs:
     name: "Step 7: Withdraw"
     runs-on: ubuntu-latest
     needs: step-6-close-channel
-    timeout-minutes: 10
-
-    services:
-      anvil:
-        image: ghcr.io/foundry-rs/foundry:latest
-        ports:
-          - 8545:8545
-        options: >-
-          --entrypoint anvil
-          --health-cmd "curl -sf -X POST http://localhost:8545 -H 'Content-Type: application/json' -d '{\"jsonrpc\":\"2.0\",\"method\":\"eth_blockNumber\",\"params\":[],\"id\":1}'"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
+    timeout-minutes: 15
 
     steps:
       - name: Checkout
@@ -550,20 +643,51 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: nightly
+
+      - name: Start Anvil (Sepolia Fork)
+        run: |
+          anvil --fork-url ${{ env.FORK_RPC_URL }} \
+                --fork-block-number 7500000 \
+                --host 0.0.0.0 \
+                --port 8545 \
+                --accounts 10 \
+                --balance 10000 \
+                --chain-id 11155111 &
+          
+          for i in {1..30}; do
+            if curl -sf -X POST http://localhost:8545 \
+              -H "Content-Type: application/json" \
+              -d '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}' > /dev/null 2>&1; then
+              echo "Anvil is ready!"
+              break
+            fi
+            sleep 2
+          done
+
       - name: Install dependencies
-        run: npm ci --legacy-peer-deps
+        run: SKIP_SUBMODULE_SETUP=1 npm ci --legacy-peer-deps
 
       - name: Install Playwright
         run: npx playwright install --with-deps chromium
 
+      - name: Build app
+        run: npm run build
+        env:
+          RPC_URL: http://localhost:8545
+          NEXT_PUBLIC_E2E_TEST_MODE: 'true'
+          NEXT_PUBLIC_E2E_RPC_URL: http://localhost:8545
+          NEXT_PUBLIC_ALCHEMY_API_KEY: ${{ secrets.NEXT_PUBLIC_ALCHEMY_API_KEY }}
+
       - name: Start app
         run: |
-          npm run build
           npm run start &
           npx wait-on http://localhost:3000 --timeout 120000
         env:
           RPC_URL: http://localhost:8545
-          NEXT_PUBLIC_ALCHEMY_API_KEY: ${{ secrets.NEXT_PUBLIC_ALCHEMY_API_KEY }}
 
       - name: Run Step 7 Test
         run: npx playwright test e2e/steps/07-withdraw.spec.ts --reporter=list
@@ -592,7 +716,7 @@ jobs:
   summary:
     name: Test Summary
     runs-on: ubuntu-latest
-    needs: [step-7-withdraw]
+    needs: [step-1-create-channel, step-2-deposit, step-3-initialize, step-4-l2-transaction, step-5-submit-proof, step-6-close-channel, step-7-withdraw]
     if: always()
 
     steps:
@@ -602,6 +726,7 @@ jobs:
           pattern: test-results-*
           merge-multiple: true
           path: all-test-results
+        continue-on-error: true
 
       - name: Download final state
         uses: actions/download-artifact@v4

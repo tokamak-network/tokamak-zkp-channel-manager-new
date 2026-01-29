@@ -1,23 +1,26 @@
 # ============================================
-# E2E Test Pipeline (Playwright with Docker Compose)
+# E2E Test Pipeline (Basic UI Tests)
 # ============================================
+# Runs basic UI tests that don't require blockchain interaction.
+# For full channel lifecycle tests, see e2e-lifecycle.yml
+
 name: E2E Tests
 
 on:
   push:
-    branches: [main]
+    branches: [main, dev]
   pull_request:
-    branches: [main]
+    branches: [main, dev]
   workflow_dispatch:
 
 jobs:
   # ============================================
-  # E2E Tests using Docker Compose
+  # Basic UI E2E Tests
   # ============================================
-  e2e:
-    name: E2E Tests (Docker Compose)
+  e2e-ui:
+    name: E2E UI Tests
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 20
 
     steps:
       - name: Checkout
@@ -26,18 +29,65 @@ jobs:
           submodules: recursive
           lfs: true
 
-      - name: Create .env file
-        run: |
-          echo "RPC_URL=${{ secrets.RPC_URL }}" >> .env
-          echo "NEXT_PUBLIC_ALCHEMY_API_KEY=${{ secrets.NEXT_PUBLIC_ALCHEMY_API_KEY }}" >> .env
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: nightly
 
-      - name: Build and run E2E tests
+      - name: Start Anvil (Sepolia Fork)
         run: |
-          docker-compose -f docker-compose.yml -f docker-compose.test.yml up \
-            --build --abort-on-container-exit --exit-code-from e2e
+          # Start Anvil forking Sepolia
+          anvil --fork-url https://eth-sepolia.g.alchemy.com/v2/${{ secrets.NEXT_PUBLIC_ALCHEMY_API_KEY }} \
+                --fork-block-number 7500000 \
+                --host 0.0.0.0 \
+                --port 8545 \
+                --accounts 10 \
+                --balance 10000 \
+                --chain-id 11155111 &
+          
+          # Wait for Anvil
+          for i in {1..30}; do
+            if curl -sf -X POST http://localhost:8545 \
+              -H "Content-Type: application/json" \
+              -d '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}' > /dev/null 2>&1; then
+              echo "Anvil is ready!"
+              break
+            fi
+            echo "Waiting for Anvil... ($i/30)"
+            sleep 2
+          done
+
+      - name: Install dependencies
+        run: SKIP_SUBMODULE_SETUP=1 npm ci --legacy-peer-deps
+
+      - name: Install Playwright
+        run: npx playwright install --with-deps chromium
+
+      - name: Build app
+        run: npm run build
+        env:
+          RPC_URL: http://localhost:8545
+          NEXT_PUBLIC_E2E_TEST_MODE: 'true'
+          NEXT_PUBLIC_E2E_RPC_URL: http://localhost:8545
+          NEXT_PUBLIC_ALCHEMY_API_KEY: ${{ secrets.NEXT_PUBLIC_ALCHEMY_API_KEY }}
+
+      - name: Start app
+        run: |
+          npm run start &
+          npx wait-on http://localhost:3000 --timeout 120000
+        env:
+          RPC_URL: http://localhost:8545
+
+      - name: Run UI Tests
+        run: npx playwright test e2e/home.spec.ts --reporter=list
+        env:
+          BASE_URL: http://localhost:3000
 
       - name: Upload test results
         uses: actions/upload-artifact@v4
@@ -48,7 +98,3 @@ jobs:
             test-results/
             playwright-report/
           retention-days: 30
-
-      - name: Cleanup
-        if: always()
-        run: docker-compose -f docker-compose.yml -f docker-compose.test.yml down -v
