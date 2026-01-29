@@ -24,7 +24,7 @@ const OUTPUT_INDEX = join(CONTRACTS_DIR, 'index.ts');
 
 // Configuration
 const CONTRACTS_REPO_BASE = process.env.CONTRACTS_REPO_URL || 
-  'https://raw.githubusercontent.com/tokamak-network/Tokamak-zk-EVM-contracts/main';
+  'https://raw.githubusercontent.com/tokamak-network/Tokamak-zk-EVM-contracts/dev';
 const NETWORKS = ['sepolia', 'mainnet'] as const;
 
 interface ContractInfo {

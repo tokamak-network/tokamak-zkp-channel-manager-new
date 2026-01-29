@@ -1,24 +1,26 @@
 /**
  * Contract Addresses
- * 
+ *
  * Auto-generated from Tokamak-zk-EVM-contracts repository
  * DO NOT EDIT MANUALLY - This file is auto-generated
  */
 
 export const CONTRACT_ADDRESSES = {
   sepolia: {
-    TokamakVerifier: '0xF43C2a14A8e5Ab3FC8740ea4AABc45010ED9fb52',
-    Groth16Verifier16Leaves: '0x27f453C0f7eAC419A390edaae6b0ABA64D6490c9',
-    Groth16Verifier32Leaves: '0xCF85A85856237C8B1E9FE43e117ca8245c2AbE6A',
-    Groth16Verifier64Leaves: '0x9192Ab6CCe1FF89393153BD54CE95F7aEE0Cf831',
-    Groth16Verifier128Leaves: '0xdb70a38547f6Bcc655786b2cf19D0f34e7B3ebED',
-    BridgeCore: '0xB6bD0FaD0B47e8c322606a199fa83ED8ca182f23',
-    BridgeDepositManager: '0x509C052f28924cbeafb75dBA8b507517B1989668',
-    BridgeProofManager: '0x576E38b03DEeFAEE4b591106cBa6c3bD4A5537d0',
-    BridgeWithdrawManager: '0xEeF0E1B4BFC44DbC35557c7ff0C7f8c9Cd02dFFB',
-    BridgeAdminManager: '0xc5604C16779B7430827c0Ad6b8C758792F99BAc7',
+    TokamakVerifier: "0x87d51311a936b940578116b70592ad6eb8b5f830",
+    Groth16Verifier16Leaves: "0xc167f315aef4319a686b7728e8de71f9da3f62bc",
+    Groth16Verifier32Leaves: "0xb86b79c36b8eacc669e12f235f36d6bee1d40eff",
+    Groth16Verifier64Leaves: "0x64ba1c608b794537499b973b3b97e2d01edeabf6",
+    Groth16Verifier128Leaves: "0x91bc1281733aaf2bbf7f45e0098f9e0439f459dd",
+    ZecFrost: "0x910eee98a93d54ad52694cbf2b45b1534c8c8d10",
+    BridgeCore: "0x42b57f7d07dfef403ffd776f0d92f1dd6d455dcc",
+    BridgeDepositManager: "0xc430477c58fd96243ea07e90cc3c517857492e91",
+    BridgeProofManager: "0xfdb96f02a562947b527867a86632bd865ceb4576",
+    BridgeWithdrawManager: "0x1247aece17bc89f5bf6b170710a988200c7582ae",
+    BridgeAdminManager: "0xdef74170cd7cf0a427606a1ce015b6bde22eb17e",
   } as const,
 } as const;
 
 export type Network = keyof typeof CONTRACT_ADDRESSES;
-export type ContractName<T extends Network> = keyof typeof CONTRACT_ADDRESSES[T];
+export type ContractName<T extends Network> =
+  keyof (typeof CONTRACT_ADDRESSES)[T];

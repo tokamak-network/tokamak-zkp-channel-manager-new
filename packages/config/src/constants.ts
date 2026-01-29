@@ -45,19 +45,22 @@ export const SUPPORTED_TOKENS = {
     symbol: "TON",
     name: "Tokamak Network",
     address: "0xa30fe40285B8f5c0457DbC3B7C8A280373c40044" as `0x${string}`,
+    decimals: 18,
     enabled: true,
   },
   USDT: {
     symbol: "USDT",
     name: "Tether USD",
-    address: "0x0000000000000000000000000000000000000000" as `0x${string}`, // TODO: Add real address
-    enabled: false, // Not yet supported
+    address: "0x42d3b260c761cD5da022dB56Fe2F89c4A909b04A" as `0x${string}`, // Sepolia USDT (configured in BridgeAdminManager)
+    decimals: 6,
+    enabled: true,
   },
   USDC: {
     symbol: "USDC",
     name: "USD Coin",
-    address: "0x0000000000000000000000000000000000000000" as `0x${string}`, // TODO: Add real address
-    enabled: false, // Not yet supported
+    address: "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238" as `0x${string}`, // Circle Sepolia USDC
+    decimals: 6,
+    enabled: true,
   },
 } as const;
 
@@ -103,18 +106,51 @@ export const TX_SETTINGS = {
 } as const;
 
 /**
- * Fixed Target Contract Address
+ * Fixed Target Contract Address (Legacy - single token)
  *
- * Default target contract address for channel creation
+ * @deprecated Use FIXED_TARGET_CONTRACTS array for multi-token support
  */
 export const FIXED_TARGET_CONTRACT =
   "0xa30fe40285B8f5c0457DbC3B7C8A280373c40044" as `0x${string}`;
+
+/**
+ * Fixed Target Contract Addresses (Multi-token support)
+ *
+ * Array of target contract addresses for channel creation
+ * Order: [TON, USDT, USDC]
+ */
+export const FIXED_TARGET_CONTRACTS: readonly `0x${string}`[] = [
+  SUPPORTED_TOKENS.TON.address,
+  SUPPORTED_TOKENS.USDT.address,
+  SUPPORTED_TOKENS.USDC.address,
+] as const;
+
+/**
+ * Get target contract addresses for selected tokens
+ */
+export const getTargetContractsForTokens = (symbols: TokenSymbol[]): `0x${string}`[] => {
+  return symbols
+    .filter(symbol => SUPPORTED_TOKENS[symbol].enabled)
+    .map(symbol => SUPPORTED_TOKENS[symbol].address);
+};
 
 /**
  * TON Token Address (Sepolia testnet)
  */
 export const TON_TOKEN_ADDRESS =
   "0xa30fe40285B8f5c0457DbC3B7C8A280373c40044" as `0x${string}`;
+
+/**
+ * USDT Token Address (Sepolia testnet - configured in BridgeAdminManager)
+ */
+export const USDT_TOKEN_ADDRESS =
+  "0x42d3b260c761cD5da022dB56Fe2F89c4A909b04A" as `0x${string}`;
+
+/**
+ * USDC Token Address (Sepolia testnet - Circle)
+ */
+export const USDC_TOKEN_ADDRESS =
+  "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238" as `0x${string}`;
 
 /**
  * ERC20 Transfer function selectors and slot indices
@@ -126,5 +162,13 @@ export const ERC20_TRANSFER: Record<
   [TON_TOKEN_ADDRESS]: {
     selector: "0xa9059cbb",
     slot: 0,
+  },
+  ["0x42d3b260c761cD5da022dB56Fe2F89c4A909b04A" as `0x${string}`]: {
+    selector: "0xa9059cbb",
+    slot: 1,
+  },
+  [USDC_TOKEN_ADDRESS]: {
+    selector: "0xa9059cbb",
+    slot: 2,
   },
 };

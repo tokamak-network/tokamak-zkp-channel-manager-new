@@ -131,7 +131,7 @@ export const BRIDGEADMINMANAGER_ABI = [
         "internalType": "struct IBridgeCore.TargetContract",
         "components": [
           {
-            "name": "storageSlot",
+            "name": "preAllocatedLeaves",
             "type": "tuple[]",
             "internalType": "struct IBridgeCore.PreAllocatedLeaf[]",
             "components": [
@@ -176,6 +176,28 @@ export const BRIDGEADMINMANAGER_ABI = [
                 "name": "preprocessedPart2",
                 "type": "uint256[]",
                 "internalType": "uint256[]"
+              }
+            ]
+          },
+          {
+            "name": "userStorageSlots",
+            "type": "tuple[]",
+            "internalType": "struct IBridgeCore.UserStorageSlot[]",
+            "components": [
+              {
+                "name": "slotOffset",
+                "type": "uint8",
+                "internalType": "uint8"
+              },
+              {
+                "name": "getterFunctionSignature",
+                "type": "bytes32",
+                "internalType": "bytes32"
+              },
+              {
+                "name": "isLoadedOnChain",
+                "type": "bool",
+                "internalType": "bool"
               }
             ]
           }
@@ -312,6 +334,28 @@ export const BRIDGEADMINMANAGER_ABI = [
           },
           {
             "name": "isActive",
+            "type": "bool",
+            "internalType": "bool"
+          }
+        ]
+      },
+      {
+        "name": "userStorageSlots",
+        "type": "tuple[]",
+        "internalType": "struct IBridgeCore.UserStorageSlot[]",
+        "components": [
+          {
+            "name": "slotOffset",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "getterFunctionSignature",
+            "type": "bytes32",
+            "internalType": "bytes32"
+          },
+          {
+            "name": "isLoadedOnChain",
             "type": "bool",
             "internalType": "bool"
           }
@@ -625,6 +669,19 @@ export const BRIDGECORE_ABI = [
   },
   {
     "type": "function",
+    "name": "CHANNEL_TIMEOUT",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "MAX_PARTICIPANTS",
     "inputs": [],
     "outputs": [
@@ -682,7 +739,7 @@ export const BRIDGECORE_ABI = [
   },
   {
     "type": "function",
-    "name": "clearWithdrawableAmount",
+    "name": "clearValidatedUserStorage",
     "inputs": [
       {
         "name": "channelId",
@@ -739,6 +796,25 @@ export const BRIDGECORE_ABI = [
       }
     ],
     "stateMutability": "pure"
+  },
+  {
+    "type": "function",
+    "name": "getBalanceSlotIndex",
+    "inputs": [
+      {
+        "name": "targetContract",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint8",
+        "internalType": "uint8"
+      }
+    ],
+    "stateMutability": "view"
   },
   {
     "type": "function",
@@ -971,25 +1047,6 @@ export const BRIDGECORE_ABI = [
   },
   {
     "type": "function",
-    "name": "getChannelTotalDeposits",
-    "inputs": [
-      {
-        "name": "channelId",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
     "name": "getChannelTreeSize",
     "inputs": [
       {
@@ -1033,49 +1090,11 @@ export const BRIDGECORE_ABI = [
         "name": "participant",
         "type": "address",
         "internalType": "address"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "getMaxAllowedParticipants",
-    "inputs": [
-      {
-        "name": "targetContract",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "maxParticipants",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "getParticipantDeposit",
-    "inputs": [
-      {
-        "name": "channelId",
-        "type": "bytes32",
-        "internalType": "bytes32"
       },
       {
-        "name": "participant",
-        "type": "address",
-        "internalType": "address"
+        "name": "slotIndex",
+        "type": "uint8",
+        "internalType": "uint8"
       }
     ],
     "outputs": [
@@ -1171,7 +1190,7 @@ export const BRIDGECORE_ABI = [
         "internalType": "struct BridgeCore.TargetContract",
         "components": [
           {
-            "name": "storageSlot",
+            "name": "preAllocatedLeaves",
             "type": "tuple[]",
             "internalType": "struct BridgeCore.PreAllocatedLeaf[]",
             "components": [
@@ -1218,6 +1237,28 @@ export const BRIDGECORE_ABI = [
                 "internalType": "uint256[]"
               }
             ]
+          },
+          {
+            "name": "userStorageSlots",
+            "type": "tuple[]",
+            "internalType": "struct BridgeCore.UserStorageSlot[]",
+            "components": [
+              {
+                "name": "slotOffset",
+                "type": "uint8",
+                "internalType": "uint8"
+              },
+              {
+                "name": "getterFunctionSignature",
+                "type": "bytes32",
+                "internalType": "bytes32"
+              },
+              {
+                "name": "isLoadedOnChain",
+                "type": "bool",
+                "internalType": "bool"
+              }
+            ]
           }
         ]
       }
@@ -1226,7 +1267,7 @@ export const BRIDGECORE_ABI = [
   },
   {
     "type": "function",
-    "name": "getWithdrawableAmount",
+    "name": "getValidatedUserSlotValue",
     "inputs": [
       {
         "name": "channelId",
@@ -1239,9 +1280,9 @@ export const BRIDGECORE_ABI = [
         "internalType": "address"
       },
       {
-        "name": "targetContract",
-        "type": "address",
-        "internalType": "address"
+        "name": "slotIndex",
+        "type": "uint8",
+        "internalType": "uint8"
       }
     ],
     "outputs": [
@@ -1249,6 +1290,30 @@ export const BRIDGECORE_ABI = [
         "name": "",
         "type": "uint256",
         "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getValidatedUserTargetContract",
+    "inputs": [
+      {
+        "name": "channelId",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      },
+      {
+        "name": "participant",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
       }
     ],
     "stateMutability": "view"
@@ -1336,17 +1401,12 @@ export const BRIDGECORE_ABI = [
   },
   {
     "type": "function",
-    "name": "isChannelParticipant",
+    "name": "isChannelPublicKeySet",
     "inputs": [
       {
         "name": "channelId",
         "type": "bytes32",
         "internalType": "bytes32"
-      },
-      {
-        "name": "participant",
-        "type": "address",
-        "internalType": "address"
       }
     ],
     "outputs": [
@@ -1360,7 +1420,7 @@ export const BRIDGECORE_ABI = [
   },
   {
     "type": "function",
-    "name": "isChannelPublicKeySet",
+    "name": "isChannelTimedOut",
     "inputs": [
       {
         "name": "channelId",
@@ -1428,6 +1488,11 @@ export const BRIDGECORE_ABI = [
         "name": "addr",
         "type": "address",
         "internalType": "address"
+      },
+      {
+        "name": "channelId",
+        "type": "bytes32",
+        "internalType": "bytes32"
       }
     ],
     "outputs": [
@@ -1593,7 +1658,7 @@ export const BRIDGECORE_ABI = [
         "internalType": "address"
       },
       {
-        "name": "storageSlots",
+        "name": "leaves",
         "type": "tuple[]",
         "internalType": "struct BridgeCore.PreAllocatedLeaf[]",
         "components": [
@@ -1609,6 +1674,28 @@ export const BRIDGECORE_ABI = [
           },
           {
             "name": "isActive",
+            "type": "bool",
+            "internalType": "bool"
+          }
+        ]
+      },
+      {
+        "name": "userStorageSlots",
+        "type": "tuple[]",
+        "internalType": "struct BridgeCore.UserStorageSlot[]",
+        "components": [
+          {
+            "name": "slotOffset",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "getterFunctionSignature",
+            "type": "bytes32",
+            "internalType": "bytes32"
+          },
+          {
+            "name": "isLoadedOnChain",
             "type": "bool",
             "internalType": "bool"
           }
@@ -1697,7 +1784,7 @@ export const BRIDGECORE_ABI = [
   },
   {
     "type": "function",
-    "name": "setChannelL2MptKey",
+    "name": "setChannelL2MptKeys",
     "inputs": [
       {
         "name": "channelId",
@@ -1710,9 +1797,9 @@ export const BRIDGECORE_ABI = [
         "internalType": "address"
       },
       {
-        "name": "mptKey",
-        "type": "uint256",
-        "internalType": "uint256"
+        "name": "mptKeys",
+        "type": "uint256[]",
+        "internalType": "uint256[]"
       }
     ],
     "outputs": [],
@@ -1779,7 +1866,7 @@ export const BRIDGECORE_ABI = [
   },
   {
     "type": "function",
-    "name": "setChannelWithdrawAmounts",
+    "name": "setChannelValidatedUserStorage",
     "inputs": [
       {
         "name": "channelId",
@@ -1792,9 +1879,9 @@ export const BRIDGECORE_ABI = [
         "internalType": "address[]"
       },
       {
-        "name": "amounts",
-        "type": "uint256[]",
-        "internalType": "uint256[]"
+        "name": "slotValues",
+        "type": "uint256[][]",
+        "internalType": "uint256[][]"
       }
     ],
     "outputs": [],
@@ -1856,24 +1943,6 @@ export const BRIDGECORE_ABI = [
   },
   {
     "type": "function",
-    "name": "updateChannelTotalDeposits",
-    "inputs": [
-      {
-        "name": "channelId",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      },
-      {
-        "name": "amount",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
     "name": "updateChannelUserDeposits",
     "inputs": [
       {
@@ -1885,6 +1954,11 @@ export const BRIDGECORE_ABI = [
         "name": "participant",
         "type": "address",
         "internalType": "address"
+      },
+      {
+        "name": "slotIndex",
+        "type": "uint8",
+        "internalType": "uint8"
       },
       {
         "name": "amount",
@@ -2193,9 +2267,9 @@ export const BRIDGEDEPOSITMANAGER_ABI = [
         "internalType": "uint256"
       },
       {
-        "name": "_mptKey",
-        "type": "bytes32",
-        "internalType": "bytes32"
+        "name": "_mptKeys",
+        "type": "bytes32[]",
+        "internalType": "bytes32[]"
       }
     ],
     "outputs": [],
@@ -2753,6 +2827,51 @@ export const BRIDGEPROOFMANAGER_ABI = [
   },
   {
     "type": "function",
+    "name": "updateValidatedUserStorage",
+    "inputs": [
+      {
+        "name": "channelId",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      },
+      {
+        "name": "finalSlotValues",
+        "type": "uint256[][]",
+        "internalType": "uint256[][]"
+      },
+      {
+        "name": "permutation",
+        "type": "uint256[]",
+        "internalType": "uint256[]"
+      },
+      {
+        "name": "groth16Proof",
+        "type": "tuple",
+        "internalType": "struct BridgeProofManager.ChannelFinalizationProof",
+        "components": [
+          {
+            "name": "pA",
+            "type": "uint256[4]",
+            "internalType": "uint256[4]"
+          },
+          {
+            "name": "pB",
+            "type": "uint256[8]",
+            "internalType": "uint256[8]"
+          },
+          {
+            "name": "pC",
+            "type": "uint256[4]",
+            "internalType": "uint256[4]"
+          }
+        ]
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
     "name": "updateVerifier",
     "inputs": [
       {
@@ -2807,51 +2926,6 @@ export const BRIDGEPROOFMANAGER_ABI = [
     ],
     "outputs": [],
     "stateMutability": "payable"
-  },
-  {
-    "type": "function",
-    "name": "verifyFinalBalancesGroth16",
-    "inputs": [
-      {
-        "name": "channelId",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      },
-      {
-        "name": "finalBalances",
-        "type": "uint256[]",
-        "internalType": "uint256[]"
-      },
-      {
-        "name": "permutation",
-        "type": "uint256[]",
-        "internalType": "uint256[]"
-      },
-      {
-        "name": "groth16Proof",
-        "type": "tuple",
-        "internalType": "struct BridgeProofManager.ChannelFinalizationProof",
-        "components": [
-          {
-            "name": "pA",
-            "type": "uint256[4]",
-            "internalType": "uint256[4]"
-          },
-          {
-            "name": "pB",
-            "type": "uint256[8]",
-            "internalType": "uint256[8]"
-          },
-          {
-            "name": "pC",
-            "type": "uint256[4]",
-            "internalType": "uint256[4]"
-          }
-        ]
-      }
-    ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
   },
   {
     "type": "function",
@@ -3358,6 +3432,37 @@ export const BRIDGEWITHDRAWMANAGER_ABI = [
   },
   {
     "type": "event",
+    "name": "TimeoutWithdrawn",
+    "inputs": [
+      {
+        "name": "channelId",
+        "type": "bytes32",
+        "indexed": true,
+        "internalType": "bytes32"
+      },
+      {
+        "name": "user",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "token",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      },
+      {
+        "name": "amount",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
     "name": "Upgraded",
     "inputs": [
       {
@@ -3657,6 +3762,170 @@ export const TOKAMAKVERIFIER_ABI = [
         "name": "final_result",
         "type": "bool",
         "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
+  }
+] as const satisfies Abi;
+
+export const ZECFROST_ABI = [
+  {
+    "type": "function",
+    "name": "isValidPublicKey",
+    "inputs": [
+      {
+        "name": "x",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "y",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "result",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "pure"
+  },
+  {
+    "type": "function",
+    "name": "measureVerify",
+    "inputs": [
+      {
+        "name": "message",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      },
+      {
+        "name": "px",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "py",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "rx",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "ry",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "z",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "cold",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "warm",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "verify",
+    "inputs": [
+      {
+        "name": "message",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      },
+      {
+        "name": "px",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "py",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "rx",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "ry",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "z",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "signer",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "verifyBytes",
+    "inputs": [
+      {
+        "name": "message",
+        "type": "bytes",
+        "internalType": "bytes"
+      },
+      {
+        "name": "px",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "py",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "rx",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "ry",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "z",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "signer",
+        "type": "address",
+        "internalType": "address"
       }
     ],
     "stateMutability": "view"
