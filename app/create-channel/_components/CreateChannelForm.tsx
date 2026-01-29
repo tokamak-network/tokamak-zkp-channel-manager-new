@@ -132,6 +132,7 @@ export function CreateChannelForm() {
     isConnected,
     channelId: generatedChannelId,
     appType: selectedApp,
+    selectedTokens, // Pass selected tokens for multi-token support
   });
 
   // Initialize participants on mount - always start with one empty field
@@ -211,6 +212,7 @@ export function CreateChannelForm() {
           isConfirming={isConfirming}
           txHash={txHash}
           currentStep={currentStep}
+          error={createError}
           onClose={() => {
             setShowConfirmModal(false);
             reset();
@@ -265,7 +267,9 @@ export function CreateChannelForm() {
         {/* Target Token Selection - Only shown when ERC20 is selected */}
         {selectedApp === "ERC20" && (
           <div className="space-y-3">
-            <Label>Target</Label>
+            <Label hint={`${selectedTokens.length} selected`}>
+              Target Tokens (Multi-select)
+            </Label>
             <div className="flex gap-4">
               <TokenButton
                 selected={selectedTokens.includes("TON")}
@@ -292,6 +296,22 @@ export function CreateChannelForm() {
                 USDC
               </TokenButton>
             </div>
+            {/* Selected tokens summary */}
+            {selectedTokens.length > 0 && (
+              <div className="flex items-center gap-2 text-sm text-[#666666]">
+                <span>Selected:</span>
+                <div className="flex gap-1">
+                  {selectedTokens.map((symbol) => (
+                    <span
+                      key={symbol}
+                      className="px-2 py-0.5 bg-[#2A72E5] text-white rounded text-xs"
+                    >
+                      {symbol}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
 

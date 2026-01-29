@@ -11,7 +11,7 @@ import {
   useBridgeCoreWaitForReceipt,
   useBridgeCoreAbi,
 } from "@/hooks/contract";
-import { FIXED_TARGET_CONTRACT } from "@tokamak/config";
+import { SUPPORTED_TOKENS, type TokenSymbol } from "@tokamak/config";
 import { saveChannelToDatabase, type AppType } from "../_utils/saveChannel";
 
 export type CreateChannelStep =
@@ -27,6 +27,8 @@ interface UseCreateChannelParams {
   isConnected: boolean;
   channelId: `0x${string}` | null;
   appType?: AppType;
+  /** Selected tokens for multi-token support */
+  selectedTokens?: TokenSymbol[];
 }
 
 export function useCreateChannel({
@@ -35,7 +37,10 @@ export function useCreateChannel({
   isConnected,
   channelId,
   appType,
+  selectedTokens = ["TON"],
 }: UseCreateChannelParams) {
+  // Get primary target contract (first selected token)
+  const primaryTargetContract = SUPPORTED_TOKENS[selectedTokens[0]]?.address;
   const [isCreating, setIsCreating] = useState(false);
   const [isConfirming, setIsConfirming] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -68,6 +73,11 @@ export function useCreateChannel({
   // Get ABI for decoding
   const abi = useBridgeCoreAbi();
 
+  // Debug: Log writeContract state changes
+  useEffect(() => {
+    console.log("📊 writeContract state:", { isWriting, writeError, writeTxHash });
+  }, [isWriting, writeError, writeTxHash]);
+
   // Update states based on contract hooks
   useEffect(() => {
     setIsCreating(isWriting);
@@ -93,10 +103,12 @@ export function useCreateChannel({
 
   useEffect(() => {
     if (writeError) {
+      console.error("❌ writeError:", writeError);
       setError(writeError.message);
       setIsCreating(false);
       setCurrentStep("error");
     } else if (waitError) {
+      console.error("❌ waitError:", waitError);
       setError(waitError.message);
       setIsConfirming(false);
       setIsCreating(false);
@@ -188,10 +200,11 @@ export function useCreateChannel({
         await saveChannelToDatabase({
           channelId: channelIdStr,
           txHash: receipt.transactionHash,
-          targetContract: FIXED_TARGET_CONTRACT,
+          targetContract: primaryTargetContract,
           participants: validParticipants.map((p) => p.address),
           blockNumber: receipt.blockNumber.toString(),
           appType,
+          selectedTokens, // Save selected tokens for multi-token support
         });
       } catch (dbError) {
         console.error("Error saving channel to database:", dbError);
@@ -214,7 +227,7 @@ export function useCreateChannel({
       setIsCreating(false);
       setCurrentStep("error");
     }
-  }, [receipt, isSuccess, abi, participants, appType]);
+  }, [receipt, isSuccess, abi, participants, appType, selectedTokens, primaryTargetContract]);
 
   useEffect(() => {
     if (receipt && isSuccess) {
@@ -224,7 +237,16 @@ export function useCreateChannel({
 
   // Create channel function
   const createChannel = useCallback(async () => {
+    console.log("🎬 createChannel called");
+    console.log("📋 Validation check:", {
+      isConnected,
+      channelId,
+      primaryTargetContract,
+      participantsCount: participants.length,
+    });
+
     if (!isConnected) {
+      console.log("❌ Validation failed: wallet not connected");
       setError("Please connect your wallet");
       return;
     }
@@ -238,12 +260,20 @@ export function useCreateChannel({
     );
 
     if (validParticipants.length < 2) {
+      console.log("❌ Validation failed: not enough participants", validParticipants.length);
       setError("Please add at least 2 valid participant addresses");
       return;
     }
 
     if (!channelId) {
+      console.log("❌ Validation failed: no channelId");
       setError("Please generate a channel ID first");
+      return;
+    }
+
+    if (!primaryTargetContract) {
+      console.log("❌ Validation failed: no primaryTargetContract");
+      setError("Please select at least one token");
       return;
     }
 
@@ -254,22 +284,36 @@ export function useCreateChannel({
 
       const channelParams = {
         channelId: channelId,
-        targetContract: FIXED_TARGET_CONTRACT,
+        targetContract: primaryTargetContract,
         whitelisted: validParticipants.map((p) => p.address),
         enableFrostSignature: false,
       };
 
+      console.log("🚀 Creating channel with params:", {
+        channelId,
+        targetContract: primaryTargetContract,
+        selectedTokens,
+        whitelisted: validParticipants.map((p) => p.address),
+        enableFrostSignature: false,
+        channelParams,
+      });
+
+      console.log("📝 Calling writeContract...");
+      
       writeContract({
         functionName: "openChannel",
         args: [channelParams],
       });
+      
+      console.log("✅ writeContract called");
     } catch (error) {
+      console.error("❌ Error in createChannel:", error);
       const errorMessage =
         error instanceof Error ? error.message : "Failed to create channel";
       setError(errorMessage);
       setIsCreating(false);
     }
-  }, [isConnected, participants, channelId, writeContract]);
+  }, [isConnected, participants, channelId, writeContract, primaryTargetContract]);
 
   // Reset function
   const reset = useCallback(() => {

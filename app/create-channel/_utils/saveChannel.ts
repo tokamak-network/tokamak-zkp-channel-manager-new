@@ -4,10 +4,12 @@
  * Utility function for saving channel information to database after creation
  */
 
+import { type TokenSymbol } from "@tokamak/config";
+
 // App types for channel (extensible for future app types)
 export type AppType = "ERC20" | null;
 
-interface SaveChannelParams {
+export interface SaveChannelParams {
   channelId: string;
   txHash: string;
   targetContract: string;
@@ -15,6 +17,8 @@ interface SaveChannelParams {
   blockNumber: string;
   blockTimestamp?: string;
   appType?: AppType;
+  /** Selected tokens for multi-token support */
+  selectedTokens?: TokenSymbol[];
 }
 
 /**
@@ -26,7 +30,7 @@ interface SaveChannelParams {
 export async function saveChannelToDatabase(
   params: SaveChannelParams
 ): Promise<void> {
-  const { channelId, txHash, targetContract, participants, blockNumber, blockTimestamp, appType } = params;
+  const { channelId, txHash, targetContract, participants, blockNumber, blockTimestamp, appType, selectedTokens } = params;
 
   const response = await fetch(`/api/channels/${channelId}/save`, {
     method: "POST",
@@ -40,6 +44,7 @@ export async function saveChannelToDatabase(
       blockNumber,
       blockTimestamp,
       appType,
+      selectedTokens, // Save selected tokens for multi-token support
     }),
   });
 

@@ -9,7 +9,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { X, Loader2, CheckCircle2, Copy, Circle } from "lucide-react";
+import { X, Loader2, CheckCircle2, Copy, Circle, AlertTriangle } from "lucide-react";
 import { useChannelFlowStore } from "@/stores/useChannelFlowStore";
 import { Button } from "@/components/ui";
 import type { CreateChannelStep } from "../_hooks/useCreateChannel";
@@ -23,6 +23,7 @@ interface TransactionConfirmModalProps {
   txHash: string | null;
   onClose: () => void;
   currentStep?: CreateChannelStep;
+  error?: string | null;
 }
 
 type ModalState = "confirm" | "processing" | "completed";
@@ -42,6 +43,7 @@ export function TransactionConfirmModal({
   txHash,
   onClose,
   currentStep = "idle",
+  error,
 }: TransactionConfirmModalProps) {
   const router = useRouter();
   const [modalState, setModalState] = useState<ModalState>("confirm");
@@ -55,15 +57,16 @@ export function TransactionConfirmModal({
 
   // Update modal state based on props
   useEffect(() => {
-    if (isCreating || isConfirming) {
-      setModalState("processing");
-    } else if (txHash) {
+    if (currentStep === "completed" || txHash) {
       setModalState("completed");
-    } else if (modalState === "processing") {
-      // If not processing anymore and no txHash, go back to confirm
+    } else if (currentStep === "signing" || currentStep === "confirming" || isCreating || isConfirming) {
+      setModalState("processing");
+    } else if (currentStep === "error") {
+      // On error, go back to confirm state
       setModalState("confirm");
     }
-  }, [isCreating, isConfirming, txHash, modalState]);
+    // Note: Don't include modalState in dependencies to avoid infinite loop
+  }, [isCreating, isConfirming, txHash, currentStep]);
 
   const handleConfirm = async () => {
     setModalState("processing");
@@ -156,6 +159,17 @@ export function TransactionConfirmModal({
               </p>
             </div>
 
+            {/* Error Message */}
+            {error && (
+              <div className="flex items-start gap-3 p-4 bg-[#FEF2F2] border border-[#FECACA] rounded">
+                <AlertTriangle className="w-5 h-5 text-[#DC2626] flex-shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-[#DC2626]">Transaction Failed</p>
+                  <p className="text-xs text-[#991B1B] mt-1 break-all">{error}</p>
+                </div>
+              </div>
+            )}
+
             {/* Transaction Details */}
             <div className="w-full space-y-3 pt-4 border-t border-[#EEEEEE]">
               <div className="flex justify-between items-center">
@@ -190,7 +204,7 @@ export function TransactionConfirmModal({
               size="full"
               onClick={handleConfirm}
             >
-              Confirm
+              {error ? "Retry" : "Confirm"}
             </Button>
           </div>
         )}
