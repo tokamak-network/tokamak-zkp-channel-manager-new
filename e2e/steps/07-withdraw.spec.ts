@@ -1,17 +1,22 @@
 /**
- * Step 7: Withdraw (Both parties)
+ * Step 7: Withdraw (UI Flow Test)
  *
- * Tests the withdrawal flow:
- * 1. Leader withdraws their final balance
- * 2. Participant withdraws their final balance
- * 3. Verify balances are received
+ * Tests the withdrawal UI.
+ * 
+ * Note: This test is skipped in CI because it requires:
+ * 1. A real closed channel from Steps 1-6
  */
 
 import { test, expect } from "@playwright/test";
 import { injectMockWallet, connectWalletViaUI } from "../fixtures/mock-wallet";
 import { loadChannelState, updateChannelState } from "../fixtures/channel-state";
 
+// Skip in CI
+const isCI = process.env.CI === 'true';
+
 test.describe("Step 7: Withdraw", () => {
+  test.skip(isCI, "Skipped in CI - requires real closed channel");
+
   test("leader should withdraw final balance", async ({ page }) => {
     // Inject mock wallet as leader
     await injectMockWallet(page, "leader");
@@ -50,7 +55,6 @@ test.describe("Step 7: Withdraw", () => {
       timeout: 60_000,
     });
 
-    // Update state
     updateChannelState({
       withdrawnAt: Date.now(),
       txHashes: {
@@ -94,7 +98,6 @@ test.describe("Step 7: Withdraw", () => {
       timeout: 60_000,
     });
 
-    // Update state
     updateChannelState({
       txHashes: {
         participantWithdraw: "completed",

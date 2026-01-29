@@ -1,24 +1,29 @@
 /**
- * Step 4: L2 Transaction
+ * Step 4: L2 Transaction (UI Flow Test)
  *
- * Tests creating an L2 transaction:
- * 1. Enter recipient L2 address
- * 2. Enter transfer amount
- * 3. Create transaction (generates ZK proof)
- * 4. Verify proof appears in proof list
+ * Tests creating an L2 transaction UI.
+ * 
+ * Note: This test is skipped in CI because it requires:
+ * 1. A real initialized channel from Steps 1-3
+ * 2. Tokamak-Zk-EVM synthesizer for proof generation
  */
 
 import { test, expect } from "@playwright/test";
-import { injectMockWallet, getTestAccountAddress, connectWalletViaUI } from "../fixtures/mock-wallet";
+import { injectMockWallet, connectWalletViaUI } from "../fixtures/mock-wallet";
 import { loadChannelState, updateChannelState } from "../fixtures/channel-state";
 import { PROOF_GENERATION_TIMEOUT } from "../helpers/wait-for-proof";
+
+// Skip in CI
+const isCI = process.env.CI === 'true';
 
 // Extended timeout for proof generation
 test.setTimeout(15 * 60 * 1000); // 15 minutes
 
 test.describe("Step 4: L2 Transaction", () => {
+  test.skip(isCI, "Skipped in CI - requires initialized channel");
+
   test("should create L2 transaction with proof", async ({ page }) => {
-    // Inject mock wallet as leader (or participant can do this too)
+    // Inject mock wallet as leader
     await injectMockWallet(page, "leader");
 
     // Load channel state
@@ -36,10 +41,7 @@ test.describe("Step 4: L2 Transaction", () => {
     await expect(page).toHaveURL(/transaction/);
 
     // Step 1: Enter recipient L2 address
-    // We need to get the participant's L2 address
-    // For testing, we'll use a dummy L2 address format
     const recipientInput = page.locator('[data-testid="recipient-address-input"]');
-    // L2 address is derived from wallet address, using a placeholder for now
     const recipientL2Address = "0x" + "1".repeat(64); // Placeholder L2 address
     await recipientInput.fill(recipientL2Address);
 
@@ -55,14 +57,8 @@ test.describe("Step 4: L2 Transaction", () => {
     // Step 4: Wait for proof generation modal
     await expect(page.locator('[role="dialog"]')).toBeVisible({ timeout: 10_000 });
 
-    // The modal will show:
-    // 1. Signing for L2 key generation
-    // 2. Proof generation progress (SSE stream)
-    // 3. Completion
-
     console.log("[Test] Waiting for L2 transaction proof generation...");
 
-    // Wait for proof generation to complete
     await expect(page.locator('text=Proof Generated')).toBeVisible({
       timeout: PROOF_GENERATION_TIMEOUT,
     });
@@ -73,7 +69,6 @@ test.describe("Step 4: L2 Transaction", () => {
     // Verify proof appears in the proof list
     await expect(page.locator('text=proof#1')).toBeVisible({ timeout: 10_000 });
 
-    // Update state
     updateChannelState({
       transactionAt: Date.now(),
       txHashes: {
