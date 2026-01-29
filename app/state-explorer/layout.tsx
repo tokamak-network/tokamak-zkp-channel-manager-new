@@ -17,6 +17,7 @@ import { useInitializeState } from "./_hooks/useInitializeState";
 import { InitializeStateConfirmModal } from "./_components/InitializeStateConfirmModal";
 import { ParticipantDeposits } from "./_components/ParticipantDeposits";
 import { useBridgeCoreRead } from "@/hooks/contract";
+import { useWithdrawableAmount } from "@/hooks/useWithdrawableAmount";
 import { Copy, Check } from "lucide-react";
 import { ChannelStepper } from "./_components/ChannelStepper";
 import { SecurityBanner } from "@/components/SecurityBanner";
@@ -98,25 +99,18 @@ export default function StateExplorerLayout({
       ? (targetContractFromContract as string)
       : targetContractFromApi;
 
-  // Get withdrawable amount for current user
-  const { data: withdrawableAmount } = useBridgeCoreRead({
-    functionName: "getWithdrawableAmount",
-    args:
-      channelId && address && targetContract
-        ? [channelId as `0x${string}`, address as `0x${string}`, targetContract as `0x${string}`]
-        : undefined,
-    query: {
-      enabled: !!channelId && !!address && !!targetContract && isConnected,
-    },
+  // Get withdrawable amount for current user using the updated hook
+  // (uses getValidatedUserSlotValue + getBalanceSlotIndex internally)
+  const { withdrawableAmount, hasWithdrawableAmount: hookHasWithdrawable } = useWithdrawableAmount({
+    channelId,
   });
 
   // Update hasWithdrawableAmount when withdrawableAmount changes
   useEffect(() => {
-    if (withdrawableAmount !== undefined) {
-      const amount = BigInt(withdrawableAmount.toString());
-      setHasWithdrawableAmount(amount > BigInt(0));
+    if (hookHasWithdrawable !== undefined) {
+      setHasWithdrawableAmount(hookHasWithdrawable);
     }
-  }, [withdrawableAmount]);
+  }, [hookHasWithdrawable]);
 
   // Update channel state based on contract
   useEffect(() => {

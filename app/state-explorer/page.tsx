@@ -11,6 +11,7 @@ import { useRouter } from "next/navigation";
 import { useAccount } from "wagmi";
 import { useChannelFlowStore } from "@/stores/useChannelFlowStore";
 import { useBridgeCoreRead } from "@/hooks/contract";
+import { useWithdrawableAmount } from "@/hooks/useWithdrawableAmount";
 import DepositPage from "./deposit/page";
 import TransactionPage from "./transaction/page";
 import WithdrawPage from "./withdraw/page";
@@ -89,32 +90,19 @@ export default function StateExplorerPage() {
       ? (targetContractFromContract as string)
       : targetContractFromApi;
 
-  // Get withdrawable amount for current user
+  // Get withdrawable amount for current user using the updated hook
   // After cleanupChannel, channel state becomes 0 but withdrawable amounts remain
-  const { data: withdrawableAmount, refetch: refetchWithdrawable } =
-    useBridgeCoreRead({
-      functionName: "getWithdrawableAmount",
-      args:
-        currentChannelId && address && targetContract
-          ? [
-              currentChannelId as `0x${string}`,
-              address as `0x${string}`,
-              targetContract as `0x${string}`,
-            ]
-          : undefined,
-      query: {
-        enabled:
-          !!currentChannelId && !!address && !!targetContract && isConnected,
-      },
-    });
+  // Uses getValidatedUserSlotValue + getBalanceSlotIndex internally
+  const { withdrawableAmount, hasWithdrawableAmount: hookHasWithdrawable } = useWithdrawableAmount({
+    channelId: currentChannelId,
+  });
 
   // Update hasWithdrawableAmount when withdrawableAmount changes
   useEffect(() => {
-    if (withdrawableAmount !== undefined) {
-      const amount = BigInt(withdrawableAmount.toString());
-      setHasWithdrawableAmount(amount > BigInt(0));
+    if (hookHasWithdrawable !== undefined) {
+      setHasWithdrawableAmount(hookHasWithdrawable);
     }
-  }, [withdrawableAmount]);
+  }, [hookHasWithdrawable]);
 
   // Update channel state based on contract
   useEffect(() => {
@@ -132,9 +120,9 @@ export default function StateExplorerPage() {
     };
 
     const handleChannelCloseSuccess = () => {
-      // After verifyFinalBalancesGroth16, cleanupChannel is called which sets state to 0
-      // but withdrawable amounts are preserved. So we need to check withdrawable amount.
-      refetchWithdrawable();
+      // After updateValidatedUserStorage, cleanupChannel is called which sets state to 0
+      // but withdrawable amounts are preserved. The useWithdrawableAmount hook will
+      // automatically recheck when dependencies change.
       refetchWithRetry(0); // After cleanupChannel, state becomes 0
     };
 
@@ -189,7 +177,7 @@ export default function StateExplorerPage() {
         handleChannelCloseSuccess
       );
     };
-  }, [refetchChannelState, refetchWithdrawable]);
+  }, [refetchChannelState]);
 
   // Redirect to home if no channel selected
   useEffect(() => {

@@ -6,16 +6,15 @@
  * 
  * This hook handles the case where channel data might be reset (state 0)
  * but withdrawal data still exists in the contract
+ * 
+ * Updated for new contract that uses getValidatedUserSlotValue + getBalanceSlotIndex
  */
 
-import { useMemo, useEffect } from "react";
-import { useAccount } from "wagmi";
-import { useQueries } from "@tanstack/react-query";
+import { useMemo, useEffect, useState } from "react";
+import { useAccount, usePublicClient } from "wagmi";
 import { useBridgeCoreAddress, useBridgeCoreAbi } from "@/hooks/contract";
 import { toBytes32 } from "@/lib/channelId";
 import { SUPPORTED_TOKENS } from "@tokamak/config";
-import { readContract } from "@wagmi/core";
-import { useConfig } from "wagmi";
 
 interface UseWithdrawableAmountParams {
   channelId: string | null | undefined;
@@ -43,15 +42,20 @@ const getEnabledTokenAddresses = (): `0x${string}`[] => {
 
 /**
  * Hook for checking withdrawable amount for a user in a channel
- * Iterates through all enabled tokens from config to find any withdrawable amount
+ * Uses getValidatedUserSlotValue + getBalanceSlotIndex to check withdrawable amounts
  */
 export function useWithdrawableAmount({
   channelId,
 }: UseWithdrawableAmountParams): UseWithdrawableAmountResult {
   const { address, isConnected } = useAccount();
-  const config = useConfig();
+  const publicClient = usePublicClient();
   const bridgeCoreAddress = useBridgeCoreAddress();
   const bridgeCoreAbi = useBridgeCoreAbi();
+
+  const [withdrawableAmount, setWithdrawableAmount] = useState<bigint>(BigInt(0));
+  const [targetContract, setTargetContract] = useState<`0x${string}` | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Get channelId as bytes32
   const channelIdBytes32 = useMemo(() => {
@@ -66,59 +70,78 @@ export function useWithdrawableAmount({
   // Get enabled token addresses
   const enabledTokens = useMemo(() => getEnabledTokenAddresses(), []);
 
-  // Query withdrawable amount for each enabled token
-  const withdrawableQueries = useQueries({
-    queries: enabledTokens.map((tokenAddress) => ({
-      queryKey: ["withdrawableAmount", channelIdBytes32, address, tokenAddress, bridgeCoreAddress],
-      queryFn: async () => {
-        if (!channelIdBytes32 || !address || !bridgeCoreAddress) {
-          return { tokenAddress, amount: BigInt(0) };
-        }
-
-        try {
-          const result = await readContract(config, {
-            address: bridgeCoreAddress,
-            abi: bridgeCoreAbi,
-            functionName: "getWithdrawableAmount",
-            args: [channelIdBytes32, address as `0x${string}`, tokenAddress],
-          });
-
-          const amount = result ? BigInt(result.toString()) : BigInt(0);
-          
-          console.log("[useWithdrawableAmount] Query result:", {
-            tokenAddress,
-            amount: amount.toString(),
-          });
-
-          return { tokenAddress, amount };
-        } catch (error) {
-          console.error("[useWithdrawableAmount] Query error for token:", tokenAddress, error);
-          return { tokenAddress, amount: BigInt(0) };
-        }
-      },
-      enabled: !!channelIdBytes32 && !!address && isConnected && !!bridgeCoreAddress,
-      staleTime: 10000, // 10 seconds
-    })),
-  });
-
-  // Check if any query is still loading
-  const isLoading = withdrawableQueries.some((q) => q.isLoading);
-
-  // Find the first token with positive withdrawable amount
-  const { withdrawableAmount, targetContract } = useMemo(() => {
-    for (const query of withdrawableQueries) {
-      if (query.data && query.data.amount > BigInt(0)) {
-        return {
-          withdrawableAmount: query.data.amount,
-          targetContract: query.data.tokenAddress as `0x${string}`,
-        };
+  // Fetch withdrawable amounts for all enabled tokens
+  useEffect(() => {
+    const fetchWithdrawableAmounts = async () => {
+      if (!channelIdBytes32 || !address || !bridgeCoreAddress || !publicClient || !isConnected) {
+        setWithdrawableAmount(BigInt(0));
+        setTargetContract(null);
+        return;
       }
-    }
-    return {
-      withdrawableAmount: BigInt(0),
-      targetContract: null,
+
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        // Check each enabled token for withdrawable amount
+        for (const tokenAddress of enabledTokens) {
+          try {
+            // Get balance slot index for this token contract
+            const balanceSlotIndex = await publicClient.readContract({
+              address: bridgeCoreAddress,
+              abi: bridgeCoreAbi,
+              functionName: "getBalanceSlotIndex",
+              args: [tokenAddress],
+            }) as number;
+
+            // Get validated user slot value (withdrawable amount)
+            const validatedValue = await publicClient.readContract({
+              address: bridgeCoreAddress,
+              abi: bridgeCoreAbi,
+              functionName: "getValidatedUserSlotValue",
+              args: [channelIdBytes32, address as `0x${string}`, balanceSlotIndex],
+            }) as bigint;
+
+            // Check if user has already withdrawn
+            const hasWithdrawn = await publicClient.readContract({
+              address: bridgeCoreAddress,
+              abi: bridgeCoreAbi,
+              functionName: "hasUserWithdrawn",
+              args: [channelIdBytes32, address as `0x${string}`, tokenAddress],
+            }) as boolean;
+
+            // If not withdrawn and has value, this is the withdrawable amount
+            if (!hasWithdrawn && validatedValue > BigInt(0)) {
+              console.log("[useWithdrawableAmount] Found withdrawable amount:", {
+                tokenAddress,
+                amount: validatedValue.toString(),
+              });
+              setWithdrawableAmount(validatedValue);
+              setTargetContract(tokenAddress);
+              setIsLoading(false);
+              return;
+            }
+          } catch (tokenError) {
+            // Token might not be configured for this channel, continue to next
+            console.debug("[useWithdrawableAmount] Token check failed:", tokenAddress, tokenError);
+          }
+        }
+
+        // No withdrawable amount found
+        setWithdrawableAmount(BigInt(0));
+        setTargetContract(null);
+      } catch (err) {
+        console.error("[useWithdrawableAmount] Error checking withdrawable amounts:", err);
+        setError(err instanceof Error ? err.message : "Failed to check withdrawable amount");
+        setWithdrawableAmount(BigInt(0));
+        setTargetContract(null);
+      } finally {
+        setIsLoading(false);
+      }
     };
-  }, [withdrawableQueries]);
+
+    fetchWithdrawableAmounts();
+  }, [channelIdBytes32, address, bridgeCoreAddress, bridgeCoreAbi, publicClient, isConnected, enabledTokens]);
 
   // Check if has withdrawable amount
   const hasWithdrawableAmount = useMemo(() => {
@@ -137,19 +160,15 @@ export function useWithdrawableAmount({
         withdrawableAmount: withdrawableAmount.toString(),
         hasWithdrawableAmount,
         targetContract,
-        queryResults: withdrawableQueries.map((q) => ({
-          isLoading: q.isLoading,
-          data: q.data,
-        })),
       });
     }
-  }, [channelId, address, enabledTokens, isLoading, withdrawableAmount, hasWithdrawableAmount, targetContract, withdrawableQueries]);
+  }, [channelId, address, enabledTokens, isLoading, withdrawableAmount, hasWithdrawableAmount, targetContract]);
 
   return {
     withdrawableAmount,
     hasWithdrawableAmount,
     isLoading,
     targetContract,
-    error: null,
+    error,
   };
 }
