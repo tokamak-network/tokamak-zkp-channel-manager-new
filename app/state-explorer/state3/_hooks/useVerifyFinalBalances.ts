@@ -1,7 +1,8 @@
 /**
  * Hook for verifying final balances and closing channel
  *
- * Calls verifyFinalBalancesGroth16() to move channel from state 3 (Closing) to state 4 (Closed)
+ * Calls updateValidatedUserStorage() to move channel from state 3 (Closing) to closed state
+ * Note: In the new contract, "Closed" state (4) is removed. Channels are cleaned up after closing.
  */
 
 "use client";
@@ -21,8 +22,12 @@ interface ChannelFinalizationProof {
 interface UseVerifyFinalBalancesParams {
   channelId: `0x${string}` | null;
   /**
-   * Final balances for each participant (in wei)
-   * Should match the order of participants from getChannelParticipants
+   * Final slot values for each participant (2D array for multi-token support)
+   * finalSlotValues[participantIndex][slotIndex]
+   */
+  finalSlotValues?: bigint[][];
+  /**
+   * @deprecated Use finalSlotValues instead. Final balances for backward compatibility.
    */
   finalBalances?: bigint[];
   /**
@@ -38,10 +43,13 @@ interface UseVerifyFinalBalancesParams {
 
 export function useVerifyFinalBalances({
   channelId,
+  finalSlotValues,
   finalBalances,
   permutation,
   proof,
 }: UseVerifyFinalBalancesParams) {
+  // Convert finalBalances to finalSlotValues format for backward compatibility
+  const effectiveSlotValues = finalSlotValues || (finalBalances ? finalBalances.map(b => [b]) : undefined);
   const [error, setError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
 
@@ -101,12 +109,13 @@ export function useVerifyFinalBalances({
   }, [isWritePending, isWaitingReceipt]);
 
   /**
-   * Verify final balances and close channel by calling verifyFinalBalancesGroth16
+   * Verify final balances and close channel by calling updateValidatedUserStorage
    *
    * @param params - Optional override parameters
    */
   const verifyFinalBalances = useCallback(
     async (params?: {
+      finalSlotValues?: bigint[][];
       finalBalances?: bigint[];
       permutation?: bigint[];
       proof?: ChannelFinalizationProof;
@@ -116,12 +125,14 @@ export function useVerifyFinalBalances({
         return;
       }
 
-      const balances = params?.finalBalances || finalBalances;
+      // Support both new finalSlotValues and legacy finalBalances
+      const slotValues = params?.finalSlotValues || 
+        (params?.finalBalances ? params.finalBalances.map(b => [b]) : effectiveSlotValues);
       const perm = params?.permutation || permutation;
       const proofData = params?.proof || proof;
 
-      if (!balances || balances.length === 0) {
-        setError("Final balances are required to verify final balances");
+      if (!slotValues || slotValues.length === 0) {
+        setError("Final slot values are required to verify final balances");
         return;
       }
 
@@ -139,11 +150,11 @@ export function useVerifyFinalBalances({
       setError(null);
 
       try {
-        console.log("🚀 Verifying final balances...", {
+        console.log("🚀 Verifying final balances with updateValidatedUserStorage...", {
           channelId,
           channelIdLength: channelId.length,
-          finalBalances: balances.map((b) => b.toString()),
-          finalBalancesLength: balances.length,
+          finalSlotValues: slotValues.map((sv) => sv.map((v) => v.toString())),
+          finalSlotValuesLength: slotValues.length,
           permutation: perm.map((p) => p.toString()),
           permutationLength: perm.length,
           proof: {
@@ -156,7 +167,7 @@ export function useVerifyFinalBalances({
         // Debug: Log the exact args that will be sent to the contract
         console.log("📋 Contract call args breakdown:", {
           arg0_channelId: channelId,
-          arg1_finalBalances: `[${balances.map((b) => b.toString()).join(", ")}]`,
+          arg1_finalSlotValues: `[${slotValues.slice(0, 3).map((sv) => `[${sv.join(", ")}]`).join(", ")}${slotValues.length > 3 ? "..." : ""}] (length: ${slotValues.length})`,
           arg2_permutation: `[${perm.slice(0, 10).map((p) => p.toString()).join(", ")}${perm.length > 10 ? "..." : ""}] (length: ${perm.length})`,
           arg3_proof: {
             pA_length: proofData.pA.length,
@@ -202,8 +213,8 @@ export function useVerifyFinalBalances({
         }
 
         writeContract({
-          functionName: "verifyFinalBalancesGroth16",
-          args: [channelIdBytes32, balances, perm, proofStruct],
+          functionName: "updateValidatedUserStorage",
+          args: [channelIdBytes32, slotValues, perm, proofStruct],
         });
 
         console.log("✅ Verify final balances transaction submitted");
@@ -224,7 +235,7 @@ export function useVerifyFinalBalances({
         setIsProcessing(false);
       }
     },
-    [channelId, finalBalances, permutation, proof, writeContract]
+    [channelId, effectiveSlotValues, permutation, proof, writeContract]
   );
 
   return {

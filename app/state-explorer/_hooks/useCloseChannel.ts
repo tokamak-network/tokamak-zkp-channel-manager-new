@@ -1,8 +1,8 @@
 /**
  * Custom Hook: Close Channel
  *
- * Handles closing a channel by calling verifyFinalBalancesGroth16
- * This requires final balances, permutation, and a Groth16 proof
+ * Handles closing a channel by calling updateValidatedUserStorage
+ * This requires final slot values (2D array for multi-token), permutation, and a Groth16 proof
  */
 
 "use client";
@@ -29,8 +29,13 @@ interface ChannelFinalizationProof {
 interface UseCloseChannelParams {
   channelId: `0x${string}` | null;
   /**
-   * Final balances for each participant (in wei)
-   * Should match the order of participants from getChannelParticipants
+   * Final slot values for each participant (2D array for multi-token support)
+   * finalSlotValues[participantIndex][slotIndex]
+   * For single-token, this would be [[balance1], [balance2], ...]
+   */
+  finalSlotValues?: bigint[][];
+  /**
+   * @deprecated Use finalSlotValues instead. Final balances for backward compatibility.
    */
   finalBalances?: bigint[];
   /**
@@ -46,10 +51,13 @@ interface UseCloseChannelParams {
 
 export function useCloseChannel({
   channelId,
+  finalSlotValues,
   finalBalances,
   permutation,
   proof,
 }: UseCloseChannelParams) {
+  // Convert finalBalances to finalSlotValues format for backward compatibility
+  const effectiveSlotValues = finalSlotValues || (finalBalances ? finalBalances.map(b => [b]) : undefined);
   const [error, setError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [currentStep, setCurrentStep] = useState<CloseChannelStep>("idle");
@@ -132,12 +140,13 @@ export function useCloseChannel({
   }, [isWriting, isWaiting]);
 
   /**
-   * Close the channel by calling verifyFinalBalancesGroth16
+   * Close the channel by calling updateValidatedUserStorage
    *
    * @param params - Optional override parameters
    */
   const closeChannel = useCallback(
     async (params?: {
+      finalSlotValues?: bigint[][];
       finalBalances?: bigint[];
       permutation?: bigint[];
       proof?: ChannelFinalizationProof;
@@ -147,12 +156,14 @@ export function useCloseChannel({
         return;
       }
 
-      const balances = params?.finalBalances || finalBalances;
+      // Support both new finalSlotValues and legacy finalBalances
+      const slotValues = params?.finalSlotValues || 
+        (params?.finalBalances ? params.finalBalances.map(b => [b]) : effectiveSlotValues);
       const perm = params?.permutation || permutation;
       const proofData = params?.proof || proof;
 
-      if (!balances || balances.length === 0) {
-        setError("Final balances are required to close the channel");
+      if (!slotValues || slotValues.length === 0) {
+        setError("Final slot values are required to close the channel");
         return;
       }
 
@@ -170,9 +181,9 @@ export function useCloseChannel({
       setError(null);
 
       try {
-        console.log("🚀 Closing channel...", {
+        console.log("🚀 Closing channel with updateValidatedUserStorage...", {
           channelId,
-          finalBalances: balances.map((b) => b.toString()),
+          finalSlotValues: slotValues.map((sv) => sv.map((v) => v.toString())),
           permutation: perm.map((p) => p.toString()),
           proof: {
             pA: proofData.pA.map((p) => p.toString()),
@@ -208,8 +219,8 @@ export function useCloseChannel({
         };
 
         await writeCloseChannel({
-          functionName: "verifyFinalBalancesGroth16",
-          args: [channelId as `0x${string}`, balances, perm, proofStruct],
+          functionName: "updateValidatedUserStorage",
+          args: [channelId as `0x${string}`, slotValues, perm, proofStruct],
         });
 
         console.log("✅ Close channel transaction submitted");
@@ -231,7 +242,7 @@ export function useCloseChannel({
         setIsProcessing(false);
       }
     },
-    [channelId, finalBalances, permutation, proof, writeCloseChannel]
+    [channelId, effectiveSlotValues, permutation, proof, writeCloseChannel]
   );
 
   // Reset function
