@@ -46,8 +46,8 @@ export default defineConfig({
 
   // Shared settings for all projects
   use: {
-    // Base URL for the app
-    baseURL: process.env.BASE_URL || 'http://localhost:3000',
+    // Base URL for the app (use port 3100 for local testing to avoid conflicts)
+    baseURL: process.env.BASE_URL || 'http://localhost:3100',
 
     // Collect trace on first retry
     trace: 'on-first-retry',
@@ -98,9 +98,9 @@ export default defineConfig({
   webServer: process.env.CI
     ? undefined
     : {
-        command: 'npm run dev',
-        url: 'http://localhost:3000',
-        reuseExistingServer: !process.env.CI,
+        command: 'npm run dev -- --port 3100',
+        url: 'http://localhost:3100',
+        reuseExistingServer: false, // Always start fresh server for tests
         timeout: 120 * 1000,
         env: {
           RPC_URL: process.env.ANVIL_URL || process.env.RPC_URL || '',

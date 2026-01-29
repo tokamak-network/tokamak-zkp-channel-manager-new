@@ -8,8 +8,16 @@ const nextConfig = {
       config.resolve.fallback = {
         ...config.resolve.fallback,
         "@react-native-async-storage/async-storage": false,
+        // WalletConnect/pino optional dependencies
+        "pino-pretty": false,
       };
     }
+
+    // Suppress warnings for optional dependencies
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      "pino-pretty": false,
+    };
 
     return config;
   },
